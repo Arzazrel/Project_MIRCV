@@ -226,19 +226,22 @@ public final class QueryProcessor {
 
             // save score
             if (partialScore != 0) {
+                /*
                 // -- old version: not priority queue for the result --
                 //tableDAAT.put(currentDID,partialScore);     // add DID and related score to HashMap   OLD VERSION
                 if (!scoreWithMaxDoc.containsKey(partialScore)) {
                     tableDAAT.put(currentDID, partialScore);     // add DID and related score to HashMap     NEW VERSION
                     addToScoreToDocID(partialScore, currentDID, numberOfResults); // add DID to the related DID in hashmap
                 }
-//                printDebug("Final TFIDF scoring for DID = " + currentDID + " is: " + tableDAAT.get(currentDID));
+                //printDebug("Final TFIDF scoring for DID = " + currentDID + " is: " + tableDAAT.get(currentDID));
+                // -- END -- old version: not priority queue for the result --
+                */
 
                 // -- START -- new version: priority queue for the result --
                 if (docScoreCalc < numberOfResults)     // insert without control into priority queue
                 {
                     resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
-                    docScoreCalc++; // increment
+                    docScoreCalc++;         // increment
                 }
                 else        // number of user-requested results achieved, check whether the current doc is within the best docs to return (score greater than the first item in the priority queue)
                 {
@@ -279,7 +282,7 @@ public final class QueryProcessor {
         IDFweight = Math.log10(((double) CollectionStatistics.getNDocs() / postListLength));    // calculate IDF weight
         scoreTFIDF = TFweight * IDFweight;          // calculate TFIDF weight from Tf and IDF weight values
 
-//        printDebug("ScoringTFIDF - TFweight = " + TFweight + " IDFweight = " + IDFweight + " scoreTFIDF = " + scoreTFIDF);
+        //printDebug("ScoringTFIDF - TFweight = " + TFweight + " IDFweight = " + IDFweight + " scoreTFIDF = " + scoreTFIDF);
 
         return scoreTFIDF;
     }
@@ -327,10 +330,8 @@ public final class QueryProcessor {
         long startTime, endTime;            // variables to calculate the execution time
 
         //control check
-        if (numResults < 0 || tableDAAT.isEmpty())
+        if (numResults < 0 /*|| tableDAAT.isEmpty()*/)
             return rankedResults;
-
-        //printDebug("HashMAp: " + tableDAAT);
 
         // ---- START -- new version with priority queue ----
         startTime = System.currentTimeMillis();         // start time of hash map ordering
@@ -344,14 +345,15 @@ public final class QueryProcessor {
             results.add(currentresPQ.getDID());                     // add to the array list
         }
         // order the result from the best to the worst (reverse order of the priority queue)
-        ArrayList<Integer> orderedResults = new ArrayList<Integer>(results);     // Create an ArrayList object
-        Collections.reverse(orderedResults);
-        //printDebug("results " + results);
-        printDebug("orderedResults " + orderedResults);
+        rankedResults = new ArrayList<Integer>(results);     // Create an ArrayList object
+        Collections.reverse(rankedResults);
+        printDebug("orderedResults " + rankedResults);
+
         endTime = System.currentTimeMillis();           // end time of hash map ordering
         System.out.println(ANSI_YELLOW + "\n*** Ranked results (results priority queue) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
         // ---- END -- new version with priority queue ----
 
+        /*
         // take ranked list of DocID
         for (Map.Entry<Integer, Double> entry : tableDAAT.entrySet()) {
             orderedList.add(entry.getValue());
@@ -432,6 +434,7 @@ public final class QueryProcessor {
                 }
             }
         }
+        */
 
         return rankedResults;
     }
