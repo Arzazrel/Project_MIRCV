@@ -83,8 +83,6 @@ public class Main {
                     printDebug(QueryProcessor.dictionary.getTermStat(term).toString());
 
                     continue;                           // go next while iteration
-
-
                 case "q":       // query
 
                     Flags.setConsiderSkippingBytes(true);

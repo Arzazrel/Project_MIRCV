@@ -112,7 +112,6 @@ public final class DataStructureHandler {
                 dictElem.setOffsetTermFreq(INDEX_OFFSET);
                 dictElem.setOffsetDocId(INDEX_OFFSET);
 
-
                 //if(term.equals("0000"))
                 //    printDebug("term: 0000 " + dictionary.getTermToTermStat().get("0000") +  " block " + (dictionaryBlockOffsets.size()-1) + " size: " + posList.size());
 
@@ -270,7 +269,6 @@ public final class DataStructureHandler {
      * @param termfreqChannel   file where store Term Frequency values
      * @return Term Frequency and DocID compressed length
      */
-
     public static int[] storeCompressedPostingIntoDisk(ArrayList<Posting> pl, FileChannel termfreqChannel, FileChannel docidChannel){
 
         ArrayList<Integer> tf = new ArrayList<>();
@@ -302,6 +300,7 @@ public final class DataStructureHandler {
 
         return null;
     }
+
     /**
      * function to store posting list after compression into disk
      *

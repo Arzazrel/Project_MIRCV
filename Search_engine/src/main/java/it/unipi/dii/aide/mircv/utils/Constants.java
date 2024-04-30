@@ -17,7 +17,7 @@ public final class Constants {
     //public final static String QUERIES_COLLECTION_PATH = RES_FOLDER + "msmarco-test2020-queries.tsv.gz";  // file containing a series of queries and their best DocID result
     public final static String QUERIES_COLLECTION_PATH = RES_FOLDER + "test_queries.txt";  // file containing a series of queries for testing
 
-    public static final String PARTIAL_DICTIONARY_FILE = PARTIAL_FOLDER + "partial_tdictionary"; // file in which is stored the vocabulary in blocks
+    public static final String PARTIAL_DICTIONARY_FILE = PARTIAL_FOLDER + "partial_dictionary"; // file in which is stored the vocabulary in blocks
     public static final String PARTIAL_DOCID_FILE = PARTIAL_FOLDER + "partial_docId";  // file containing the docId (element of posting list) for each block
     public static final String PARTIAL_TERMFREQ_FILE = PARTIAL_FOLDER + "partial_termFreq";   // file containing the TermFrequency (element of posting list) for each block
 

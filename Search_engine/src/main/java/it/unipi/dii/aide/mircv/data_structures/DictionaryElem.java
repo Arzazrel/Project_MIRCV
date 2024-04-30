@@ -28,16 +28,15 @@ public class DictionaryElem {
     private long offsetDocId;   // starting point of the posting list of the term in the docid file
 
     // compression
-    private int docIdSize;  // dimension in byte of compressed docid of the posting list
-    private int termFreqSize; //dimension in byte of compressed termfreq of the posting list
+    private int docIdSize;      // dimension in byte of compressed docid of the posting list
+    private int termFreqSize;   //dimension in byte of compressed termfreq of the posting list
     //skipping
     private long skipOffset;    // offset of the skip element
-    private int skipArrLen;       // len of the skip array
+    private int skipArrLen;     // len of the skip array
 
 //    private double idf;
 //    private double maxTf;
 //    private double maxTFIDF;        // upper bound
-
 
     DictionaryElem() {
         this.df = 0;
@@ -51,7 +50,6 @@ public class DictionaryElem {
 //        this.maxTf = 0;
 //        this.maxTFIDF = 0;
     }
-
 
     /**
         Constructor with TermID parameter. Called when the first occurrence of a term is found.
@@ -187,7 +185,8 @@ public class DictionaryElem {
             buffer.putLong(offsetTermFreq);               // write offset Tf
             buffer.putLong(offsetDocId);                  // write offset DID
             if(Flags.considerSkippingBytes()) {
-                if (Flags.isCompressionEnabled()) { // if in merge phase, need to store also the size of DocID and Term Frequency compressed values
+                // if in merge phase, need to store also the size of DocID and Term Frequency compressed values
+                if (Flags.isCompressionEnabled()) {
                     buffer.putInt(termFreqSize);
                     buffer.putInt(docIdSize);
                 }

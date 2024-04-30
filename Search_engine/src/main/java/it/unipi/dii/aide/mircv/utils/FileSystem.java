@@ -24,13 +24,13 @@ public final class FileSystem {
 
         try {
             File partial_folder = new File(PARTIAL_FOLDER);
-            FileUtils.cleanDirectory(partial_folder);
+            FileUtils.cleanDirectory(partial_folder);           // delete files in partial folder
             File merged_folder = new File(MERGED_FOLDER);
-            FileUtils.cleanDirectory(merged_folder);
+            FileUtils.cleanDirectory(merged_folder);            // delete files in merged folder
 
             File flags = new File(FLAGS_FILE);
             if(flags.exists())
-                FileUtils.delete(flags);
+                FileUtils.delete(flags);            // delete flags file if exist
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -38,6 +38,9 @@ public final class FileSystem {
 
     }
 
+    /**
+     * function to delete all the temporary files in the partial folder
+     */
     public static void delete_tempFiles() {
 
         File partial_directory = new File(PARTIAL_FOLDER);
@@ -46,9 +49,11 @@ public final class FileSystem {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
 
+    /**
+     * function to delete all the merged files in the merged folder
+     */
     public static void delete_mergedFiles() {
 
         File dict = new File(DICTIONARY_FILE);

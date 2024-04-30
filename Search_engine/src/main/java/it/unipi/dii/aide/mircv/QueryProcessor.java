@@ -41,7 +41,9 @@ public final class QueryProcessor {
     private static double b = 0.75;     // typical values around 0.75
     private static double avgDocLen;     // average document length
 
-    static PriorityQueue<QueryProcessor.PostingBlock> pq;
+    //static PriorityQueue<QueryProcessor.PostingBlock> pq;
+    static PriorityQueue<QueryProcessor.ResultBlock> resPQ;     // priority queue for the result of scoring function for the best numberOfResults docs
+    private static boolean scoringFunc;
 
     /**
      * fuction to manage the query request. Prepare and execute the query and return the results.
@@ -59,6 +61,7 @@ public final class QueryProcessor {
 
         // take user's choices that affecting the query execution
         boolean scoringFunc = Flags.isScoringEnabled();      // take user's choice about using scoring function
+
         printDebug("User choice for scoring is: " + scoringFunc);
         if (scoringFunc)
             avgDocLen = CollectionStatistics.getTotDocLen() / CollectionStatistics.getNDocs();  // set average doc len
@@ -89,7 +92,7 @@ public final class QueryProcessor {
             rankedResults = getRankedResults(numberOfResults);          // get ranked results
             tableDAAT.clear();                                          // clear HashMap
             scoreToDocID.clear();                                       // clear HashMap
-            scoreWithMaxDoc.clear();                                    // clear HashMap
+            scoreWithMaxDoc.clear();                                    // clear HashMa
             // check if array list is empty
             if (!termNotInCollection.isEmpty())
             {
@@ -159,6 +162,9 @@ public final class QueryProcessor {
         int[] postingListsIndex;                // contain the current position index for the posting list of each term in the query
         double partialScore = 0;                // var that contain partial score
         long startTime,endTime;                 // variables to calculate the execution time
+        // new
+        resPQ = new PriorityQueue<>(numberOfResults, new CompareTerm());    // length equal to the number of results to be returned to the user
+        int docScoreCalc = 0;                   // indicates the number of documents whose score was calculated (0 to number of results requested by the user)
 
         startTime = System.currentTimeMillis();           // end time of hash map ordering
         postingLists = retrieveAllPostListsFromQuery(processedQuery);   // take all posting lists of query terms
@@ -178,7 +184,7 @@ public final class QueryProcessor {
 
         startTime = System.currentTimeMillis();           // end time of hash map ordering
 
-        // scan all Doc retrieved and calculate score TFIDF
+        // scan all Doc retrieved and calculate score (TFIDF or BM25)
         for (Integer integer : ordListDID) {
 
             currentDID = integer;     // update the DID, document of which to calculate the score
@@ -220,12 +226,31 @@ public final class QueryProcessor {
 
             // save score
             if (partialScore != 0) {
+                // -- old version: not priority queue for the result --
                 //tableDAAT.put(currentDID,partialScore);     // add DID and related score to HashMap   OLD VERSION
                 if (!scoreWithMaxDoc.containsKey(partialScore)) {
                     tableDAAT.put(currentDID, partialScore);     // add DID and related score to HashMap     NEW VERSION
                     addToScoreToDocID(partialScore, currentDID, numberOfResults); // add DID to the related DID in hashmap
                 }
 //                printDebug("Final TFIDF scoring for DID = " + currentDID + " is: " + tableDAAT.get(currentDID));
+
+                // -- START -- new version: priority queue for the result --
+                if (docScoreCalc < numberOfResults)     // insert without control into priority queue
+                {
+                    resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
+                    docScoreCalc++; // increment
+                }
+                else        // number of user-requested results achieved, check whether the current doc is within the best docs to return (score greater than the first item in the priority queue)
+                {
+                    if (resPQ.peek().getScore() < partialScore) // substitution of the block
+                    {
+                        //printDebug("Old block : DID = " + resPQ.peek().getDID()+ " score: " + resPQ.peek().getScore());
+                        resPQ.poll();       // remove the first element
+                        resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
+                        //printDebug("New block : DID = " + currentDID+ " score: " + partialScore);
+                    }
+                }
+                // -- END -- new version: priority queue for the result --
             }
         }
 
@@ -305,7 +330,27 @@ public final class QueryProcessor {
         if (numResults < 0 || tableDAAT.isEmpty())
             return rankedResults;
 
-//        printDebug("HashMAp: " + tableDAAT);
+        //printDebug("HashMAp: " + tableDAAT);
+
+        // ---- START -- new version with priority queue ----
+        startTime = System.currentTimeMillis();         // start time of hash map ordering
+
+        QueryProcessor.ResultBlock currentresPQ;     // var that contain the resultBlock extract from pq in the current iteration
+        ArrayList<Integer> results = new ArrayList<Integer>();  // Create an ArrayList object
+
+        while(!resPQ.isEmpty())
+        {
+            currentresPQ = resPQ.poll();                            // take lowest element (score and DID)
+            results.add(currentresPQ.getDID());                     // add to the array list
+        }
+        // order the result from the best to the worst (reverse order of the priority queue)
+        ArrayList<Integer> orderedResults = new ArrayList<Integer>(results);     // Create an ArrayList object
+        Collections.reverse(orderedResults);
+        //printDebug("results " + results);
+        printDebug("orderedResults " + orderedResults);
+        endTime = System.currentTimeMillis();           // end time of hash map ordering
+        System.out.println(ANSI_YELLOW + "\n*** Ranked results (results priority queue) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
+        // ---- END -- new version with priority queue ----
 
         // take ranked list of DocID
         for (Map.Entry<Integer, Double> entry : tableDAAT.entrySet()) {
@@ -453,10 +498,10 @@ public final class QueryProcessor {
         // ordered list of the DocID present in the all posting lists of the term present in the query
         ArrayList<Integer> orderedList = new ArrayList<>();
         LinkedHashMap<Integer, Integer> hashDocID = new LinkedHashMap<>();  //hashmap to get all DocID without copies
-        long startTime,endTime;                 // variables to calculate the execution time
+        long startTime,endTime;                         // variables to calculate the execution time
+        int currentDocID = 0;                           // var to contain the current DocID
 
-        // /* OLD VERSION -- start
-        int currentDocID = 0;                                // var to contain the current DocID
+        ///* OLD VERSION -- start
 
         startTime = System.currentTimeMillis();         // start time to take th DocID list
         // scan all posting lists passed as parameters
@@ -489,13 +534,13 @@ public final class QueryProcessor {
         // shows query execution time
         System.out.println(ANSI_YELLOW + "\n*** ORDERED DID LIST (no PQ) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
 
-//        printDebug("Ordered List of DocID for the query:  " + orderedList);     // print orderedList
+        //printDebug("Ordered List of DocID for the query:  " + orderedList);     // print orderedList
 
         System.out.println("Ordered List (no PQ) of DocID dim: " + orderedList.size());     // print orderedList
         hashDocID.clear();          // clear linkHashMap
-        // */ OLD VERSION - end
+        // OLD VERSION - end */
 
-        ///* NEW VERSION (priority queue) - start
+        /* NEW VERSION (priority queue) - start
         // clear the previus work without PQ
         orderedList = new ArrayList<>();
         hashDocID.clear();
@@ -548,8 +593,7 @@ public final class QueryProcessor {
         System.out.println(ANSI_YELLOW + "\n*** TAKE AND ORDERED DID LIST (PQ) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
 
         System.out.println("Ordered List (PQ) of DocID dim: " + orderedList.size());     // print orderedList
-        // NEW VERSION (priority queue) - end
-        // */
+        // NEW VERSION (priority queue) - end */
 
         return orderedList;
     }
@@ -589,7 +633,7 @@ public final class QueryProcessor {
         }
     }
 
-    // new version to substitute remove wit get in the posting lists
+    // new version to substitute remove with get in the posting lists
 
     /**
      * function to create an array of indexes for posting lists
@@ -629,10 +673,12 @@ public final class QueryProcessor {
     }
     // -------- end: utilities function --------
 
+
     // -------- start: utilities for priority queue --------
     /**
      * class to define PostingBlock. The priority queue contains instances of PostingBlock
      */
+    /*
     private static class PostingBlock {
         int DocID;                  // DocID
         int indexOfPostingList;     // reference to the posting list (index in the array of posting lists of the query) containing DcoID
@@ -659,10 +705,11 @@ public final class QueryProcessor {
                     '}';
         }
     }
-
+    */
     /**
      * class to compare the block, allows the order of the priority queue
      */
+    /*
     private static class CompareTerm implements Comparator<QueryProcessor.PostingBlock> {
         @Override
         public int compare(QueryProcessor.PostingBlock pb1, QueryProcessor.PostingBlock pb2) {
@@ -676,9 +723,73 @@ public final class QueryProcessor {
             return DocIDComparison;
         }
     }
+    */
     // -------- end: utilities for priority queue --------
 
+    // -------- start: utilities for priority queue for the results --------
+    /**
+     * class to define ResultBlock. The priority queue contains instances of ResultBlock representing a result of the score calculation for the research
+     */
+    private static class ResultBlock {
+        int DocID;          // DocID
+        double score;       // the score of the scoring function for the doc identified by DocID
+
+        // constructor with parameters
+        public ResultBlock(int DocID, double score) {
+            this.DocID = DocID;
+            this.score = score;
+        }
+
+        // get methods
+        public int getDID() {
+            return DocID;
+        }
+
+        public double getScore() {
+            return score;
+        }
+
+        @Override
+        public String toString() {
+            return "PB{" +
+                    "DocID = '" + DocID + '\'' +
+                    ", score =" + score +
+                    '}';
+        }
+    }
+
+    /**
+     * class to compare the block, allows the order of the priority queue
+     * The order is ascending order according to doc score in case of equal score will be made order according to DocID.
+     * DocIDs sorted in descending order. In this way in case of a tie, documents with the smallest DocID will be
+     * considered better than those with the largest DocID.
+     */
+    private static class CompareTerm implements Comparator<QueryProcessor.ResultBlock> {
+        @Override
+        public int compare(QueryProcessor.ResultBlock rpb1, QueryProcessor.ResultBlock rpb2) {
+            // comparing terms
+            int scoreComparison = Double.compare(rpb1.getScore(), rpb2.getScore());
+            // if the score are equal, compare by DocID
+            if (scoreComparison == 0) {
+                // return order by both score and DocID (the score of the two blocks is equal)
+                return -Integer.compare(rpb1.getDID(), rpb2.getDID());  // '-' to obtain descending order, without it have ascending order
+            }
+
+            return scoreComparison;     // return order only by score (the score of the two blocks is different)
+        }
+    }
+    // -------- end: utilities for priority queue for the results --------
+
     // -------- start: function to read collection of query --------
+    /**
+     * This function allows an automatic test of the resolution of preset queries saved in a file on disk
+     * (in this case msmmarco-test2020-queries). This function will fetch and execute (from the specified file) a number
+     * of queries passed as a parameter. These queries will be executed in both conjunctive and disjunctive modes,
+     * and a series of statistics will be collected about them (total duration of the test, fastest and slowest
+     * conjunctive query, fastest and slowest disjunctive query), which will be displayed at the end of the test.
+     *
+     * @param numQueries the number of queries to be read from the file and executed
+     */
     public static void readQueryFromCollection(int numQueries)
     {
         ArrayList<Integer> rankedResults;   // ArrayList that contain the ranked results of query
@@ -698,16 +809,16 @@ public final class QueryProcessor {
         // control check for queries
         try {
             if (!queryStartControl()) {
-                return;
+                return;                 // there aren't all files needed for execute a query, function it's terminated
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
         printDebug(" Start query test...");         // control print
-        File file = new File(QUERIES_COLLECTION_PATH);  // file that contain the queries
+        File file = new File(QUERIES_COLLECTION_PATH); // file that contain the queries
         try (
-                FileReader fr = new FileReader(file);   //reads the file
+                FileReader fr = new FileReader(file);  //reads the file
         ) {
             BufferedReader buffer_collection;
             buffer_collection = new BufferedReader(fr);
@@ -761,7 +872,7 @@ public final class QueryProcessor {
                 if ((endTime - startTime) > slowerQueryCon)
                 {
                     slowerQueryCon = (endTime - startTime);     // update slower time
-                    quidSlowCon = quid;                         //update quid
+                    quidSlowCon = quid;                         // update quid
                 }
                 avgExTimeCon += (endTime - startTime);          // update avg execution time
 

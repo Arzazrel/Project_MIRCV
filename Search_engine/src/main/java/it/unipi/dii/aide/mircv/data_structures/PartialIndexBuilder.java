@@ -23,7 +23,7 @@ public final class PartialIndexBuilder {
     static Dictionary dictionary = new Dictionary();                              // dictionary in memory
     static HashMap<String, ArrayList<Posting>> invertedIndex = new HashMap<>();   // hash table Term to related Posting list
 
-    static ArrayList<Long> dictionaryBlockOffsets = new ArrayList<>();                         // Offsets of the dictionary blocks
+    static ArrayList<Long> dictionaryBlockOffsets = new ArrayList<>();            // Offsets of the dictionary blocks
 
     /**
      * Implements the SPIMI algorithm for indexing large collections.
@@ -86,7 +86,7 @@ public final class PartialIndexBuilder {
                         dictElem.addDf(1);
                     dictElem.addCf(1);
 
-                    N_POSTINGS++;
+                    N_POSTINGS++;       // update number of partial postings to save in the file
                 }
                 docCounter++;       // update DocID counter
 
@@ -94,13 +94,12 @@ public final class PartialIndexBuilder {
                     System.out.println("********** Memory full **********");
 
                     storeIndexAndDictionaryIntoDisk();  //store index and dictionary to disk
-                    storeDocumentTableIntoDisk(); // store document table one document at a time for each block
-
+                    storeDocumentTableIntoDisk();       // store document table one document at a time for each block
 
                     freeMemory();
                     System.gc();
                     System.out.println("********** Free memory **********");
-                    N_POSTINGS = 0; // new partial index
+                    N_POSTINGS = 0; // new partial index, reset number of postings in the block
                 }
             }
 
