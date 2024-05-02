@@ -397,7 +397,21 @@ public final class QueryProcessor {
         long startTime,endTime;                         // variables to calculate the execution time
         int currentDocID = 0;                           // var to contain the current DocID
 
-        ///* OLD VERSION -- start
+        /* OLD VERSION -- hash map V.0 -- start ------------------------------------------------------------------
+        // -- UPDATE V.0.5 -- start --
+        if (postingLists.length == 1)       // only one posting (query with one term)
+        {
+            startTime = System.currentTimeMillis();         // start time to take th DocID list
+            // optimization, one posting list and the DID are already sort
+            for (Posting p : postingLists[0])
+            {
+                orderedList.add(p.getDocId());
+            }
+            endTime = System.currentTimeMillis();           // end time to take th DocID list
+            System.out.println(ANSI_YELLOW + "\n*** TAKE DID LIST (no PQ V.0.5) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
+            return orderedList;
+        }
+        // -- UPDATE V.0.5 -- end --
 
         startTime = System.currentTimeMillis();         // start time to take th DocID list
         // scan all posting lists passed as parameters
@@ -434,14 +448,187 @@ public final class QueryProcessor {
         endTime = System.currentTimeMillis();           // end time of DocID list ordering
         // shows query execution time
         System.out.println(ANSI_YELLOW + "\n*** ORDERED DID LIST (no PQ) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
-
         //printDebug("Ordered List of DocID for the query:  " + orderedList);     // print orderedList
-
         System.out.println("Ordered List (no PQ) of DocID dim: " + orderedList.size());     // print orderedList
         hashDocID.clear();          // clear linkHashMap
-        // OLD VERSION - end */
+        // OLD VERSION -- hash map V.0 -- end ------------------------------------------------------------------*/
 
-        /*// NEW VERSION (priority queue) - start
+        /* NEW VERSION -- hash map V.1 -- start ------------------------------------------------------------------
+        startTime = System.currentTimeMillis();         // start time to take th DocID list
+        // scan all posting lists passed as parameters
+        boolean done = false;
+        int[] postingListsIndex = getPostingListsIndex(postingLists);   // contain the current position index for the posting list of each term in the query
+
+        while(!done) // scan all posting lists and insert DID into priority queue
+        {
+            done = true;    // reset var
+
+            for (int i = 0; i < postingLists.length; i++)   // take one element from all posting lists
+            {
+                // (term that there isn't in collection -> posting list == null) OR (posting list completely visited)
+                if ((postingLists[i] == null) || (postingListsIndex[i] >= postingLists[i].size()))
+                    continue;           // go to next posting list
+
+                done = false;               // there is at least one posting not seen yet -> set var
+                currentDocID = postingLists[i].get(postingListsIndex[i]).getDocId();    // take current DID
+                //printDebug("PostingLists: " + i + " Elem: " + postingListsIndex[i] + " DID: " + currentDocID); // debug print
+                if (!hashDocID.containsKey(currentDocID))
+                {
+                    hashDocID.put(currentDocID,1);  // put DocID in hashtable
+                }
+                postingListsIndex[i]++;     // increment the related index
+            }
+        }
+        endTime = System.currentTimeMillis();          // end time to take th DocID list
+        System.out.println(ANSI_YELLOW + "\n*** TAKE DID LIST (no PQ V.1) -- add to hash map -- in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
+
+        startTime = System.currentTimeMillis();         // start time to take th DocID list
+        for (Map.Entry<Integer, Integer> entry : hashDocID.entrySet()) {
+            orderedList.add(entry.getKey());
+        }
+        endTime = System.currentTimeMillis();          // end time to take th DocID list
+        System.out.println(ANSI_YELLOW + "\n*** TAKE DID LIST (no PQ V.1) -- add to arraylist -- in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
+
+        startTime = System.currentTimeMillis();         // start time of DocID list ordering
+        Collections.sort(orderedList);          // order the list of DocID
+        endTime = System.currentTimeMillis();           // end time of DocID list ordering
+        // shows query execution time
+        System.out.println(ANSI_YELLOW + "\n*** ORDERED DID LIST (no PQ V.1) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
+        System.out.println("Ordered List (no PQ) of DocID dim: " + orderedList.size());     // print orderedList
+        hashDocID.clear();          // clear linkHashMap
+        // NEW VERSION -- hash map V.1 -- end ------------------------------------------------------------------*/
+
+        ///* NEW VERSION -- hash map V.2 -- start ------------------------------------------------------------------
+        orderedList.clear();        // clear
+
+        if (postingLists.length == 1)       // there is only one posting (query with one term)
+        {
+            startTime = System.currentTimeMillis();         // start time to take th DocID list
+            // optimization, one posting list and the DID are already sort
+            for (Posting p : postingLists[0])
+            {
+                orderedList.add(p.getDocId());
+            }
+            endTime = System.currentTimeMillis();           // end time to take th DocID list
+            System.out.println(ANSI_YELLOW + "\n*** TAKE DID LIST (no PQ V.2) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
+            return orderedList;
+        }
+        // there are more posting lists (query composed by more term)
+        startTime = System.currentTimeMillis();         // start time to take th DocID list
+
+        int[] postingListsIndex = getPostingListsIndex(postingLists);   // contain the current position index for the posting list of each term in the query
+        ArrayList<Integer> tempList = new ArrayList<>();    // create arrayList to contain temporarily the get DID
+        boolean allPostListScanned = false; // indicate if all posting list are fully scanned
+        int max = 0;                        // indicates the current max DID taken
+
+        // take first DocID from posting lists
+        for (int i = 0; i < postingLists.length; i++)
+        {
+            if (postingLists[i] == null)    // term that there isn't in collection -> posting list == null
+                continue;                   // go to next posting list
+            tempList.add(postingLists[i].get(0).getDocId());        // add the DID into tempList
+        }
+
+        //printDebug("First tempList = " + tempList);
+        Collections.sort(tempList);             // order the list of the first DID
+        //printDebug("First oredere tempList = " + tempList);
+        max = tempList.get(tempList.size()-1);  // take the maximum DID (the last one in the order tempList) and set MAX var
+        tempList.clear();                       // clear the tempList
+        //printDebug("First max = " + max);
+
+        // scan all posting list and insert DIDs into orderedList
+        while(!allPostListScanned) // scan all posting lists and insert DID into priority queue
+        {
+            allPostListScanned = true;      // set var, if not reset the while end
+
+            // for each posting list I take all values less than max and add them to the hash map.
+            for (int i = 0; i < postingLists.length; i++)
+            {
+                // (term that there isn't in collection -> posting list == null) OR (posting list completely visited)
+                if ((postingLists[i] == null) || (postingListsIndex[i] >= postingLists[i].size()))
+                    continue;           // go to next posting list
+
+                allPostListScanned = false;  // there is at least one posting not seen yet -> set var
+                currentDocID = postingLists[i].get(postingListsIndex[i]).getDocId();    // take current DID
+                // scan the current posting list until a DID greater than max (avoiding overflow)
+                while((currentDocID <= max) && (postingListsIndex[i] < postingLists[i].size()))
+                {
+                    if (!hashDocID.containsKey(currentDocID))
+                    {
+                        hashDocID.put(currentDocID,1);  // put DocID in hashtable
+                        //printDebug("Prendo dalla posting list: " + i + " il DID: " + currentDocID);
+                    }
+                    // update index and currentDID
+                    postingListsIndex[i]++;     // increment the related index
+                    if (postingListsIndex[i] < postingLists[i].size())
+                        currentDocID = postingLists[i].get(postingListsIndex[i]).getDocId();    // take current DID
+                }
+            }
+
+            // in hashDocID there are all DID lower than max
+            for (Map.Entry<Integer, Integer> entry : hashDocID.entrySet()) {
+                tempList.add(entry.getKey());        // insert into orderedList the DIDs taken before
+            }
+            hashDocID.clear();                  // clear HashMap
+            Collections.sort(tempList);         // order the list of DocID
+            orderedList.addAll(tempList);       // add ordered DID in orderedList
+            tempList.clear();                   // clear templist
+
+            // take the new max (from the next DID of each posting list)
+            for (int i = 0; i < postingLists.length; i++)
+            {
+                // (term that there isn't in collection -> posting list == null) OR (posting list completely visited)
+                if ((postingLists[i] == null) || (postingListsIndex[i] >= postingLists[i].size()))
+                    continue;           // go to next posting list
+
+                tempList.add(postingLists[i].get(postingListsIndex[i]).getDocId());        // add the DID into tempList
+            }
+
+            // check if thee is only one posting list not fully scanned
+            if (tempList.size() == 1)
+            {
+                int index = 0;
+
+                for (int i = 0; i < postingLists.length; i++)   // take the index of the not fully scanned posting lists
+                {
+                    // (term that there isn't in collection -> posting list == null) OR (posting list completely visited)
+                    if ((postingLists[i] == null) || (postingListsIndex[i] >= postingLists[i].size()))
+                        continue;           // go to next posting list
+                    index = i;          // take the index of the not fully scanned posting list
+                }
+
+                //printDebug("Remain only the list: " + index + " - total postinglists: " + postingLists.length + " are in the position (of posting list): " + postingListsIndex[index] + " of " + postingLists[index].size());
+
+                while(postingListsIndex[index] < postingLists[index].size())    // take all remaining DID in the posting list
+                {
+                    orderedList.add(postingLists[index].get(postingListsIndex[index]).getDocId());  // add DID into orederdList
+                    postingListsIndex[index]++;     // increment the related index
+                }
+
+                allPostListScanned = true;      // set var, if not reset the while end
+            }
+            else if (tempList.size() != 0)      // there are more than one posting lists not fully scanned (and not is the last iteration of the while with tempList empty)
+            {
+                Collections.sort(tempList);             // order the list of the first DID
+                max = tempList.get(tempList.size()-1);  // take the maximum DID (the last one in the order tempList) and set MAX var
+                tempList.clear();                       // clear the tempList
+                //printDebug("New max = " + max);
+            }
+            else    // tempList.size() = 0 -> is the last iteration of the while with tempList empty
+            {
+                allPostListScanned = true;      // set var, if not reset the while end
+                //printDebug("Arrivato alla fine");
+            }
+        }
+
+        endTime = System.currentTimeMillis();           // end time of DocID list ordering
+        // shows query execution time
+        System.out.println(ANSI_YELLOW + "\n*** ORDERED DID LIST (no PQ V.2) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
+        //System.out.println("Ordered List (no PQ V.2) of DocID dim: " + orderedList.size());     // print orderedList
+        //System.out.println("Ordered List (no PQ V.2): " + orderedList);     // print orderedList
+        // NEW VERSION -- hash map V.2 -- end ------------------------------------------------------------------*/
+
+        /*// NEW VERSION (priority queue V.0) - start ------------------------------------------------------------------
         // clear the previus work without PQ
         orderedList = new ArrayList<>();
         hashDocID.clear();
@@ -496,7 +683,79 @@ public final class QueryProcessor {
         // shows query execution time
         System.out.println(ANSI_YELLOW + "\n*** TAKE AND ORDERED DID LIST (PQ) -- add to array list -- in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
         System.out.println("Ordered List (PQ) of DocID dim: " + orderedList.size());     // print orderedList size
-        // NEW VERSION (priority queue) - end */
+        // NEW VERSION (priority queue) - end ------------------------------------------------------------------*/
+
+        /*// NEW VERSION (priority queue V.1) - start ------------------------------------------------------------------
+        // clear the previus work without PQ
+        orderedList = new ArrayList<>();
+        hashDocID.clear();
+
+        // create pq
+        //PriorityQueue<Integer> pqv1 = new PriorityQueue<>();
+        PriorityQueue<QueryProcessor.DIDBlock> pqv1 = new PriorityQueue<>(new CompareDIDBlock());
+        ArrayList<Integer> tempList = new ArrayList<>();    // create arrayList to contain temporarily the get DID
+        //boolean[] postingsListFullScan = new boolean[postingLists.length];  // indicate if the i-th posting lists is scanned totally or not
+        boolean done = false;
+        int[] postingListsIndex = getPostingListsIndex(postingLists);   // contain the current position index for the posting list of each term in the query
+
+        startTime = System.currentTimeMillis();             // start time to take th DocID list (with pq)
+
+        while(!done) // scan all posting lists and insert DID into priority queue
+        {
+            done = true;    // reset var
+
+            for (int i = 0; i < postingLists.length; i++)   // take one element from all posting lists
+            {
+                // (term that there isn't in collection -> posting list == null) OR (posting list completely visited)
+                if ((postingLists[i] == null) || (postingListsIndex[i] >= postingLists[i].size()))
+                    continue;           // go to next posting list
+
+                done = false;               // there is at least one posting not seen yet -> set var
+                currentDocID = postingLists[i].get(postingListsIndex[i]).getDocId();    // take current DID
+                //printDebug("PostingLists: " + i + " Elem: " + postingListsIndex[i] + " DID: " + currentDocID); // debug print
+                tempList.add(currentDocID); // add element to temp arraylist
+                postingListsIndex[i]++;     // increment the related index
+            }
+            // remove duplicate from arraylist
+            //printDebug("List before remove duplicate: " + tempList); // debug print
+            Set<Integer> set = new HashSet<>(tempList);
+            tempList.clear();       // clear
+            tempList.addAll(set);
+            //printDebug("List after remove duplicate: " + tempList); // debug print
+            // insert element from arraylist into pq
+            for (Integer did : tempList) {
+                if (!hashDocID.containsKey(did))
+                {
+                    hashDocID.put(did,1);  // put DocID in hashtable
+                    //pqv1.add(did);    // add one DID
+                    pqv1.add(new QueryProcessor.DIDBlock(did));
+                }
+            }
+            //printDebug("PQ after add tempList: " + pqv1); // debug print
+            tempList.clear();       // clear the arraylist
+            hashDocID.clear();      // clear hash map
+        }
+
+        endTime = System.currentTimeMillis();          // end time to take th DocID list
+        System.out.println(ANSI_YELLOW + "\n*** TAKE DID LIST (PQ V.1) -- add to pq -- in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
+
+        // pass from priority Queue to ArrayList
+        startTime = System.currentTimeMillis();         // start time of DocID list ordering
+
+        while(!pqv1.isEmpty()) //
+        {
+            orderedList.add(pqv1.poll().getDID());
+        }
+
+        //Integer[] array = pqv1.toArray(new Integer[0]);
+        //orderedList = new ArrayList<>(Arrays.asList(array));
+
+        endTime = System.currentTimeMillis();           // end time of DocID list ordering (with pq)
+        //printDebug("Order List after add tempList: " + orderedList); // debug print
+        // shows query execution time
+        System.out.println(ANSI_YELLOW + "\n*** TAKE DID LIST (PQ V.1) -- add to array list -- in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
+        System.out.println(ANSI_YELLOW +"Ordered List (PQ) of DocID dim: " + orderedList.size());     // print orderedList size
+        // NEW VERSION (priority queue V.1) - end ------------------------------------------------------------------*/
 
         return orderedList;
     }
@@ -584,6 +843,37 @@ public final class QueryProcessor {
             }
 
             return DocIDComparison;
+        }
+    }
+
+    /**
+     * class to define PostingBlock. The priority queue contains instances of PostingBlock
+     */
+    private static class DIDBlock {
+        int DocID;                  // DocID
+
+        // constructor with parameters
+        public DIDBlock(int DocID) {
+            this.DocID = DocID;
+        }
+
+        public int getDID() {
+            return DocID;
+        }
+
+        @Override
+        public String toString() {
+            return "PB{" + "DocID = '" + DocID + '\'' + '}';
+        }
+    }
+    /**
+     * class to compare the block, allows the order of the priority queue
+     */
+    private static class CompareDIDBlock implements Comparator<QueryProcessor.DIDBlock> {
+        @Override
+        public int compare(QueryProcessor.DIDBlock pb1, QueryProcessor.DIDBlock pb2) {
+            // comparing terms
+            return Integer.compare(pb1.getDID(), pb2.getDID());
         }
     }
     // -------- end: utilities for priority queue --------
