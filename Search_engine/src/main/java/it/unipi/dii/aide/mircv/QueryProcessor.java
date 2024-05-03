@@ -156,6 +156,7 @@ public final class QueryProcessor {
         // new
         resPQ = new PriorityQueue<>(numberOfResults, new CompareTerm());    // length equal to the number of results to be returned to the user
         int docScoreCalc = 0;                   // indicates the number of documents whose score was calculated (0 to number of results requested by the user)
+        boolean resetScore = false;             // .......
 
         startTime = System.currentTimeMillis();         // start time for retrieve all posting lists of the query
         postingLists = retrieveAllPostListsFromQuery(processedQuery);   // take all posting lists of query terms
@@ -178,8 +179,9 @@ public final class QueryProcessor {
         // scan all Doc retrieved and calculate score (TFIDF or BM25)
         for (Integer integer : ordListDID) {
 
-            currentDID = integer;     // update the DID, document of which to calculate the score
-            partialScore = 0;         // reset var
+            currentDID = integer;       // update the DID, document of which to calculate the score
+            partialScore = 0;           // reset var
+            resetScore = false;         // set to false
 
             // default case is query Disjunctive
             // take all values and calculating the scores in the posting related to currentDID
@@ -198,24 +200,25 @@ public final class QueryProcessor {
                         partialScore += ScoringBM25(currentDID,currentP.getTermFreq(), df);     // use BM25
                     else
                         partialScore += ScoringTFIDF(currentP.getTermFreq(), df);               // use TFIDF
-
-                    //printDebug("DAAT: posting del termine: " + processedQuery.get(j) + " in array pos: " + j + " ha DID: " + currentDID + " and partialScore: " + partialScore);
+                    //printDebug("DAAT: posting del termine: " + processedQuery.get(j) + " della posting: " + j + " in pos: " + (postingListsIndex[j]-1) + " ha DID: " + currentDID + " and partialScore: " + partialScore);
                 } else if (isConjunctive) {
                     // must take only the document in which there are all term (DID that compare in all posting lists of the terms)
-                    partialScore = 0;       // reset the partial score
+                    resetScore = true;       // reset the partial score
+                    //printDebug("Sono in conjuntive, azzero lo score. Posting list numero: " + j + " in pos: " + postingListsIndex[j]);
                     // if all postings in one posting lists have already been seen the next documents in the posting lists cannot contain all the terms in the query
                     if ((postingListsIndex[j] >= postingLists[j].size()) || (postingLists[j] == null)) {
+                        //printDebug("Query conjunctive, posting list numero: " + j + " finita. Si è in pos: " + postingListsIndex[j] + " su dimensione: " + postingLists[j].size());
                         endTime = System.currentTimeMillis();           // end time of DAAT
                         // shows query execution time
                         printTime("\n*** DAAT execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
                         return;             // exit from function
-                    } else
-                        break;              // exit from the for and go to next Document
+                    }
                 }
             }
+            //printDebug("---- for hop ----");
 
             // save score
-            if (partialScore != 0) {
+            if ((partialScore != 0) && !resetScore)  {
                 // insert without control into priority queue (is not full) or insert all results (orderAllHashMap = true)
                 if ((docScoreCalc < numberOfResults) || orderAllHashMap)
                 {
@@ -396,10 +399,12 @@ public final class QueryProcessor {
         long startTime,endTime;                         // variables to calculate the execution time
         int currentDocID = 0;                           // var to contain the current DocID
 
-        /*// print posting lists
+        /* print posting lists
         int count = 0;
         for (int i = 0; i < postingLists.length; i++)
         {
+            if (postingLists[i] == null)    // term that there isn't in collection -> posting list == null
+                continue;                   // go to next posting list
             // scan all DocID in the i-th posting list
             for (Posting p : postingLists[i])
             {
@@ -410,13 +415,14 @@ public final class QueryProcessor {
                     // control check for duplicate DocID, do only after first posting list
                 else if (hashDocID.containsKey(currentDocID))
                 {
+                    printDebug("Termine a comune: " + currentDocID);
                     count++;
                 }
             }
         }
         printDebug("Termini presenti sia nella prima lista che nella seconda: " + count);
         hashDocID.clear();
-        */
+        //*/
 
         /* OLD VERSION -- hash map V.0 -- start ------------------------------------------------------------------
         // -- UPDATE V.0.5 -- start --
