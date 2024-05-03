@@ -156,7 +156,7 @@ public final class QueryProcessor {
         // new
         resPQ = new PriorityQueue<>(numberOfResults, new CompareTerm());    // length equal to the number of results to be returned to the user
         int docScoreCalc = 0;                   // indicates the number of documents whose score was calculated (0 to number of results requested by the user)
-        boolean resetScore = false;             // .......
+        boolean resetScore = false;             // used only in conjunctive case. indicates that the score must be set to 0 (the current Doc there aren't all the term of the query)
 
         startTime = System.currentTimeMillis();         // start time for retrieve all posting lists of the query
         postingLists = retrieveAllPostListsFromQuery(processedQuery);   // take all posting lists of query terms
@@ -206,7 +206,7 @@ public final class QueryProcessor {
                     resetScore = true;       // reset the partial score
                     //printDebug("Sono in conjuntive, azzero lo score. Posting list numero: " + j + " in pos: " + postingListsIndex[j]);
                     // if all postings in one posting lists have already been seen the next documents in the posting lists cannot contain all the terms in the query
-                    if ((postingListsIndex[j] >= postingLists[j].size()) || (postingLists[j] == null)) {
+                    if ((postingLists[j] == null) || (postingListsIndex[j] >= postingLists[j].size())) {
                         //printDebug("Query conjunctive, posting list numero: " + j + " finita. Si è in pos: " + postingListsIndex[j] + " su dimensione: " + postingLists[j].size());
                         endTime = System.currentTimeMillis();           // end time of DAAT
                         // shows query execution time
@@ -218,22 +218,21 @@ public final class QueryProcessor {
             //printDebug("---- for hop ----");
 
             // save score
-            if ((partialScore != 0) && !resetScore)  {
+            if ((partialScore != 0) && !resetScore)
+            {
                 // insert without control into priority queue (is not full) or insert all results (orderAllHashMap = true)
                 if ((docScoreCalc < numberOfResults) || orderAllHashMap)
                 {
                     resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
                     docScoreCalc++;         // increment result in priority queue counter
                 }
-                else        // number of user-requested results achieved, check whether the current doc is within the best docs to return (score greater than the first item in the priority queue)
+                else if (resPQ.peek().getScore() < partialScore)    // number of user-requested results achieved, check whether the current doc is within the best docs to return (score greater than the first item in the priority queue)
                 {
-                    if (resPQ.peek().getScore() < partialScore) // substitution of the block
-                    {
+                        // substitution of the block
                         //printDebug("Old block : DID = " + resPQ.peek().getDID()+ " score: " + resPQ.peek().getScore());
                         resPQ.poll();       // remove the first element
                         resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
                         //printDebug("New block : DID = " + currentDID+ " score: " + partialScore);
-                    }
                 }
             }
         }
@@ -1039,7 +1038,8 @@ public final class QueryProcessor {
                 avgExTimeDis += (endTime - startTime);          // update avg execution time
 
                 startTime = System.currentTimeMillis();         // start time of execute query
-                queryManager(queryProc[1],true,false,5);    // run the query in conjunctive mode
+                rankedResults = queryManager(queryProc[1],true,false,5);    // run the query in conjunctive mode
+                printQueryResults(rankedResults);
                 endTime = System.currentTimeMillis();           // end time of execute query
                 // shows query execution time
                 printTime("\nQuery (conjunctive mode) executes in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
