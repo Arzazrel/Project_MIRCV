@@ -188,7 +188,6 @@ public final class QueryProcessor {
                 if ( (postingLists[j] != null) && (postingListsIndex[j] < postingLists[j].size()) && (postingLists[j].get(postingListsIndex[j]).getDocId() == currentDID)) {
                     currentP = postingLists[j].get(postingListsIndex[j]);              // take posting
                     postingListsIndex[j]++;                         // update index of current value
-
                     //System.out.println("DAAT, prescoring -- df = " + DataStructureHandler.postingListLengthFromTerm(processedQuery.get(j)));
 
                     // calculate TFIDF for this term and currentDID and sum to partial score
@@ -208,7 +207,7 @@ public final class QueryProcessor {
                     if ((postingListsIndex[j] >= postingLists[j].size()) || (postingLists[j] == null)) {
                         endTime = System.currentTimeMillis();           // end time of DAAT
                         // shows query execution time
-                        System.out.println(ANSI_YELLOW + "\n*** DAAT execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
+                        printTime("\n*** DAAT execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
                         return;             // exit from function
                     } else
                         break;              // exit from the for and go to next Document
@@ -397,6 +396,28 @@ public final class QueryProcessor {
         long startTime,endTime;                         // variables to calculate the execution time
         int currentDocID = 0;                           // var to contain the current DocID
 
+        /*// print posting lists
+        int count = 0;
+        for (int i = 0; i < postingLists.length; i++)
+        {
+            // scan all DocID in the i-th posting list
+            for (Posting p : postingLists[i])
+            {
+                currentDocID = p.getDocId();            // take DocID in the current posting
+                //System.out.println(ANSI_YELLOW + "\n*** Posting: " + i + " - DID: " + currentDocID);
+                if (i == 0)
+                    hashDocID.put(currentDocID,1);      // add DocID
+                    // control check for duplicate DocID, do only after first posting list
+                else if (hashDocID.containsKey(currentDocID))
+                {
+                    count++;
+                }
+            }
+        }
+        printDebug("Termini presenti sia nella prima lista che nella seconda: " + count);
+        hashDocID.clear();
+        */
+
         /* OLD VERSION -- hash map V.0 -- start ------------------------------------------------------------------
         // -- UPDATE V.0.5 -- start --
         if (postingLists.length == 1)       // only one posting (query with one term)
@@ -499,10 +520,13 @@ public final class QueryProcessor {
         // NEW VERSION -- hash map V.1 -- end ------------------------------------------------------------------*/
 
         ///* NEW VERSION -- hash map V.2 -- start ------------------------------------------------------------------
-        orderedList.clear();        // clear
+        //orderedList.clear();        // clear
 
         if (postingLists.length == 1)       // there is only one posting (query with one term)
         {
+            if (postingLists[0] == null)    // term that there isn't in collection -> posting list == null
+                return orderedList;
+
             startTime = System.currentTimeMillis();         // start time to take th DocID list
             // optimization, one posting list and the DID are already sort
             for (Posting p : postingLists[0])
