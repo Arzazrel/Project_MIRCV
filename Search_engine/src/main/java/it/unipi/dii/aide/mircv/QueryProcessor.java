@@ -53,8 +53,9 @@ public final class QueryProcessor {
 
         // take user's choices that affecting the query execution
         boolean scoringFunc = Flags.isScoringEnabled();      // take user's choice about using scoring function
+        //boolean scoringFunc = true;      // to debug use, to activate BM25
 
-        printDebug("User choice for scoring is: " + scoringFunc);
+        //printDebug("User choice for scoring is: " + scoringFunc);
         if (scoringFunc)
             avgDocLen = CollectionStatistics.getTotDocLen() / CollectionStatistics.getNDocs();  // set average doc len
 
@@ -170,7 +171,7 @@ public final class QueryProcessor {
             return;     // exit to function
         }
 
-        ordListDID = DIDOrderedListOfQuery(postingLists);           // take ordered list of DocID
+        ordListDID = DIDOrderedListOfQuery(postingLists, isConjunctive);        // take ordered list of DocID
         postingListsIndex = getPostingListsIndex(postingLists);     // get the index initialized   NEW VERSION
 
         startTime = System.currentTimeMillis();           // start time of DAAT
@@ -389,7 +390,7 @@ public final class QueryProcessor {
      * @param postingLists  the posting lists of each term in the query
      * @return  an ordered ArrayList of the DocIDs in the posting lists
      */
-    private static ArrayList<Integer> DIDOrderedListOfQuery(ArrayList<Posting>[] postingLists) throws FileNotFoundException {
+    private static ArrayList<Integer> DIDOrderedListOfQuery(ArrayList<Posting>[] postingLists, boolean isConjunctive) throws FileNotFoundException {
 
         // ordered list of the DocID present in the all posting lists of the term present in the query
         ArrayList<Integer> orderedList = new ArrayList<>();
@@ -397,7 +398,19 @@ public final class QueryProcessor {
         long startTime,endTime;                         // variables to calculate the execution time
         int currentDocID = 0;                           // var to contain the current DocID
 
+        //printDebug("The isConjunctive passed as parameter has this value: " + isConjunctive);
+
         /* print posting lists
+        for (int i = 0; i < postingLists.length; i++)
+        {
+            if (postingLists[i] == null)    // term that there isn't in collection -> posting list == null
+                continue;                   // go to next posting list
+
+            printDebug("PostingLists: " + postingLists[i]);
+        }
+        //*/
+
+        /* print how many DID there are in more than one posting list
         int count = 0;
         for (int i = 0; i < postingLists.length; i++)
         {
@@ -439,12 +452,14 @@ public final class QueryProcessor {
             System.out.println(ANSI_YELLOW + "\n*** TAKE DID LIST (no PQ V.2) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
             return orderedList;
         }
+
         // there are more posting lists (query composed by more term)
-        startTime = System.currentTimeMillis();         // start time to take th DocID list
+        startTime = System.currentTimeMillis();             // start time to take th DocID list
 
         int[] postingListsIndex = getPostingListsIndex(postingLists);   // contain the current position index for the posting list of each term in the query
         ArrayList<Integer> tempList = new ArrayList<>();    // create arrayList to contain temporarily the get DID
         boolean allPostListScanned = false; // indicate if all posting list are fully scanned
+        boolean postingEnded = false;       // used only in conjunctive query (for optimization), indicates that one posting list is fully scanned
         int max = 0;                        // indicates the current max DID taken
 
         // take first DocID from posting lists
@@ -457,7 +472,7 @@ public final class QueryProcessor {
 
         //printDebug("First tempList = " + tempList);
         Collections.sort(tempList);             // order the list of the first DID
-        //printDebug("First oredere tempList = " + tempList);
+        //printDebug("First ordered tempList = " + tempList);
         max = tempList.get(tempList.size()-1);  // take the maximum DID (the last one in the order tempList) and set MAX var
         tempList.clear();                       // clear the tempList
         //printDebug("First max = " + max);
@@ -472,7 +487,11 @@ public final class QueryProcessor {
             {
                 // (term that there isn't in collection -> posting list == null) OR (posting list completely visited)
                 if ((postingLists[i] == null) || (postingListsIndex[i] >= postingLists[i].size()))
-                    continue;           // go to next posting list
+                {
+                    //printDebug("Setto postingEnded");
+                    postingEnded = true;    // set var
+                    continue;               // go to next posting list
+                }
 
                 allPostListScanned = false;  // there is at least one posting not seen yet -> set var
                 currentDocID = postingLists[i].get(postingListsIndex[i]).getDocId();    // take current DID
@@ -490,6 +509,7 @@ public final class QueryProcessor {
                         currentDocID = postingLists[i].get(postingListsIndex[i]).getDocId();    // take current DID
                 }
             }
+            //printDebug("------- Step for ------");
 
             // in hashDocID there are all DID lower than max
             for (Map.Entry<Integer, Integer> entry : hashDocID.entrySet()) {
@@ -499,6 +519,13 @@ public final class QueryProcessor {
             Collections.sort(tempList);         // order the list of DocID
             orderedList.addAll(tempList);       // add ordered DID in orderedList
             tempList.clear();                   // clear templist
+
+            // if the query is conjunctive and at least one posting list is fully scanned
+            if (isConjunctive && postingEnded)
+            {
+                //printDebug("query conjunctive e postingEnded settato esco");
+                break;      // exit to while. Stop the collection od DID, I have all the DIDs I need
+            }
 
             // take the new max (from the next DID of each posting list)
             for (int i = 0; i < postingLists.length; i++)
@@ -513,6 +540,10 @@ public final class QueryProcessor {
             // check if thee is only one posting list not fully scanned
             if (tempList.size() == 1)
             {
+                //printDebug("Remain only one list");
+                if (isConjunctive)
+                    break;      // exit to while. Stop the collection od DID, I have all the DIDs I need
+
                 int index = 0;
 
                 for (int i = 0; i < postingLists.length; i++)   // take the index of the not fully scanned posting lists
@@ -543,14 +574,14 @@ public final class QueryProcessor {
             else    // tempList.size() = 0 -> is the last iteration of the while with tempList empty
             {
                 allPostListScanned = true;      // set var, if not reset the while end
-                //printDebug("Arrivato alla fine");
+                //printDebug("End");
             }
         }
 
         endTime = System.currentTimeMillis();           // end time of DocID list ordering
         // shows query execution time
-        System.out.println(ANSI_YELLOW + "\n*** ORDERED DID LIST (no PQ V.2) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
-        //System.out.println("Ordered List (no PQ V.2) of DocID dim: " + orderedList.size());     // print orderedList
+        printTime("\n*** ORDERED DID LIST (no PQ V.2) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        //printDebug("Ordered List (no PQ V.2) of DocID dim: " + orderedList.size());     // print orderedList
         //System.out.println("Ordered List (no PQ V.2): " + orderedList);     // print orderedList
         // NEW VERSION -- hash map V.2 -- end ------------------------------------------------------------------*/
 
@@ -784,6 +815,7 @@ public final class QueryProcessor {
 
                 // print of the query and result obtained by search engine
                 printDebug("---- Query number: " + queryCount + " -------------------------------------------- QUID: " + quid + " ----");
+                printDebug("---- disjunctive mode ----");
 
                 startTime = System.currentTimeMillis();         // start time of execute query
                 rankedResults = queryManager(queryProc[1],false,true,5);    // run the query in disjunctive mode
@@ -805,6 +837,7 @@ public final class QueryProcessor {
                 }
                 avgExTimeDis += (endTime - startTime);          // update avg execution time
 
+                printDebug("---- conjunctive mode ----");
                 startTime = System.currentTimeMillis();         // start time of execute query
                 rankedResults = queryManager(queryProc[1],true,false,5);    // run the query in conjunctive mode
                 printQueryResults(rankedResults);
@@ -849,10 +882,5 @@ public final class QueryProcessor {
 
 /*
  * NOTE:
- * 0 - The idea behind the reasoning is that if I have to return to the user the "numberOfResults" documents with the
- *     best result, if for each result I collect at least the first "numberOfResults" documents with that result and
- *     don't register the others at the end I will have given the same best "numberOfResults" results as if I had
- *     registered all the documents.
- * 1 - the maximum required number of documents (numberOfResults) have been scored, advise don't take any more
- *     documents with this score
+ * 0 -
  */
