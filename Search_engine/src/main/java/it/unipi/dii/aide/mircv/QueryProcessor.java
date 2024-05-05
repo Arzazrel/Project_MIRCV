@@ -80,7 +80,8 @@ public final class QueryProcessor {
                 return rankedResults;
             }
 
-            DAATAlgorithm(processedQuery,scoringFunc,isConjunctive, isDisjunctive,numberOfResults);        // apply DAAT, result in tableDAAT
+            //DAATAlgorithm(processedQuery,scoringFunc,isConjunctive, isDisjunctive,numberOfResults);        // apply DAAT to calculate the score of the Docs
+            DAATAlgorithmV1(processedQuery,scoringFunc,isConjunctive, isDisjunctive,numberOfResults);        // apply DAAT V.1 to calculate the score of the Docs
 
             rankedResults = getRankedResults(numberOfResults);          // get ranked results
 
@@ -192,7 +193,7 @@ public final class QueryProcessor {
                     postingListsIndex[j]++;                         // update index of current value
                     //System.out.println("DAAT, prescoring -- df = " + DataStructureHandler.postingListLengthFromTerm(processedQuery.get(j)));
 
-                    // calculate TFIDF for this term and currentDID and sum to partial score
+                    // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
                     String term = processedQuery.get(j);
                     assert term != null;
                     int df = dictionary.getTermToTermStat().get(term).getDf();
@@ -241,6 +242,243 @@ public final class QueryProcessor {
         // shows DAAT execution time
         System.out.println(ANSI_YELLOW + "\n*** DAAT execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
     }
+
+    ///* ---- NEW VERSION OF DAAT -- START ----
+    private static void DAATAlgorithmV1(ArrayList<String> processedQuery, boolean scoringFunc , boolean isConjunctive, boolean isDisjunctive, int numberOfResults) throws FileNotFoundException
+    {
+        resPQ = new PriorityQueue<>(numberOfResults, new CompareTerm());    // length equal to the number of results to be returned to the user
+        ArrayList<Integer> tempList = new ArrayList<>();    // create arrayList to contain temporarily the get DID
+        ArrayList<Posting>[] postingLists;  // contains all the posting lists for each term of the query
+        int[] postingListsIndex ;           // contain the current position index for the posting list of each term in the query
+        double partialScore = 0;            // var that contain partial score
+        int currentDID = 0;                 // DID of the current doc processed in algorithm
+        int df = 0;                         // contains df of the term (used in score function)
+        int min = 0;                        // indicates the current min DID taken
+        int docScoreCalc = 0;               // indicates the number of documents whose score was calculated (0 to number of results requested by the user)
+        boolean resetScore = false;         // used only in conjunctive case. indicates that the score must be set to 0 (the current Doc there aren't all the term of the query)
+        boolean allPostListScanned = false; // indicate if all posting list are fully scanned
+        boolean postingEnded = false;       // used only in conjunctive query (for optimization), indicates that one posting list is fully scanned
+        long startTime,endTime;             // variables to calculate the execution time
+
+        startTime = System.currentTimeMillis();         // start time for retrieve all posting lists of the query
+        postingLists = retrieveAllPostListsFromQuery(processedQuery);   // take all posting lists of query terms
+        endTime = System.currentTimeMillis();           // end time for retrieve all posting lists of the query
+        // shows query execution time
+        printTime("*** Retrieved all posting lists in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+        startTime = System.currentTimeMillis();         // start time of DAAT
+        if (postingLists.length == 1)       // there is only one posting (query with one term)
+        {   // start - if 0
+            //printDebug("Only one list.");
+            if (postingLists[0] == null)    // term that there isn't in collection -> posting list == null
+                return;
+            // optimization -> there is one posting list -> the DID are already sort
+            for (Posting p : postingLists[0])
+            {
+                partialScore = 0;           // reset var
+                // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
+                String term = processedQuery.get(0);        // take the related term
+                assert term != null;
+                df = dictionary.getTermToTermStat().get(term).getDf();  // retrieve df for the term
+                if (scoringFunc)
+                    partialScore += ScoringBM25(p.getDocId(), p.getTermFreq(), df);   // use BM25
+                else
+                    partialScore += ScoringTFIDF(p.getTermFreq(), df);              // use TFIDF
+
+                // save score
+                if (partialScore != 0)
+                {
+                    // insert without control into priority queue (is not full) or insert all results (orderAllHashMap = true)
+                    if ((docScoreCalc < numberOfResults) || orderAllHashMap)
+                    {
+                        resPQ.add(new QueryProcessor.ResultBlock(p.getDocId(), partialScore));     // add to priority queue
+                        docScoreCalc++;         // increment result in priority queue counter
+                    }
+                    else if (resPQ.peek().getScore() < partialScore)    // number of user-requested results achieved, check whether the current doc is within the best docs to return (score greater than the first item in the priority queue)
+                    {
+                        // substitution of the block
+                        //printDebug("Old block : DID = " + resPQ.peek().getDID()+ " score: " + resPQ.peek().getScore());
+                        resPQ.poll();       // remove the first element
+                        resPQ.add(new QueryProcessor.ResultBlock(p.getDocId(), partialScore));     // add to priority queue
+                        //printDebug("New block : DID = " + currentDID+ " score: " + partialScore);
+                    }
+                }
+            }
+        }   // end - if 0
+        else    // there are more posting lists (query composed by more term)
+        {   // start - else 0 (more postinglists)
+            //printDebug("More than one list.");
+            postingListsIndex = getPostingListsIndex(postingLists); // initialize the index for the posting lists
+
+            for (int i = 0; i < postingLists.length; i++)           // take first DocID from posting lists
+            {
+                if (postingLists[i] == null)    // term that there isn't in Dictionary -> posting list == null
+                {
+                    if (isConjunctive)   // conjunctive query case, if on posting lists is empty it's impossible that any doc can have all the query terms
+                        return;
+                    continue;                   // go to next posting list
+                }
+                tempList.add(postingLists[i].get(0).getDocId());        // add the DID into tempList
+            }
+            //printDebug("First tempList = " + tempList);
+            Collections.sort(tempList);             // order the list of the first DID
+            //printDebug("First ordered tempList = " + tempList);
+            min = tempList.get(0);  // take the minimum DID (the first one in the order tempList) and set MIN var
+            tempList.clear();                       // clear the tempList
+            //printDebug("First min = " + min);
+
+            // scan all posting lists and perform DAAT and calculate the score for each Doc
+            while(!allPostListScanned)
+            {   // start - while 0 (execution DAAT algoritm for more posting lists)
+                allPostListScanned = true;      // set var, if not reset the while end
+                partialScore = 0;           // reset var
+                resetScore = false;          // reset var
+                // for each posting list I calculate the score for the Doc with DID equal to the current MIN
+                for (int i = 0; i < postingLists.length; i++)
+                {   // start - for 1 (scan posting list to calculate score)
+
+                    // (term that there isn't in collection -> posting list == null) OR (posting list completely visited)
+                    if ((postingLists[i] == null) || (postingListsIndex[i] >= postingLists[i].size()))
+                    {
+                        //printDebug("Setto postingEnded");
+                        postingEnded = true;        // set var
+                        if (isConjunctive)
+                            resetScore = true;      // reset the partial score
+                        continue;                   // go to next posting list
+                    }
+
+                    allPostListScanned = false;  // there is at least one posting not seen yet -> set var
+
+                    currentDID = postingLists[i].get(postingListsIndex[i]).getDocId();    // take current DID
+                    if (currentDID == min)    // Same DID of the min, is the DID for this iteration of DAAT
+                    {
+                        // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
+                        String term = processedQuery.get(i);        // take the related term
+                        assert term != null;
+                        df = dictionary.getTermToTermStat().get(term).getDf();  // retrieve df for the term
+                        if (scoringFunc)
+                            partialScore += ScoringBM25(currentDID, postingLists[i].get(postingListsIndex[i]).getTermFreq(), df);   // use BM25
+                        else
+                            partialScore += ScoringTFIDF(postingLists[i].get(postingListsIndex[i]).getTermFreq(), df);              // use TFIDF
+
+                        postingListsIndex[i]++;     // increment the related index
+                    }
+                    else if(isConjunctive)  // at least one posting list doesn't have this doc hence this doc does not contain at least one term from the query
+                    {
+                        resetScore = true;          // reset the partial score
+                    }
+                }   // end - for 1 (scan posting list to calculate score)
+                //printDebug("------- Step for ------");
+
+                // save score
+                if ((partialScore != 0) && !resetScore)
+                {
+                    // insert without control into priority queue (is not full) or insert all results (orderAllHashMap = true)
+                    if ((docScoreCalc < numberOfResults) || orderAllHashMap)
+                    {
+                        resPQ.add(new QueryProcessor.ResultBlock(min, partialScore));     // add to priority queue
+                        docScoreCalc++;         // increment result in priority queue counter
+                    }
+                    else if (resPQ.peek().getScore() < partialScore)    // number of user-requested results achieved, check whether the current doc is within the best docs to return (score greater than the first item in the priority queue)
+                    {
+                        // substitution of the block
+                        //printDebug("Old block : DID = " + resPQ.peek().getDID()+ " score: " + resPQ.peek().getScore());
+                        resPQ.poll();       // remove the first element
+                        resPQ.add(new QueryProcessor.ResultBlock(min, partialScore));     // add to priority queue
+                        //printDebug("New block : DID = " + currentDID+ " score: " + partialScore);
+                    }
+                }
+
+                // if the query is conjunctive and at least one posting list is fully scanned
+                if (isConjunctive && postingEnded)
+                {
+                    //printDebug("query conjunctive e postingEnded settato esco");
+                    break;      // exit to while. Stop posting list scanning and score calculating. I have the score of all the DIDs I need
+                }
+
+                // take the new min (from the next DID of each posting list)
+                for (int i = 0; i < postingLists.length; i++)
+                {
+                    // (term that there isn't in collection -> posting list == null) OR (posting list completely visited)
+                    if ((postingLists[i] == null) || (postingListsIndex[i] >= postingLists[i].size()))
+                        continue;           // go to next posting list
+
+                    tempList.add(postingLists[i].get(postingListsIndex[i]).getDocId());        // add the DID into tempList
+                }
+
+                // check if thee is only one posting list not fully scanned
+                if (tempList.size() == 1)
+                {   // start - if 0.1 (remain one posting list)
+                    //printDebug("Remain only one list");
+                    if (isConjunctive)
+                        break;      // exit to while. Stop the collection od DID, I have all the DIDs I need
+
+                    int index = 0;
+                    for (int i = 0; i < postingLists.length; i++)   // take the index of the not fully scanned posting lists
+                    {
+                        // (term that there isn't in collection -> posting list == null) OR (posting list completely visited)
+                        if ((postingLists[i] == null) || (postingListsIndex[i] >= postingLists[i].size()))
+                            continue;           // go to next posting list
+                        index = i;          // take the index of the not fully scanned posting list
+                    }
+                    //printDebug("Remain only the list: " + index + " - total postinglists: " + postingLists.length + " are in the position (of posting list): " + postingListsIndex[index] + " of " + postingLists[index].size());
+                    while(postingListsIndex[index] < postingLists[index].size())    // take all remaining posting in the posting list
+                    {   // start - while 0.1 (calculate score when remain only one posting list)
+                        partialScore = 0;           // reset var
+                        // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
+                        String term = processedQuery.get(index);        // take the related term
+                        assert term != null;
+                        df = dictionary.getTermToTermStat().get(term).getDf();  // retrieve df for the term
+                        currentDID = postingLists[index].get(postingListsIndex[index]).getDocId();  // take current DID
+                        if (scoringFunc)
+                            partialScore += ScoringBM25(currentDID, postingLists[index].get(postingListsIndex[index]).getTermFreq(), df);   // use BM25
+                        else
+                            partialScore += ScoringTFIDF(postingLists[index].get(postingListsIndex[index]).getTermFreq(), df);  // use TFIDF
+
+                        // save score
+                        if (partialScore != 0)
+                        {
+                            // insert without control into priority queue (is not full) or insert all results (orderAllHashMap = true)
+                            if ((docScoreCalc < numberOfResults) || orderAllHashMap)
+                            {
+                                resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
+                                docScoreCalc++;         // increment result in priority queue counter
+                            }
+                            else if (resPQ.peek().getScore() < partialScore)    // number of user-requested results achieved, check whether the current doc is within the best docs to return (score greater than the first item in the priority queue)
+                            {
+                                // substitution of the block
+                                //printDebug("Old block : DID = " + resPQ.peek().getDID()+ " score: " + resPQ.peek().getScore());
+                                resPQ.poll();       // remove the first element
+                                resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
+                                //printDebug("New block : DID = " + currentDID+ " score: " + partialScore);
+                            }
+                        }
+
+                        postingListsIndex[index]++;     // increment the related index
+                    }   // end - while 0.1 (calculate score when remain only one posting list)
+
+                    allPostListScanned = true;      // set var, if not reset the while end
+                }   // end - if 0.1 (remain one posting list)
+                else if (tempList.size() != 0)      // there are more than one posting lists not fully scanned (and not is the last iteration of the while with tempList empty)
+                {
+                    Collections.sort(tempList);             // order the list of the first DID
+                    min = tempList.get(0);  // take the maximum DID (the last one in the order tempList) and set MAX var
+                    tempList.clear();                       // clear the tempList
+                    //printDebug("New min = " + min);
+                }
+                else    // tempList.size() = 0 -> is the last iteration of the while with tempList empty
+                {
+                    allPostListScanned = true;      // set var, if not reset the while end
+                    //printDebug("End");
+                }
+            }   // end - while 0 (execution DAAT algoritm for more posting lists)
+        }   // start - else 0 (more postinglists)
+
+        endTime = System.currentTimeMillis();           // end time of DAAT
+        // shows DAAT execution time
+        printTime("*** DAAT execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+    }
+    ///* ---- NEW VERSION OF DAAT -- END ----
 
     /**
      * function to calculate TFIDF for one term and one document
@@ -328,7 +566,7 @@ public final class QueryProcessor {
         //printDebug("orderedResults " + rankedResults);
 
         endTime = System.currentTimeMillis();           // end time of hash map ordering
-        System.out.println(ANSI_YELLOW + "\n*** Ranked results (results priority queue) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
+        printTime("*** Ranked results (results priority queue) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
         return rankedResults;
     }
@@ -449,7 +687,7 @@ public final class QueryProcessor {
                 orderedList.add(p.getDocId());
             }
             endTime = System.currentTimeMillis();           // end time to take th DocID list
-            System.out.println(ANSI_YELLOW + "\n*** TAKE DID LIST (no PQ V.2) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")" + ANSI_RESET);
+            printTime("*** TAKE DID LIST (no PQ V.2) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
             return orderedList;
         }
 
@@ -580,7 +818,7 @@ public final class QueryProcessor {
 
         endTime = System.currentTimeMillis();           // end time of DocID list ordering
         // shows query execution time
-        printTime("\n*** ORDERED DID LIST (no PQ V.2) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        printTime("*** ORDERED DID LIST (no PQ V.2) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
         //printDebug("Ordered List (no PQ V.2) of DocID dim: " + orderedList.size());     // print orderedList
         //System.out.println("Ordered List (no PQ V.2): " + orderedList);     // print orderedList
         // NEW VERSION -- hash map V.2 -- end ------------------------------------------------------------------*/
@@ -863,15 +1101,16 @@ public final class QueryProcessor {
             }
 
             // print queries collection statistics
-            printTime("\nThe fastet query (conjunctive mode) executes in " + fasterQueryCon + " ms and its QUID is " + quidFastCon);
-            printTime("\nThe slowest query (conjunctive mode) executes in " + slowerQueryCon + " ms and its QUID is " + quidSlowCon);
-            printTime("\nThe average queries execution time (conjunctive mode) is " + avgExTimeCon/numQueries + " ms");
+            printTime("The fastet query (conjunctive mode) executes in " + fasterQueryCon + " ms and its QUID is " + quidFastCon);
+            printTime("The slowest query (conjunctive mode) executes in " + slowerQueryCon + " ms and its QUID is " + quidSlowCon);
+            printTime("The average queries execution time (conjunctive mode) is " + avgExTimeCon/numQueries + " ms");
 
             printTime("\nThe fastet query (disjunctive mode) executes in " + fasterQueryDis + " ms and its QUID is " + quidFastDis);
-            printTime("\nThe slowest query (disjunctive mode) executes in " + slowerQueryDis + " ms and its QUID is " + quidSlowDis);
-            printTime("\nThe average queries execution time (disjunctive mode) is " + avgExTimeDis/numQueries + " ms");
+            printTime("The slowest query (disjunctive mode) executes in " + slowerQueryDis + " ms and its QUID is " + quidSlowDis);
+            printTime("The average queries execution time (disjunctive mode) is " + avgExTimeDis/numQueries + " ms");
 
             printDebug(" End query test...");         // control print
+            printDebug("--------------------------------------------------------------------------------");
         }
         catch (IOException e) {
             e.printStackTrace();
