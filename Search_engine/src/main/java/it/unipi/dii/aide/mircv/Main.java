@@ -29,6 +29,7 @@ public class Main {
                     "\n\t  m -> try merge only" +
                     "\n\t  i -> build the index" +
                     "\n\t  d -> offset debug" +
+                    "\n\t  u -> calculate term upper bound and document upper bound" +
                     "\n\t  q -> query mode" +
                     "\n\t  t -> query test mode" +
                     "\n\t  x -> exit" +
@@ -75,6 +76,14 @@ public class Main {
                     IndexMerger.mergeBlocks();                      // merge blocks
                     endTime = System.currentTimeMillis();           // end time of merge blocks
                     printTime("\nBlocks merged in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+                    // calculate term upper bound and doc upper bound
+                    Flags.setConsiderSkippingBytes(true);
+                    if (!queryStartControl()) {
+                        return;                           // error exit
+                    }
+                    TermDocUpperBound.calculateTermsUpperBound();   // calculate term upper bound for each term of dictionary
+
                     continue;                           // go next while iteration
                 case "d":
 
@@ -83,14 +92,37 @@ public class Main {
                     printDebug(QueryProcessor.dictionary.getTermStat(term).toString());
 
                     continue;                           // go next while iteration
+                case "u":
+
+                    Flags.setConsiderSkippingBytes(true);
+                    if (!queryStartControl()) {
+                        return;                           // error exit
+                    }
+                    TermDocUpperBound.calculateTermsUpperBound();   // calculate term upper bound for each term of dictionary
+                    // read term upper bound
+                    if(TermDocUpperBound.termUpperBoundFileExist())     // the file already exist
+                        TermDocUpperBound.readTermUpperBoundTableIntoDisk();
+
+                    TermDocUpperBound.calculateDocsUpperBound();    // calculate doc upper bound for each doc of docTable
+
+                    continue;                           // go next while iteration
                 case "q":       // query
 
                     Flags.setConsiderSkippingBytes(true);
                     ArrayList<Integer> rankedResults;       // ArrayList that contain the ranked results of query
                     int numberOfResults = 0;    // take the integer entered by users that indicate the number of results wanted for query
+
                     // control check that all the files and resources required to execute a query are present
                     if (!queryStartControl()) {
                         return;                           // error exit
+                    }
+                    // read term upper bound
+                    if(TermDocUpperBound.termUpperBoundTableIsEmpty())
+                    {
+                        if(TermDocUpperBound.termUpperBoundFileExist())     // the file already exist
+                            TermDocUpperBound.readTermUpperBoundTableIntoDisk();
+                        else                                                // the file not exist
+                            TermDocUpperBound.calculateTermsUpperBound();   // calculate term upper bound for each term of dictionary
                     }
 
                     printUI("Insert query: \n");

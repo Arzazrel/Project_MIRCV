@@ -60,7 +60,7 @@ public class Dictionary {
 
     // function to read whole Dictionary from disk
     public void readDictionaryFromDisk(){
-        System.out.println("Loading dictionary from disk...");
+        printLoad("Loading dictionary from disk...");
 
         long position = 0;      // indicate the position where read at each iteration
 

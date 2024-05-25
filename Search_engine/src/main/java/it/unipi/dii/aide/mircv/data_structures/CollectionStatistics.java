@@ -55,7 +55,7 @@ public final class CollectionStatistics {
     // function to read the collection statistics from disk
     public static void readCollectionStatsFromDisk() {
 
-        System.out.println("Loading collection statistics from disk...");
+        printLoad("Loading collection statistics from disk...");
 
         try (
                 RandomAccessFile statsRAF = new RandomAccessFile(new File(STATS_FILE), "rw")
@@ -83,7 +83,7 @@ public final class CollectionStatistics {
 
     // function to store the collection statistics into disk
     public static void storeCollectionStatsIntoDisk() {
-        System.out.println("Storing collection statistics into disk...");
+        printLoad("Storing collection statistics into disk...");
 
         try (
                 RandomAccessFile docStats = new RandomAccessFile(STATS_FILE, "rw");

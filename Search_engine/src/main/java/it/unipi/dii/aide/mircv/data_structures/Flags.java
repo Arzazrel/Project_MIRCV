@@ -45,7 +45,7 @@ public final class Flags {
 
     // function to store the user's choices for the flags
     public static void storeFlagsIntoDisk() {
-        System.out.println("Storing flags into disk...");
+        printLoad("Storing flags into disk...");
 
         try (
             RandomAccessFile raf = new RandomAccessFile(FLAGS_FILE, "rw");
@@ -65,7 +65,7 @@ public final class Flags {
     // function to read the user's choices for the flags
     public static void readFlagsFromDisk()
     {
-        printDebug("Loading flags from disk...");   // control print for the user
+        printLoad("Loading flags from disk...");   // control print for the user
 
         try (
             RandomAccessFile flagsRaf = new RandomAccessFile(new File(FLAGS_FILE), "rw"))

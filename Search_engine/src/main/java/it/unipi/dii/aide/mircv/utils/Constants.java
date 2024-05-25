@@ -10,6 +10,9 @@ public final class Constants {
     public static final String PARTIAL_FOLDER = RES_FOLDER + "partial/";
     public static final String MERGED_FOLDER = RES_FOLDER + "merged/";
     public static final String DEBUG_FOLDER = RES_FOLDER + "debug/";
+    public static final String UPPERBOUND_FOLDER = RES_FOLDER + "upperBound/";
+
+
 
     // -------------------------------- Constants for file paths -------------------------------------------
 
@@ -31,6 +34,8 @@ public final class Constants {
     public static final String STATS_FILE = RES_FOLDER + "collectionStatistics"; // file in which collection statistics are stored
 
     public static final String SKIP_FILE = MERGED_FOLDER + "skipInfo";
+
+    public static final String TERMUPPERBOUND_FILE = UPPERBOUND_FOLDER + "skipInfo";  // file in which terms upper bound are stored
 
     // -------------------------------- Constants for variable bytes -------------------------------------------
 
@@ -71,7 +76,9 @@ public final class Constants {
     public static final String ANSI_CYAN = "\u001B[96m";        // UI print
     public static final String ANSI_YELLOW = "\u001B[93m";      // time print
     public static final String ANSI_RED = "\033[0;31m";         // error print
-    public static final String ANSI_MAGENTA = "\u001b[35m"; // debug print
+
+    public static final String ANSI_GREEN = "\u001B[32m";       // load print
+    public static final String ANSI_MAGENTA = "\u001b[35m";     // debug print
 
     public static void printDebug(String s){
         if(verbose)
@@ -88,6 +95,10 @@ public final class Constants {
 
     public static void printTime(String s){
         System.out.println(ANSI_YELLOW + s + ANSI_RESET);
+    }
+
+    public static void printLoad(String s){
+        System.out.println(ANSI_GREEN + s + ANSI_RESET);
     }
 
 }

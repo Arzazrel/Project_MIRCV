@@ -22,7 +22,6 @@ public final class PartialIndexBuilder {
     static HashMap<Integer, DocumentElement> documentTable = new HashMap<>();     // hash table DocID to related DocElement
     static Dictionary dictionary = new Dictionary();                              // dictionary in memory
     static HashMap<String, ArrayList<Posting>> invertedIndex = new HashMap<>();   // hash table Term to related Posting list
-
     static ArrayList<Long> dictionaryBlockOffsets = new ArrayList<>();            // Offsets of the dictionary blocks
 
     /**

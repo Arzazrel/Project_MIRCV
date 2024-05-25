@@ -60,7 +60,7 @@ public final class DataStructureHandler {
 
     // function to store offset of the blocks into disk
     static void storeBlockOffsetsIntoDisk() {
-        System.out.println("\nStoring block offsets into disk...");
+        printLoad("\nStoring block offsets into disk...");
 
         try (
                 RandomAccessFile raf = new RandomAccessFile(BLOCKOFFSETS_FILE, "rw");
@@ -176,7 +176,7 @@ public final class DataStructureHandler {
 
     // function to read all document table from disk and put it in memory (HashMap documentTable)
     public static void readDocumentTableFromDisk(boolean indexBuilding) throws IOException {
-        System.out.println("Loading document table from disk...");
+        printLoad("Loading document table from disk...");
 
         try (
              RandomAccessFile docTableRaf = new RandomAccessFile(DOCTABLE_FILE, "r");
@@ -199,7 +199,7 @@ public final class DataStructureHandler {
     // function to read offset of the block from disk
     public static void readBlockOffsetsFromDisk(){
 
-        System.out.println("\nLoading block offsets from disk...");
+        printLoad("\nLoading block offsets from disk...");
 
         if(!dictionaryBlockOffsets.isEmpty()) //control check
             dictionaryBlockOffsets.clear();
