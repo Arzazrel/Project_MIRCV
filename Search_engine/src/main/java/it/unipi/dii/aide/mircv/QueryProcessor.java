@@ -366,7 +366,7 @@ public final class QueryProcessor {
         Posting currentP;                   // support var
         double[] termUpperBoundList;        // contains all the posting lists for each term of the query
         int[] postingListsIndex ;           // contain the current position index for the posting list of each term in the query
-        boolean[] updatePostListIndex ;     // array for updating of posting lists index
+        int[] postingListsIndexWAND;        // contain the current position index for the posting list of each term in the query used by WAND algorithm
         int currentDID = 0;                 // DID of the current doc processed in algorithm
         double partialScore = 0;            // var that contain partial score
         double threshold = 0;               // var that contain the current threshold for WAND (is the minimum score value to be in the current best result)
@@ -401,9 +401,8 @@ public final class QueryProcessor {
         // more postingLists not empty, use WAND algorithm
         ordListDID = DIDOrderedListOfQuery(postingLists, isConjunctive);    // take ordered list of DocID
         postingListsIndex = getPostingListsIndex(postingLists);             // get the index initialized
+        postingListsIndexWAND = getPostingListsIndex(postingLists);         // get the WAND index initialized
         termUpperBoundList = getPostingListsTermUpperBound(processedQuery); // get the term upper bound for each term(postinglist)
-        // initialize the array for the updating of the postingList index
-        updatePostListIndex = updatePostListIndexInit(processedQuery);      // initialize the array to update the posting list index
 
         startTime = System.currentTimeMillis();           // start time of DAAT
         // scan all Doc retrieved and calculate score (TFIDF or BM25)
@@ -414,7 +413,6 @@ public final class QueryProcessor {
             resetScore = false;         // set to false
             tempSumTUB = 0;             // set to 0
             calculateScore = true;      // set to true
-            Arrays.fill(updatePostListIndex, false);
 
             // until the pq is not full has to calculate all score, after it uses the WAND algorithm for optimization
             if(docScoreCalc >= numberOfResults)
@@ -423,22 +421,21 @@ public final class QueryProcessor {
                 for (int j = 0; j < postingLists.length; j++)   // take and sum all term upper bound for the currentDID
                 {
                     // check if the posting lists of j-th isn't at the end AND if the j-th term of the query is present in the doc identify by currentDID
-                    if ( (postingLists[j] != null) && (postingListsIndex[j] < postingLists[j].size()) && (postingLists[j].get(postingListsIndex[j]).getDocId() == currentDID))
+                    if ( (postingLists[j] != null) && (postingListsIndexWAND[j] < postingLists[j].size()) && (postingLists[j].get(postingListsIndexWAND[j]).getDocId() == currentDID))
                     {
                         tempSumTUB += termUpperBoundList[j];    // update the sum of the term upper bound for the currentDID
-                        updatePostListIndex[j] = true;          // mark which posting list needs to be updated
+                        postingListsIndexWAND[j]++;             // update WAND index of current value
                         //printDebug("WAND - del termine: " + processedQuery.get(j) + " della posting: " + j + " in pos: " + (postingListsIndex[j]-1) + " ha DID: " + currentDID + " con somma TUB: " + tempSumTUB );
-                        // +++++++++++++++++++++++++ add optimization respect threshold +++++++++++++++++++++++++++
                     }
                     else if (isConjunctive) // must take only the document in which there are all term (DID that compare in all posting lists of the terms)
                     {
                         // if all postings in one posting lists have already been seen the next documents in the posting lists cannot contain all the terms in the query
-                        if ((postingLists[j] == null) || (postingListsIndex[j] >= postingLists[j].size()))
+                        if ((postingLists[j] == null) || (postingListsIndexWAND[j] >= postingLists[j].size()))
                         {
                             //printDebug("Query conjunctive, posting list numero: " + j + " finita. Si è in pos: " + postingListsIndex[j] + " su dimensione: " + postingLists[j].size());
                             endTime = System.currentTimeMillis();           // end time of DAAT
                             // shows query execution time
-                            printTime("*** DAAT + WAND V.0 execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+                            printTime("*** DAAT + WAND V.1 execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
                             return;             // exit from function
                         }
                         calculateScore = false;       // reset the partial score
@@ -449,13 +446,9 @@ public final class QueryProcessor {
                 if ( (tempSumTUB <= threshold) || !calculateScore)
                 {
                     // update index of the posting lists
-                    for (int i = 0; i < postingLists.length; i++)
-                    {
-                        if (updatePostListIndex[i])
-                            postingListsIndex[i]++;     // update index
-                    }
+                    System.arraycopy(postingListsIndexWAND, 0, postingListsIndex, 0, postingLists.length);
                     indexDID++;     // update the index (current position of ordListDID)
-                    continue;   // pass to next DID
+                    continue;       // pass to next DID
                 }
             }   // -- end - if.0 - WAND execution --
 
@@ -484,13 +477,13 @@ public final class QueryProcessor {
                 {
                     // must take only the document in which there are all term (DID that compare in all posting lists of the terms)
                     resetScore = true;       // reset the partial score
-                    //printDebug("Sono in conjuntive, azzero lo score. Posting list numero: " + j + " in pos: " + postingListsIndex[j]);
+
                     // if all postings in one posting lists have already been seen the next documents in the posting lists cannot contain all the terms in the query
                     if ((postingLists[j] == null) || (postingListsIndex[j] >= postingLists[j].size())) {
                         //printDebug("Query conjunctive, posting list numero: " + j + " finita. Si è in pos: " + postingListsIndex[j] + " su dimensione: " + postingLists[j].size());
                         endTime = System.currentTimeMillis();           // end time of DAAT
                         // shows query execution time
-                        printTime("*** DAAT + WAND V.0 execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+                        printTime("*** DAAT + WAND V.1 execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
                         return;             // exit from function
                     }
                 }
@@ -510,11 +503,9 @@ public final class QueryProcessor {
                 else if (threshold < partialScore)    // number of user-requested results achieved, check whether the current doc is within the best docs to return (score greater than the first item in the priority queue)
                 {
                     // substitution of the block
-                    //printDebug("Old block : DID = " + resPQ.peek().getDID()+ " score: " + resPQ.peek().getScore());
                     resPQ.poll();                           // remove the first element
                     resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
                     threshold = resPQ.peek().getScore();    // update threshold
-                    //printDebug("New block : DID = " + currentDID+ " score: " + partialScore);
                 }
             }
             indexDID++;     // update the index (current position of ordListDID)
@@ -522,7 +513,7 @@ public final class QueryProcessor {
 
         endTime = System.currentTimeMillis();           // end time of DAAT
         // shows DAAT execution time
-        printTime("*** DAAT V.0.5 execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        printTime("*** DAAT + WAND V.1 execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
     ///* ---- NEW VERSION OF DAAT -- END ----
 
