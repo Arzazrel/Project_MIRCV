@@ -49,9 +49,7 @@ public class TermDocUpperBound
             deleteTermUpperBoundFile();         // delete the file
             printDebug("The termUpperBoundFile erased.");
         }
-
         printDebug("Calculating terms upper bound...");     // control print
-
         startTime = System.currentTimeMillis();         // start time to calculate all term upper bound
 
         termsList = new ArrayList<>(QueryProcessor.getDictionary().keySet());   // read all the term of the dictionary
@@ -66,13 +64,13 @@ public class TermDocUpperBound
         }
         endTime = System.currentTimeMillis();           // end time to calculate all term upper bound
         // shows term upper bound calculation time
-        printTime("\n*** Calculated all term upper bound( " + termCount + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        printTime("*** Calculated all term upper bound( " + termCount + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
         startTime = System.currentTimeMillis();         // start time to store all term upper bound
         storeTermUpperBoundTableIntoDisk();     // save the hashmap into disk
         endTime = System.currentTimeMillis();           // end time to store all term upper bound
         // shows term upper bound storing time
-        printTime("\n*** Stored all term upper bound( " + termCount + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        printTime("*** Stored all term upper bound( " + termCount + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
     /**
@@ -177,7 +175,7 @@ public class TermDocUpperBound
     static void storeTermUpperBoundTableIntoDisk()
     {
 
-        printLoad("\nStoring terms upper bound into disk...");
+        printLoad("Storing terms upper bound into disk...");
 
         try (RandomAccessFile raf = new RandomAccessFile(TERMUPPERBOUND_FILE, "rw");
              FileChannel channel = raf.getChannel())
@@ -212,7 +210,7 @@ public class TermDocUpperBound
         int count = 0;                  // counter for the position of the terms list
         long startTime,endTime;         // variables to calculate the execution time
 
-        printLoad("\nLoading terms upper bound into disk...");
+        printLoad("Loading terms upper bound into disk...");
 
         termsList = new ArrayList<>(QueryProcessor.getDictionary().keySet());   // retrieve all the term of the dictionary
         /*
@@ -256,7 +254,7 @@ public class TermDocUpperBound
         //*/
         endTime = System.currentTimeMillis();           // end time to store all term upper bound
         // shows term upper bound storing time
-        printTime("\n*** Read all term upper bound( " + termsList.size() + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        printTime("*** Read all term upper bound( " + termsList.size() + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
     // ---------------- end: read/write into disk functions ----------------
 }

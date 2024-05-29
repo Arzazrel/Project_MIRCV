@@ -99,9 +99,6 @@ public class Main {
                         return;                           // error exit
                     }
                     TermDocUpperBound.calculateTermsUpperBound();   // calculate term upper bound for each term of dictionary
-                    // read term upper bound
-                    if(TermDocUpperBound.termUpperBoundFileExist())     // the file already exist
-                        TermDocUpperBound.readTermUpperBoundTableIntoDisk();
 
                     TermDocUpperBound.calculateDocsUpperBound();    // calculate doc upper bound for each doc of docTable
 
