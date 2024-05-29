@@ -79,9 +79,9 @@ public final class QueryProcessor {
                 return rankedResults;
             }
 
-            DAATAlgorithm(processedQuery,scoringFunc,isConjunctive, isDisjunctive,numberOfResults);        // apply DAAT to calculate the score of the Docs
+            //DAATAlgorithm(processedQuery,scoringFunc,isConjunctive, isDisjunctive,numberOfResults);        // apply DAAT to calculate the score of the Docs
             //resPQ.clear();
-            //DAATAlgWAND(processedQuery,scoringFunc,isConjunctive,numberOfResults);      // apply DAAT + WAND V.0 to calculate the score of the Docs
+            DAATAlgWAND(processedQuery,scoringFunc,isConjunctive,numberOfResults);      // apply DAAT + WAND V.0 to calculate the score of the Docs
             //resPQ.clear();
             //DAATAlgMAXSCORE(processedQuery,scoringFunc,isConjunctive,numberOfResults);  // apply DAAT + MaxScore V.0 to calculate the score of the Docs
 
@@ -155,19 +155,18 @@ public final class QueryProcessor {
     private static void DAATAlgorithm(ArrayList<String> processedQuery, boolean scoringFunc , boolean isConjunctive, boolean isDisjunctive, int numberOfResults) throws FileNotFoundException
     {
         resPQ = new PriorityQueue<>(numberOfResults, new CompareTerm());    // length equal to the number of results to be returned to the user
+        String[] terms = new String[processedQuery.size()];                 // array containing the terms of the query
+        ArrayList<Integer> ordListDID;      // ordered list of the DocID present in the all posting lists of the term present in the query
+        ArrayList<Posting>[] postingLists;  // contains all the posting lists for each term of the query
+        double[] IDFweight;                 // array containing the IDF weight for each posting list
+        int[] lengthPostingList;            // array containing the length of the posting lists
+        int[] postingListsIndex;            // contain the current position index for the posting list of each term in the query
+        Posting currentP;                   // support var
+        int currentDID = 0;                 // DID of the current doc processed in algorithm
+        double partialScore = 0;            // var that contain partial score
         int docScoreCalc = 0;               // indicates the number of documents whose score was calculated (0 to number of results requested by the user)
         boolean resetScore = false;         // used only in conjunctive case. indicates that the score must be set to 0 (the current Doc there aren't all the term of the query)
         int pLNotEmpty = 0;                 // contains the number of posting lists related to the query terms that aren't empty
-        double[] IDFweight;                 // array containing the IDF weight for each posting list
-        int[] lengthPostingList;            // ...
-        String[] terms = new String[processedQuery.size()];
-
-        ArrayList<Integer> ordListDID;      // ordered list of the DocID present in the all posting lists of the term present in the query
-        ArrayList<Posting>[] postingLists;  // contains all the posting lists for each term of the query
-        Posting currentP;                   // support var
-        int[] postingListsIndex;            // contain the current position index for the posting list of each term in the query
-        int currentDID = 0;                 // DID of the current doc processed in algorithm
-        double partialScore = 0;            // var that contain partial score
         long startTime,endTime;             // variables to calculate the execution time
 
         startTime = System.currentTimeMillis();         // start time for retrieve all posting lists of the query
@@ -306,7 +305,7 @@ public final class QueryProcessor {
         double[] IDFweight;         // array containing the IDF weight for each posting list
         int[] lengthPostingList;    // array containing the
 
-        // NEW VERSION
+        // initialize
         for (int i = 0; i < processedQuery.size(); i++)
             terms[i] = processedQuery.get(i);
         lengthPostingList = retrieveLengthAllPostingLists(terms);   // take the length of each posting list
@@ -361,28 +360,23 @@ public final class QueryProcessor {
     private static void DAATAlgWAND(ArrayList<String> processedQuery, boolean scoringFunc , boolean isConjunctive, int numberOfResults) throws FileNotFoundException
     {
         resPQ = new PriorityQueue<>(numberOfResults, new CompareTerm());    // length equal to the number of results to be returned to the user
+        String[] terms = new String[processedQuery.size()];                 // array containing the terms of the query
         ArrayList<Posting>[] postingLists;  // contains all the posting lists for each term of the query
         ArrayList<Integer> ordListDID;      // ordered list of the DocID present in the all posting lists of the term present in the query
-        Posting currentP;                   // support var
+        double[] IDFweight;                 // array containing the IDF weight for each posting list
+        int[] lengthPostingList;            // array containing the length of the posting lists
         double[] termUpperBoundList;        // contains all the posting lists for each term of the query
         int[] postingListsIndex ;           // contain the current position index for the posting list of each term in the query
         int[] postingListsIndexWAND;        // contain the current position index for the posting list of each term in the query used by WAND algorithm
-        //int currentDID = 0;                 // DID of the current doc processed in algorithm
+        Posting currentP;                   // support var
         double partialScore = 0;            // var that contain partial score
         double threshold = 0;               // var that contain the current threshold for WAND (is the minimum score value to be in the current best result)
         double tempSumTUB = 0;              // contains the sum of the term upper bound for the current doc
         int docScoreCalc = 0;               // indicates the number of documents whose score was calculated (0 to number of results requested by the user)
         boolean resetScore = false;         // used only in conjunctive case. indicates that the score must be set to 0 (the current Doc there aren't all the term of the query)
         int pLNotEmpty = 0;                 // contains the number of posting lists related to the query terms that aren't empty
-        int df = 0;                         // contains df of the term (used in score function)
         boolean calculateScore = true;      // indicate if of the current DID need to calculate the score or pass to the next
-        //int indexDID = 0;                   // contain the index of the current DID in ordListDID
-
-        double[] IDFweight;                 // array containing the IDF weight for each posting list
-        int[] lengthPostingList;            // ...
-        String[] terms = new String[processedQuery.size()];
-        boolean firstWAND = true;
-
+        boolean firstWAND = true;           // indicates if is the first iteration in WAND part of the algorithm
         long startTime,endTime;             // variables to calculate the execution time
 
         startTime = System.currentTimeMillis();         // start time for retrieve all posting lists of the query
@@ -409,27 +403,16 @@ public final class QueryProcessor {
         postingListsIndex = getPostingListsIndex(postingLists);             // get the index initialized
         postingListsIndexWAND = getPostingListsIndex(postingLists);         // get the WAND index initialized
         termUpperBoundList = getPostingListsTermUpperBound(processedQuery); // get the term upper bound for each term(postinglist)
-        // NEW VERSION
-        for (int i = 0; i < processedQuery.size(); i++)
+        // initialize array for improvement TFIDF and BM25 scoring
+        for (int i = 0; i < processedQuery.size(); i++)                     // get query terms
             terms[i] = processedQuery.get(i);
-        lengthPostingList = retrieveLengthAllPostingLists(terms);    // take the length of each posting list
-        IDFweight = calculateIDFWeight(lengthPostingList);       // calculate the IDF weight
-        /*// +++++++++++++++++++  debug ++++++++++++
-        printDebug("Print length and IDFweight.");
-        for (int i = 0; i < processedQuery.size(); i++)
-        {
-            printDebug("---- Posting list " + i + " length: " + lengthPostingList[i] + " and IDFweight: " + IDFweight[i]);
-        }
-        // +++++++++++++++++++  debug ++++++++++++*/
+        lengthPostingList = retrieveLengthAllPostingLists(terms);           // take the length of each posting list
+        IDFweight = calculateIDFWeight(lengthPostingList);                  // calculate the IDF weight
 
-        //printDebug("Start DAAT + WAND.");
         startTime = System.currentTimeMillis();           // start time of DAAT
         // scan all Doc retrieved and calculate score (TFIDF or BM25)
-        //while(indexDID < ordListDID.size())
         for (int currentDID : ordListDID)
         {   // -- start - while to scan all doc retrieved --
-            //currentDID = ordListDID.get(indexDID);          // update the DID, document of which to calculate the score
-            //printDebug("-- START -- ciclo currentDID: " + currentDID);
             partialScore = 0;           // reset var
             resetScore = false;         // set to false
             tempSumTUB = 0;             // set to 0
@@ -439,27 +422,9 @@ public final class QueryProcessor {
             if(docScoreCalc >= numberOfResults)
             {   // -- start - if.0 - WAND execution --
                 // WAND algorithm
-                //printDebug("---- START -- WAND currentDID: " + currentDID);
                 if (firstWAND)
                 {
-                    /*
-                    printDebug("------ FIRST WAND update the WAND index.");
-                    printDebug("------ old WAND index.");
-                    for (int i = 0; i < postingListsIndexWAND.length; i++)
-                    {
-                        printDebug("-------- Pos: " + i + " value: " + postingListsIndexWAND[i]);
-                    }
-                    printDebug("------ DAAT index.");
-                    for (int i = 0; i < postingListsIndex.length; i++)
-                    {
-                        printDebug("-------- Pos: " + i + " value: " + postingListsIndex[i]);
-                    }
-                    System.arraycopy(postingListsIndex, 0, postingListsIndexWAND, 0, postingLists.length);
-                    printDebug("------ new WAND index.");
-                    for (int i = 0; i < postingListsIndexWAND.length; i++)
-                    {
-                        printDebug("-------- Pos: " + i + " value: " + postingListsIndexWAND[i]);
-                    }*/
+                    // update the WAND index with the values of the DAAT index
                     System.arraycopy(postingListsIndex, 0, postingListsIndexWAND, 0, postingLists.length);
                     firstWAND = false;  // reset
                 }
@@ -490,35 +455,13 @@ public final class QueryProcessor {
                 // check tempSumTUB if is greater than threshold
                 if ( (tempSumTUB <= threshold) || !calculateScore)
                 {
-                    /*
-                    printDebug("---- sumTuB of doc: " + currentDID + " insufficient -> EXIT -> sumTUB: " + tempSumTUB + " threshold: " + threshold);
-                    printDebug("------ old DAAT index.");
-                    for (int i = 0; i < postingListsIndex.length; i++)
-                    {
-                        printDebug("-------- Pos: " + i + " value: " + postingListsIndex[i]);
-                    }
-                    printDebug("------ WAND index.");
-                    for (int i = 0; i < postingListsIndexWAND.length; i++)
-                    {
-                        printDebug("-------- Pos: " + i + " value: " + postingListsIndexWAND[i]);
-                    }
-                    // update index of the posting lists
+                    // update the DAAT index with the values of the WAND index
                     System.arraycopy(postingListsIndexWAND, 0, postingListsIndex, 0, postingLists.length);
-                    printDebug("------ new DAAT index.");
-                    for (int i = 0; i < postingListsIndex.length; i++)
-                    {
-                        printDebug("-------- Pos: " + i + " value: " + postingListsIndex[i]);
-                    }
-                    */
-                    System.arraycopy(postingListsIndexWAND, 0, postingListsIndex, 0, postingLists.length);
-                    //indexDID++;     // update the index (current position of ordListDID)
                     continue;       // pass to next DID
                 }
             }   // -- end - if.0 - WAND execution --
 
-            //printDebug("---- START -- DAAT(scoring) currentDID: " + currentDID);
-            // calculate the score -> case of tempSumTUB > threshold or docScoreCalc < numberOfResults
-            // default case is query Disjunctive
+            // calculate the score -> case of tempSumTUB > threshold or docScoreCalc < numberOfResults (default case is query Disjunctive)
             for (int j = 0; j < postingLists.length; j++)   // take all values and calculating the scores in the posting related to currentDID
             {
                 // check if the posting lists of j-th isn't at the end AND if the j-th term of the query is present in the doc identify by currentDID
@@ -528,22 +471,10 @@ public final class QueryProcessor {
                     postingListsIndex[j]++;                                 // update index of current value
 
                     // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
-                    /*
-                    String term = processedQuery.get(j);
-                    assert term != null;
-                    df = dictionary.getTermToTermStat().get(term).getDf();
-                    if (scoringFunc)
-                        partialScore += ScoringBM25(currentDID,currentP.getTermFreq(), df);     // use BM25
-                    else
-                        partialScore += ScoringTFIDF(currentP.getTermFreq(), df);               // use TFIDF
-                     //*/
-                    ///*
-                    // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
                     if (scoringFunc)
                         partialScore += ScoringBM25(currentDID,currentP.getTermFreq(), IDFweight[j]);     // use BM25
                     else
                         partialScore += ScoringTFIDF(currentP.getTermFreq(), IDFweight[j]);     // use TFIDF
-                    //*/
                     //printDebug("------ DAAT: term: " + processedQuery.get(j) + " in PL: " + j + " in pos: " + (postingListsIndex[j]-1) + " with DID: " + currentDID + " and partialScore: " + partialScore);
                 }
                 else if (isConjunctive)
@@ -561,7 +492,6 @@ public final class QueryProcessor {
                     }
                 }
             }
-            //printDebug("---- for hop ----");
 
             // save score
             if ((partialScore != 0) && !resetScore)
@@ -582,7 +512,6 @@ public final class QueryProcessor {
                     //printDebug("------ Scoring, new threshold: " + threshold);
                 }
             }
-            //indexDID++;     // update the index (current position of ordListDID)
         }   // -- end - while to scan all doc retrieved --
 
         endTime = System.currentTimeMillis();           // end time of DAAT
@@ -844,24 +773,21 @@ public final class QueryProcessor {
     /**
      * function to calculate TFIDF for one term and one document
      *
-     * @param termFreq          term frequency of the term in the document
+     * @param termFreq      term frequency of the term in the document
+     * @param IDFweight     the IDF weight for the current term (precomputed for optimization)
      * @return  the TFIDF score for one term and one document. The total score for a document will be the sum of the
      *          result of this function for each term that is both in the document and in the query
      */
-    private static Double ScoringTFIDF(int termFreq, /*int postListLength OLD version*/ double IDFweight)
+    private static Double ScoringTFIDF(int termFreq, double IDFweight)
     {
-        double TFweight, /*IDFweight, */scoreTFIDF;     // variables to calculate the TFIDF score value
+        double TFweight, scoreTFIDF;     // variables to calculate the TFIDF score value
 
         // control to avoid log and division to 0
-        /*if (termFreq == 0 || postListLength == 0)
-            return (double) 0;*/
         if (termFreq == 0)
             return (double) 0;
 
         TFweight = (1 + Math.log10(termFreq));      // calculate TF weight
-        //IDFweight = Math.log10(((double) CollectionStatistics.getNDocs() / postListLength));    // calculate IDF weight -- OLD VERSION --
         scoreTFIDF = TFweight * IDFweight;          // calculate TFIDF weight from Tf and IDF weight values
-
         //printDebug("ScoringTFIDF - TFweight = " + TFweight + " IDFweight = " + IDFweight + " scoreTFIDF = " + scoreTFIDF);
 
         return scoreTFIDF;
@@ -870,8 +796,8 @@ public final class QueryProcessor {
     /**
      * function to calculate IDF weight for each term(posting list) of the query
      *
-     * @param postingListsLength    ...
-     * @return
+     * @param postingListsLength    array containing the length for the posting lists
+     * @return array of IDF weight, the i-th values in the array correspond to the i-th posting list(term of the query)
      */
     private static double[] calculateIDFWeight(int[] postingListsLength)
     {
@@ -892,23 +818,21 @@ public final class QueryProcessor {
      *
      * @param DocID             DocID of the document processed
      * @param termFreq          term frequency of the term in the document
+     * @param IDFweight     the IDF weight for the current term (precomputed for optimization)
      * @return  the BM25 score for one term and one document. The total score for a document will be the sum of the
      *          result of this function for each term that is both in the document and in the query
      */
-    private static Double ScoringBM25(int DocID, int termFreq,/* int postListLength*/ double IDFweight)
+    private static Double ScoringBM25(int DocID, int termFreq, double IDFweight)
     {
-        double docLen, denominator, /*IDFweight, */scoreBM25;     // variables to calculate the BM25 score value
+        double docLen, denominator, scoreBM25;     // variables to calculate the BM25 score value
 
         // control to avoid log and division to 0
         if (termFreq == 0)
             return (double) 0;
 
         docLen = documentTable.get(DocID).getDoclength();   // get doc length
-
         denominator = k * ((1 - b) + b * (docLen / avgDocLen)) + termFreq;                      // calculate TF weight
-        //IDFweight = Math.log10(((double) CollectionStatistics.getNDocs() / postListLength));    // calculate IDF weight
         scoreBM25 = (termFreq / denominator) * IDFweight;      // calculate TFIDF weight from Tf and IDF weight values
-
         //printDebug("ScoringBM25 - docLen = " + docLen + " denominator = " + denominator + " IDFweight = " + IDFweight + " scoreBM25 = " + scoreBM25);
 
         return scoreBM25;
