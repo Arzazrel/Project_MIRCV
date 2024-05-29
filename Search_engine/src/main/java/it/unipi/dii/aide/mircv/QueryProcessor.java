@@ -81,9 +81,9 @@ public final class QueryProcessor {
 
             //DAATAlgorithm(processedQuery,scoringFunc,isConjunctive, isDisjunctive,numberOfResults);        // apply DAAT to calculate the score of the Docs
             //resPQ.clear();
-            DAATAlgWAND(processedQuery,scoringFunc,isConjunctive,numberOfResults);      // apply DAAT + WAND V.0 to calculate the score of the Docs
+            //DAATAlgWAND(processedQuery,scoringFunc,isConjunctive,numberOfResults);      // apply DAAT + WAND V.0 to calculate the score of the Docs
             //resPQ.clear();
-            //DAATAlgMAXSCORE(processedQuery,scoringFunc,isConjunctive,numberOfResults);  // apply DAAT + MaxScore V.0 to calculate the score of the Docs
+            DAATAlgMAXSCORE(processedQuery,scoringFunc,isConjunctive,numberOfResults);  // apply DAAT + MaxScore V.0 to calculate the score of the Docs
 
             rankedResults = getRankedResults(numberOfResults);          // get ranked results
 
@@ -218,7 +218,6 @@ public final class QueryProcessor {
                         partialScore += ScoringBM25(currentDID,currentP.getTermFreq(), IDFweight[j]);     // use BM25
                     else
                         partialScore += ScoringTFIDF(currentP.getTermFreq(), IDFweight[j]);               // use TFIDF
-
                     //printDebug("DAAT: posting del termine: " + processedQuery.get(j) + " della posting: " + j + " in pos: " + (postingListsIndex[j]-1) + " ha DID: " + currentDID + " and partialScore: " + partialScore);
                 } else if (isConjunctive) {
                     // must take only the document in which there are all term (DID that compare in all posting lists of the terms)
@@ -234,7 +233,6 @@ public final class QueryProcessor {
                     }
                 }
             }
-            //printDebug("---- for hop ----");
 
             // save score
             if ((partialScore != 0) && !resetScore)
@@ -524,23 +522,24 @@ public final class QueryProcessor {
         resPQ = new PriorityQueue<>(numberOfResults, new CompareTerm());    // length equal to the number of results to be returned to the user
         String[] orderedQueryTerm = new String[processedQuery.size()];      // contains ...
         double[] termUpperBoundList  = new double[processedQuery.size()];   // contains all the term upper bound for each term of the query
-        double[] sumTUBList  = new double[processedQuery.size()];   // ...  array con la somma dei TUB per quell'indice ++++++++++++++++++
+        double[] sumTUBList  = new double[processedQuery.size()];           // array containing the sum of TUB, the value at the i-th position is the sum of TUBs from position 0 to (i-1)
         ArrayList<Posting>[] postingLists;  // contains all the posting lists for each term of the query
         ArrayList<Integer> ordListDID;      // ordered list of the DocID present in the all posting lists of the term present in the query
+        double[] IDFweight;                 // array containing the IDF weight for each posting list
+        int[] lengthPostingList;            // array containing the length of the posting lists
+        int[] postingListsIndex ;           // contain the current position index for the posting list of each term in the query
+        Posting currentP;                   // support var
         int firstEssPostListIndex = 0;      // indicates the index of the first (current) essential posting list
         double threshold = 0;               // var that contain the current threshold for MaxScore (is the minimum score value to be in the current best result)
         double currentDocUpperBound = 0;    // current document upper bound (used in max score algorithm for early stopping)
         double currentScore = 0;            // ...
-        Posting currentP;                   // support var
-        int[] postingListsIndex ;           // contain the current position index for the posting list of each term in the query
-        int currentDID = 0;                 // DID of the current doc processed in algorithm
+        //int currentDID = 0;                 // DID of the current doc processed in algorithm
         double partialScore = 0;            // var that contain partial score
         int docScoreCalc = 0;               // indicates the number of documents whose score was calculated (0 to number of results requested by the user)
         boolean resetScore = false;         // used only in conjunctive case. indicates that the score must be set to 0 (the current Doc there aren't all the term of the query)
         int pLNotEmpty = 0;                 // contains the number of posting lists related to the query terms that aren't empty
-        int df = 0;                         // contains df of the term (used in score function)
-        long startTime,endTime;             // variables to calculate the execution time
         boolean hop = false;
+        long startTime,endTime;             // variables to calculate the execution time
 
         int indexRatioUpdate = 10;
 
@@ -566,21 +565,25 @@ public final class QueryProcessor {
         // more postingLists not empty, use MAXSCORE algorithm
         ordListDID = DIDOrderedListOfQuery(postingLists, isConjunctive);    // take ordered list of DocID
         postingListsIndex = getPostingListsIndex(postingLists);             // get the index initialized
+        lengthPostingList = retrieveLengthAllPostingLists(orderedQueryTerm);   // take the length of each posting list
+        IDFweight = calculateIDFWeight(lengthPostingList);                      // calculate the IDF weight
 
         // control print
-        printDebug("orderedQueryTerm -> " + Arrays.toString(orderedQueryTerm));
-        printDebug("termUpperBoundList -> " + Arrays.toString(termUpperBoundList));
-        printDebug("sumTUBList -> " + Arrays.toString(sumTUBList));
+        //printDebug("orderedQueryTerm -> " + Arrays.toString(orderedQueryTerm));
+        //printDebug("termUpperBoundList -> " + Arrays.toString(termUpperBoundList));
+        //printDebug("sumTUBList -> " + Arrays.toString(sumTUBList));
 
-        startTime = System.currentTimeMillis();           // start time of DAAT
-        // MaxScore algorithm
-        // scan all Doc retrieved and calculate score (TFIDF or BM25)
-        for (Integer integer : ordListDID)
+        //printDebug("START DAAT + MAXSCORE\n");
+        startTime = System.currentTimeMillis();           // start time of DAAT + MAX SCORE
+        // MaxScore algorithm - scan all Doc retrieved and calculate score (TFIDF or BM25)
+        for (Integer currentDID : ordListDID)
         {   // -- start - for 0: DID --
-            currentDID = integer;       // update the DID, document of which to calculate the score
+            //printDebug("START cycle with DID: " + currentDID);
+            //currentDID = integer;       // update the DID, document of which to calculate the score
             partialScore = 0;           // reset var
             resetScore = false;         // set to false
 
+            //printDebug("-- START EP - with first EP: " + firstEssPostListIndex + " of DID: " + currentDID);
             // scan the essential posting lists, default case is query Disjunctive
             for (int j = firstEssPostListIndex; j < postingLists.length; j++)
             {   // -- start - for 0.1: EPL --
@@ -589,17 +592,13 @@ public final class QueryProcessor {
                 {
                     currentP = postingLists[j].get(postingListsIndex[j]);              // take posting
                     postingListsIndex[j]++;                         // update index of current value
-                    //System.out.println("DAAT, prescoring -- df = " + DataStructureHandler.postingListLengthFromTerm(processedQuery.get(j)));
 
                     // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
-                    String term = orderedQueryTerm[j];      // get the term
-                    assert term != null;
-                    df = dictionary.getTermToTermStat().get(term).getDf();
                     if (scoringFunc)
-                        partialScore += ScoringBM25(currentDID,currentP.getTermFreq(), df);     // use BM25
+                        partialScore += ScoringBM25(currentDID,currentP.getTermFreq(), IDFweight[j]);     // use BM25
                     else
-                        partialScore += ScoringTFIDF(currentP.getTermFreq(), df);               // use TFIDF
-                    //printDebug("DAAT: posting del termine: " + processedQuery.get(j) + " della posting: " + j + " in pos: " + (postingListsIndex[j]-1) + " ha DID: " + currentDID + " and partialScore: " + partialScore);
+                        partialScore += ScoringTFIDF(currentP.getTermFreq(), IDFweight[j]);               // use TFIDF
+                    //printDebug("---- EP - find DID: " + currentDID + " and partialScore: " + partialScore + " in term: " + processedQuery.get(j) + " of posting: " + j + " in pos: " + (postingListsIndex[j]-1));
                 }
                 else if (isConjunctive)     // must take only the document in which there are all term (DID that compare in all posting lists of the terms)
                 {
@@ -616,7 +615,7 @@ public final class QueryProcessor {
                 }
             }   // -- end - for 0.1: EPL --
 
-            //printDebug("ESSENTIAL posting list -> DID : " + currentDID + " partialScore: " + partialScore + " and threshold: " + threshold + " reset score: " + resetScore);
+            //printDebug("-- END EP -> DID : " + currentDID + " partialScore: " + partialScore + " and threshold: " + threshold + " reset score: " + resetScore);
             // Conditions under which analysis of nonessential posting lists can be skipped -- SEE NOTE 0 --
             if ( (partialScore == 0) || resetScore )
                 continue;       // go to next iteration, the current doc can't be among the top result
@@ -625,6 +624,7 @@ public final class QueryProcessor {
             if (firstEssPostListIndex != 0)
             {   // -- start - if: NoEPL --
                 currentDocUpperBound = partialScore + sumTUBList[firstEssPostListIndex];    // calculate the current DUB
+                //printDebug("-- START NonEP - DocUB: " + currentDocUpperBound + " and threshold: " + threshold);
                 // check if the doc has no zero possibility to have a score greater than threshold
                 if (currentDocUpperBound <= threshold)
                     continue;
@@ -638,11 +638,11 @@ public final class QueryProcessor {
                     {
                         resetScore = true;       // reset the partial score
                     }
-
                     if ((postingLists[i] != null) && (postingListsIndex[i] < postingLists[i].size()))
                     {
                         while ((postingListsIndex[i] < postingLists[i].size()) && (postingLists[i].get(postingListsIndex[i]).getDocId() <= currentDID))
                         {
+                            //printDebug("------ NonEP - search DID: " + currentDID + " in PL: " + i + " in pos: " + postingListsIndex[i] + " with did value: " + postingLists[i].get(postingListsIndex[i]).getDocId());
                             postingListsIndex[i] += indexRatioUpdate;         // update index of current value
                             hop = true;
                         }
@@ -658,19 +658,16 @@ public final class QueryProcessor {
                             currentP = postingLists[i].get(postingListsIndex[i]);              // take posting
 
                             // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
-                            String term = orderedQueryTerm[i];      // get the term
-                            assert term != null;
-                            df = dictionary.getTermToTermStat().get(term).getDf();
                             if (scoringFunc)
-                                currentScore = ScoringBM25(currentDID,currentP.getTermFreq(), df);     // use BM25
+                                partialScore += ScoringBM25(currentDID,currentP.getTermFreq(), IDFweight[i]);   // use BM25
                             else
-                                currentScore = ScoringTFIDF(currentP.getTermFreq(), df);               // use TFIDF
+                                partialScore += ScoringTFIDF(currentP.getTermFreq(), IDFweight[i]);             // use TFIDF
                             partialScore += currentScore;                                   // update partialScore
                             currentDocUpperBound -= termUpperBoundList[i];      // update currentDocUpperBound
                             currentDocUpperBound += partialScore;               // update currentDocUpperBound
 
                             resetScore = false;       // reset the partial score
-                            //printDebug("---- NON ESSENTIAL -> Find the DID " + currentDID + " in the posting list: " + i);
+                            //printDebug("---- NonEP -> Find the DID " + currentDID + " in the posting list: " + i);
                         }
                         postingListsIndex[i]++;                         // update index of current value
                         //printDebug("NON ESSENTIAL -> search the DID " + currentDID + " in the posting list: " + i + " and did is: " + postingLists[i].get(postingListsIndex[i]).getDocId());
@@ -681,10 +678,11 @@ public final class QueryProcessor {
                         //printDebug("Query conjunctive, posting list numero: " + j + " finita. Si è in pos: " + postingListsIndex[j] + " su dimensione: " + postingLists[j].size());
                         endTime = System.currentTimeMillis();           // end time of DAAT
                         // shows query execution time
-                        printTime("*** DAAT + MAX SCORE V.0 execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+                        //printTime("*** DAAT + MAX SCORE V.0 execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
                         return;             // exit from function
                     }
 
+                    //printDebug("-- END NonEP - DocUB: " + currentDocUpperBound + " with score: " + partialScore + " and threshold: " + threshold);
                     // check if the doc has no zero possibility to have a score greater than threshold
                     if (currentDocUpperBound <= threshold)
                         break;
@@ -703,16 +701,18 @@ public final class QueryProcessor {
                 docScoreCalc++;                         // increment result in priority queue counter
                 if ((docScoreCalc == numberOfResults) || orderAllHashMap)
                     threshold = resPQ.peek().getScore();    // update threshold
+                //printDebug("-- SCORING - Add result: " + partialScore);
             }
             else if (threshold < partialScore)    // number of user-requested results achieved, check whether the current doc is within the best docs to return (score greater than the first item in the priority queue)
             {
+                //printDebug("-- SCORING - Add result: " + partialScore);
                 // substitution of the block
                 resPQ.poll();                           // remove the first element
                 resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
                 threshold = resPQ.peek().getScore();    // update threshold
                 // calculate new essential posting lists and update firstEssPostListIndex
                 firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold);
-                printDebug("*** New threshold: " + threshold + " new first essential posting list: " + firstEssPostListIndex);
+                //printDebug("-- New threshold: " + threshold + " new first essential posting list: " + firstEssPostListIndex);
             }
         }   // -- end - for: DID --
 
