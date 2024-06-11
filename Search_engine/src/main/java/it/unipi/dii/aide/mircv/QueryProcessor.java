@@ -40,12 +40,11 @@ public final class QueryProcessor {
      * fuction to manage the query request. Prepare and execute the query and return the results.
      *
      * @param query             is the query of the users (in words)
-     * @param isConjunctive     indicates whether the query is of conjunctive type
-     * @param isDisjunctive     indicates whether the query is of disjunctive type
+     * @param isConjunctive     indicates whether the query is conjunctive or disjunctive type (default is disjunctive)
      * @param numberOfResults   the number of results to be returned by the query
      * @return  an ArrayList of integer that representing an ordered list of DocIDs
      */
-    public static ArrayList<Integer> queryManager(String query, boolean isConjunctive, boolean isDisjunctive, int numberOfResults)
+    public static ArrayList<Integer> queryManager(String query, boolean isConjunctive, int numberOfResults)
     {
         ArrayList<Integer> rankedResults = new ArrayList<>();   // ArrayList that contain the ranked results of query
         ArrayList<String> processedQuery;                       // array list for containing the query term
@@ -72,18 +71,11 @@ public final class QueryProcessor {
                 return rankedResults;
             }
 
-            // control for correct form
-            if ( (isConjunctive && isDisjunctive) || !(isConjunctive || isDisjunctive))     // query is Conjunctive or Disjunctive cannot be both or neither
-            {
-                printError("Error: query is Conjunctive or Disjunctive cannot be both or neither.");  // mex of error
-                return rankedResults;
-            }
-
-            //DAATAlgorithm(processedQuery,scoringFunc,isConjunctive, isDisjunctive,numberOfResults);        // apply DAAT to calculate the score of the Docs
+            //DAATAlgorithm(processedQuery,scoringFunc,isConjunctive,numberOfResults);        // apply DAAT to calculate the score of the Docs
             //resPQ.clear();
-            //DAATAlgWAND(processedQuery,scoringFunc,isConjunctive,numberOfResults);      // apply DAAT + WAND V.0 to calculate the score of the Docs
+            DAATAlgWAND(processedQuery,scoringFunc,isConjunctive,numberOfResults);      // apply DAAT + WAND V.0 to calculate the score of the Docs
             //resPQ.clear();
-            DAATAlgMAXSCORE(processedQuery,scoringFunc,isConjunctive,numberOfResults);  // apply DAAT + MaxScore V.0 to calculate the score of the Docs
+            //DAATAlgMAXSCORE(processedQuery,scoringFunc,isConjunctive,numberOfResults);  // apply DAAT + MaxScore V.0 to calculate the score of the Docs
 
             rankedResults = getRankedResults(numberOfResults);          // get ranked results
 
@@ -148,11 +140,10 @@ public final class QueryProcessor {
      *
      * @param scoringFunc       indicates the preference for scoring. if false use TFIDF, if true use BM25.
      * @param processedQuery    array list for containing the query term
-     * @param isConjunctive     indicates whether the query is of conjunctive type
-     * @param isDisjunctive     indicates whether the query is of disjunctive type
+     * @param isConjunctive     indicates whether the query is conjunctive or disjunctive type (default is disjunctive)
      * @param numberOfResults   indicated the max number of result to return to user
      */
-    private static void DAATAlgorithm(ArrayList<String> processedQuery, boolean scoringFunc , boolean isConjunctive, boolean isDisjunctive, int numberOfResults) throws FileNotFoundException
+    private static void DAATAlgorithm(ArrayList<String> processedQuery, boolean scoringFunc , boolean isConjunctive, int numberOfResults) throws FileNotFoundException
     {
         resPQ = new PriorityQueue<>(numberOfResults, new CompareTerm());    // length equal to the number of results to be returned to the user
         String[] terms = new String[processedQuery.size()];                 // array containing the terms of the query
@@ -460,8 +451,7 @@ public final class QueryProcessor {
                 }
             }   // -- end - if.0 - WAND execution --
 
-            if ((currentDID > 3219790) && (currentDID < 3573600))   // interesse 3573563 (in WAND) , 3219797 (in MaxScore)
-                printDebug("-- WAND - start calculating - doc: " + currentDID + " with sumTUB: " + tempSumTUB + " and threshold: " + threshold );
+            //printDebug("-- WAND - start calculating - doc: " + currentDID + " with sumTUB: " + tempSumTUB + " and threshold: " + threshold );
             // calculate the score -> case of tempSumTUB > threshold or docScoreCalc < numberOfResults (default case is query Disjunctive)
             for (int j = 0; j < postingLists.length; j++)   // take all values and calculating the scores in the posting related to currentDID
             {
@@ -476,8 +466,7 @@ public final class QueryProcessor {
                         partialScore += ScoringBM25(currentDID,currentP.getTermFreq(), IDFweight[j]);     // use BM25
                     else
                         partialScore += ScoringTFIDF(currentP.getTermFreq(), IDFweight[j]);     // use TFIDF
-                    if ((currentDID > 3219790) && (currentDID < 3573600))   // interesse 3573563 (in WAND) , 3219797 (in MaxScore)
-                        printDebug("------ DAAT: find DID: " + currentDID + " term: '" + processedQuery.get(j) + "' in PL: " + j + " in pos: " + (postingListsIndex[j]-1) + " and partialScore: " + partialScore);
+                    //printDebug("------ DAAT: find DID: " + currentDID + " term: '" + processedQuery.get(j) + "' in PL: " + j + " in pos: " + (postingListsIndex[j]-1) + " and partialScore: " + partialScore);
                 }
                 else if (isConjunctive)
                 {
@@ -511,7 +500,7 @@ public final class QueryProcessor {
                     resPQ.poll();                           // remove the first element
                     resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
                     threshold = resPQ.peek().getScore();    // update threshold
-                    printDebug("------ Scoring, new threshold: " + threshold);
+                    //printDebug("------ Scoring, new threshold: " + threshold);
                 }
             }
         }   // -- end - while to scan all doc retrieved --
@@ -1539,7 +1528,7 @@ public final class QueryProcessor {
         if(TermDocUpperBound.termUpperBoundTableIsEmpty())
         {
             if(TermDocUpperBound.termUpperBoundFileExist())     // the file already exist
-                TermDocUpperBound.readTermUpperBoundTableIntoDisk();
+                TermDocUpperBound.readTermUpperBoundTableFromDisk();
             else                                                // the file not exist
                 TermDocUpperBound.calculateTermsUpperBound();   // calculate term upper bound for each term of dictionary
         }
@@ -1567,7 +1556,7 @@ public final class QueryProcessor {
                 printDebug("---- disjunctive mode ----");
 
                 startTime = System.currentTimeMillis();         // start time of execute query
-                rankedResults = queryManager(queryProc[1],false,true,5);    // run the query in disjunctive mode
+                rankedResults = queryManager(queryProc[1],false,5);    // run the query in disjunctive mode
                 printQueryResults(rankedResults);
                 endTime = System.currentTimeMillis();           // end time of execute query
                 // shows query execution time
@@ -1588,7 +1577,7 @@ public final class QueryProcessor {
 
                 printDebug("---- conjunctive mode ----");
                 startTime = System.currentTimeMillis();         // start time of execute query
-                rankedResults = queryManager(queryProc[1],true,false,5);    // run the query in conjunctive mode
+                rankedResults = queryManager(queryProc[1],true,5);    // run the query in conjunctive mode
                 printQueryResults(rankedResults);
                 endTime = System.currentTimeMillis();           // end time of execute query
                 // shows query execution time

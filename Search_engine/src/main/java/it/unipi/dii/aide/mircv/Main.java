@@ -99,6 +99,7 @@ public class Main {
                         return;                           // error exit
                     }
                     TermDocUpperBound.calculateTermsUpperBound();   // calculate term upper bound for each term of dictionary
+                    //TermDocUpperBound.readTermUpperBoundTableFromDisk();
 
                     TermDocUpperBound.calculateDocsUpperBound();    // calculate doc upper bound for each doc of docTable
 
@@ -117,7 +118,7 @@ public class Main {
                     if(TermDocUpperBound.termUpperBoundTableIsEmpty())
                     {
                         if(TermDocUpperBound.termUpperBoundFileExist())     // the file already exist
-                            TermDocUpperBound.readTermUpperBoundTableIntoDisk();
+                            TermDocUpperBound.readTermUpperBoundTableFromDisk();
                         else                                                // the file not exist
                             TermDocUpperBound.calculateTermsUpperBound();   // calculate term upper bound for each term of dictionary
                     }
@@ -130,8 +131,8 @@ public class Main {
                         continue;                           // go next while iteration
                     }
 
-                    boolean isConjunctive = false;          // true = Conjunctive query
-                    boolean isDisjunctive = false;          // true = Disjunctive query
+                    boolean isConjunctive = false;      // true = Conjunctive query  | false = Disjunctive query (default case)
+                    boolean isDisjunctive = false;      // true = user type D
                     // do while for choosing Conjunctive(AND) or Disjunctive(OR) query
                     do {
                         printUI("Type C for choosing Conjunctive query or D for choosing Disjunctive queries.");
@@ -163,7 +164,7 @@ public class Main {
                     startTime = System.currentTimeMillis();         // start time of execute query
 
                     // do query and retry the results
-                    rankedResults = QueryProcessor.queryManager(query,isConjunctive,isDisjunctive,numberOfResults);
+                    rankedResults = QueryProcessor.queryManager(query,isConjunctive,numberOfResults);
                     QueryProcessor.printQueryResults(rankedResults);               // print the results of the query
 
                     endTime = System.currentTimeMillis();           // end time of execute query
