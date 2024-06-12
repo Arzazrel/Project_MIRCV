@@ -99,7 +99,8 @@ public final class QueryProcessor {
      * @return  true -> if all checks are passed,then can proceed with the execution of a query
      *          false -> if at least one check is failed (one file missed), then can't proceed with the execution of a query
      */
-    public static boolean queryStartControl() throws IOException {
+    public static boolean queryStartControl() throws IOException
+    {
         // -- control for file into disk
         if (!FileSystem.areThereAllMergedFiles() ||
                 !Flags.isThereFlagsFile() ||

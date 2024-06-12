@@ -21,21 +21,19 @@ public final class FileSystem {
      * that are in resources.
      */
     public static void file_cleaner() {
-
         try {
             File partial_folder = new File(PARTIAL_FOLDER);
-            FileUtils.cleanDirectory(partial_folder);           // delete files in partial folder
+            FileUtils.cleanDirectory(partial_folder);       // delete files in partial folder
             File merged_folder = new File(MERGED_FOLDER);
-            FileUtils.cleanDirectory(merged_folder);            // delete files in merged folder
+            FileUtils.cleanDirectory(merged_folder);        // delete files in merged folder
 
             File flags = new File(FLAGS_FILE);
             if(flags.exists())
-                FileUtils.delete(flags);            // delete flags file if exist
+                FileUtils.delete(flags);                    // delete flags file if exist
 
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
 
     /**
@@ -45,7 +43,7 @@ public final class FileSystem {
 
         File partial_directory = new File(PARTIAL_FOLDER);
         try {
-            FileUtils.cleanDirectory(partial_directory);
+            FileUtils.cleanDirectory(partial_directory);    // delete files in partial folder
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -59,11 +57,13 @@ public final class FileSystem {
         File dict = new File(DICTIONARY_FILE);
         File docid = new File(DOCID_FILE);
         File termfreq = new File(TERMFREQ_FILE);
-        if(dict.exists() && docid.exists() && termfreq.exists()) {
+
+        if(dict.exists() && docid.exists() && termfreq.exists()) // if the files exist delete them
+        {
             try {
-                FileUtils.delete(dict);
-                FileUtils.delete(docid);
-                FileUtils.delete(termfreq);
+                FileUtils.delete(dict);         // delete dictionary file
+                FileUtils.delete(docid);        // delete docid file
+                FileUtils.delete(termfreq);     // delete termfreq file
             } catch (IOException e) {
                 e.printStackTrace();
             }

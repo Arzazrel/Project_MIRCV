@@ -7,6 +7,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import static it.unipi.dii.aide.mircv.utils.Constants.DEBUG_FOLDER;
+import static it.unipi.dii.aide.mircv.utils.Constants.printError;
 
 public final class Logger {
 

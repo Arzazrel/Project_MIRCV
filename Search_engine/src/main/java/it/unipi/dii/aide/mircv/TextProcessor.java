@@ -13,6 +13,9 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Class to manage and operate on the text of documents and queries.
+ */
 public class TextProcessor
 {
     public static List<String> globalStopwords;         // list of strings to store stopwords
@@ -57,8 +60,8 @@ public class TextProcessor
         // Define a pattern to match any Unicode characters outside the ASCII range
         Pattern nonASCIICharsPattern = Pattern.compile("[^\\x00-\\x7F]",
                 Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.CASE_INSENSITIVE);
-
-        Matcher nonASCIICharsMatcher = nonASCIICharsPattern.matcher(cleanedInput);  // find all the non-ASCII characters that are present in input (if there are)
+        // find all the non-ASCII characters that are present in input (if there are)
+        Matcher nonASCIICharsMatcher = nonASCIICharsPattern.matcher(cleanedInput);
         cleanedInput = nonASCIICharsMatcher.replaceAll(" "); // Replace non-ASCII characters with a space
 
         return cleanedInput;
@@ -73,15 +76,10 @@ public class TextProcessor
     private static String cleanText(String input) {
 
         input = input.replaceAll("https?://\\S+\\s?", " "); // Replace URLs with spaces
-
-        input = input.toLowerCase();        // Convert text to lowercase
-
-        input = input.replaceAll("<[^>]*>", "");        // Remove HTML tags
-
-        input = input.replaceAll("\\p{Punct}", " ");    // Replace punctuation with spaces
-
-        input = removeNonASCIIChars(input); // Remove non-ASCII characters
-
+        input = input.toLowerCase();                                         // Convert text to lowercase
+        input = input.replaceAll("<[^>]*>", "");            // Remove HTML tags
+        input = input.replaceAll("\\p{Punct}", " ");        // Replace punctuation with spaces
+        input = removeNonASCIIChars(input);                                  // Remove non-ASCII characters
         input = input.replaceAll("\\s+", " ");  // Replace multiple(extra) spaces with a single space
 
         return input;

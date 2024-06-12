@@ -45,15 +45,14 @@ public class TermDocUpperBound
         // check if already exist the file
         if (termUpperBoundFileExist())
         {
-            printDebug("The termUpperBoundFile already exist.");
             deleteTermUpperBoundFile();         // delete the file
-            printDebug("The termUpperBoundFile erased.");
+            printDebug("The termUpperBoundFile already exist.\nThe termUpperBoundFile erased.");    // control print
         }
-        printDebug("Calculating terms upper bound...");     // control print
-        startTime = System.currentTimeMillis();         // start time to calculate all term upper bound
+        printDebug("Calculating terms upper bound..."); // control print
+        startTime = System.currentTimeMillis();            // start time to calculate all term upper bound
 
         termsList = new ArrayList<>(QueryProcessor.getDictionary().keySet());   // read all the term of the dictionary
-        scoringFunc = Flags.isScoringEnabled();         // take user's choice about using scoring function
+        scoringFunc = Flags.isScoringEnabled();             // take user's choice about using scoring function
 
         // scan all term in the dictionary
         for (String term : termsList)
@@ -181,29 +180,26 @@ public class TermDocUpperBound
              FileChannel channel = raf.getChannel())
         {
             MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_WRITE, channel.size(), (long) DOUBLE_BYTES * termUpperBoundTable.size());
-
             // Buffer not created
             if(buffer == null)
                 return;
-
             // scan all document elements of the termUpperBoundTable
             for(double termUpperBound: termUpperBoundTable.values())
             {
-                // write termUpperBoundTable into file
-                buffer.putDouble(termUpperBound);
-
+                buffer.putDouble(termUpperBound);       // write termUpperBoundTable into file
                 if(debug)
                     printDebug("write the term upper bound: " + termUpperBound);
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
+        //printDebug("Print the hashtable fot the TUB " + termUpperBoundTable);
     }
 
     /**
      * function to read the whole termUpperBoundTable into disk
      */
-    public static void readTermUpperBoundTableIntoDisk()
+    public static void readTermUpperBoundTableFromDisk()
     {
         ArrayList<String> termsList;    // array list for all the term
         double currentTermUB = 0;       // var to contain the term upper bound read from disk
@@ -217,8 +213,10 @@ public class TermDocUpperBound
         printDebug("In term upper bound table (before the read from file).");
         printDebug("Position 0 -> term: " + termsList.get(0) + " and TUB: " + termUpperBoundTable.get(termsList.get(0)));
         printDebug("Position 1 -> term: " + termsList.get(1) + " and TUB: " + termUpperBoundTable.get(termsList.get(1)));
+        printDebug("Position " + (termsList.size()-3) + " -> term: " + termsList.get(termsList.size()-3) + " and TUB: " + termUpperBoundTable.get(termsList.get(termsList.size()-3)));
+        printDebug("Position " + (termsList.size()-2) + " -> term: " + termsList.get(termsList.size()-2) + " and TUB: " + termUpperBoundTable.get(termsList.get(termsList.size()-2)));
         printDebug("Position " + (termsList.size()-1) + " -> term: " + termsList.get(termsList.size()-1) + " and TUB: " + termUpperBoundTable.get(termsList.get(termsList.size()-1)));
-        */
+        //*/
         termUpperBoundTable.clear();        // free the hash map table
 
         startTime = System.currentTimeMillis();         // start time to store all term upper bound
@@ -227,14 +225,12 @@ public class TermDocUpperBound
                 FileChannel channel = raf.getChannel()
         ) {
             MappedByteBuffer termUBBuffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
-
             // size control check
             if (termsList.size() != (channel.size()/DOUBLE_BYTES) )
             {
                 printError("The number of term upper bound stored in the file into disk is different from the number of terms in the dictionary.");
                 return;     // exit from the method
             }
-
             // for to read all term upper bound stored into disk and put into termUpperBoundTable
             for (int i = 0; i < channel.size(); i += DOUBLE_BYTES)
             {
@@ -250,6 +246,8 @@ public class TermDocUpperBound
         printDebug("In term upper bound table (after the read from file).");
         printDebug("Position 0 -> term: " + termsList.get(0) + " and TUB: " + termUpperBoundTable.get(termsList.get(0)));
         printDebug("Position 1 -> term: " + termsList.get(1) + " and TUB: " + termUpperBoundTable.get(termsList.get(1)));
+        printDebug("Position " + (termsList.size()-3) + " -> term: " + termsList.get(termsList.size()-3) + " and TUB: " + termUpperBoundTable.get(termsList.get(termsList.size()-3)));
+        printDebug("Position " + (termsList.size()-2) + " -> term: " + termsList.get(termsList.size()-2) + " and TUB: " + termUpperBoundTable.get(termsList.get(termsList.size()-2)));
         printDebug("Position " + (termsList.size()-1) + " -> term: " + termsList.get(termsList.size()-1) + " and TUB: " + termUpperBoundTable.get(termsList.get(termsList.size()-1)));
         //*/
         endTime = System.currentTimeMillis();           // end time to store all term upper bound

@@ -27,9 +27,9 @@ public final class PartialIndexBuilder {
     /**
      * Implements the SPIMI algorithm for indexing large collections.
      */
-    public static void SPIMIalgorithm() {
-
-        long memoryAvailable = (long) (Runtime.getRuntime().maxMemory() * MEMORY_THRESHOLD);
+    public static void SPIMIalgorithm()
+    {
+        long memoryAvailable = (long) (Runtime.getRuntime().maxMemory() * MEMORY_THRESHOLD);    // amount of memory which can be used
         int docCounter = 1;         // counter for DocID
         int termCounter = 0;        // counter for TermID
         int totDocLen = 0;          // variable for the sum of the lengths of all documents
@@ -37,7 +37,6 @@ public final class PartialIndexBuilder {
         File file = new File(COLLECTION_PATH);
         try (
             final TarArchiveInputStream tarArchiveInputStream = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(file)));
-
         ) {
             TarArchiveEntry tarArchiveEntry = tarArchiveInputStream.getNextTarEntry();
             BufferedReader buffer_collection;
@@ -48,65 +47,61 @@ public final class PartialIndexBuilder {
             String record;          // string to contain the document
 
             // scan all documents in the collection
-            while ((record = buffer_collection.readLine()) != null) {
-
-                // check for malformed line, no \t
-                int separator = record.indexOf("\t");
-                if (record.isBlank() || separator == -1) { // empty string or composed by whitespace characters or malformed
+            while ((record = buffer_collection.readLine()) != null)
+            {   // -- start - while 0 - scan all docs --
+                int separator = record.indexOf("\t");       // check for malformed line, no \t
+                if (record.isBlank() || separator == -1)    // empty string or composed by whitespace characters or malformed
                     continue;
-                }
+
 
                 ArrayList<String> preprocessed = TextProcessor.preprocessText(record); // Preprocessing of document text
                 String docno = preprocessed.remove(0);      // get the DocNO of the current document
 
                 // check if document is empty
-                if (preprocessed.isEmpty() || (preprocessed.size() == 1 && preprocessed.get(0).equals("")))  {
+                if (preprocessed.isEmpty() || (preprocessed.size() == 1 && preprocessed.get(0).equals("")))
                     continue;              // skip to next while iteration (next document)
-                }
 
                 DocumentElement de = new DocumentElement(docno, docCounter, preprocessed.size());   // create new Document element
                 documentTable.put(docCounter, de);      // add current Document into Document Table in memory
                 totDocLen += preprocessed.size();       // add current document length
                 // scan all term in the current document
-                for (String term : preprocessed) {
+                for (String term : preprocessed)
+                {   // -- start - for 0 - scan all term in current doc --
                     // control check if the length of the current term is greater than the maximum allowed
                     if(term.length() > TERM_DIM)
-                        term = term.substring(0,TERM_DIM);                  // truncate term
+                        term = term.substring(0,TERM_DIM);      // truncate term
 
                     // control check if the current term has already been found or is the first time
                     if (!dictionary.getTermToTermStat().containsKey(term))
-                        termCounter++;                  // update TermID counter
+                        termCounter++;                          // update TermID counter
 
                     assert !term.equals("");
-
                     DictionaryElem dictElem = dictionary.getOrCreateTerm(term,termCounter);     // Dictionary build
 
                     if(addTerm(term, docCounter, 0))
-                        dictElem.addDf(1);
-                    dictElem.addCf(1);
+                        dictElem.addDf(1);  // update document frequency (number of docs in which there is the term)
+                    dictElem.addCf(1);  // update collection frequency (number of occurrences of the term in the collection)
 
                     N_POSTINGS++;       // update number of partial postings to save in the file
-                }
+                }   // -- end - for 0 - scan all term in current doc --
                 docCounter++;       // update DocID counter
 
-                if(Runtime.getRuntime().totalMemory() > memoryAvailable) {
-                    System.out.println("********** Memory full **********");
-
+                if(Runtime.getRuntime().totalMemory() > memoryAvailable)
+                {
+                    printDebug("********** Memory full **********");
                     storeIndexAndDictionaryIntoDisk();  //store index and dictionary to disk
                     storeDocumentTableIntoDisk();       // store document table one document at a time for each block
-
-                    freeMemory();
-                    System.gc();
-                    System.out.println("********** Free memory **********");
-                    N_POSTINGS = 0; // new partial index, reset number of postings in the block
+                    freeMemory();   // delete information in document table, dictionary,and inverted index
+                    System.gc();    // effort JVM
+                    printDebug("********** Free memory **********");
+                    N_POSTINGS = 0;     // new partial index, reset number of postings in the block
                 }
-            }
+            }   // -- end - while 0 - scan all docs --
+            DataStructureHandler.storeBlockOffsetsIntoDisk();   // store into file all the blocks offset
 
-            DataStructureHandler.storeBlockOffsetsIntoDisk();
-
-            CollectionStatistics.setNDocs(docCounter);        // set total number of Document in the collection
-            CollectionStatistics.setTotDocLen(totDocLen);     // set the sum of the all document length in the collection
-            CollectionStatistics.storeCollectionStatsIntoDisk();         // store collection statistics into disk
+            CollectionStatistics.setNDocs(docCounter);      // set total number of Document in the collection
+            CollectionStatistics.setTotDocLen(totDocLen);   // set the sum of the all document length in the collection
+            CollectionStatistics.storeCollectionStatsIntoDisk();    // store collection statistics into disk
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -115,10 +110,16 @@ public final class PartialIndexBuilder {
 
     /***
      * Add the current term to the inverted index
+     *
+     * @param term  the term passed as parameter
+     * @param docId the docID of the current document
+     * @param tf    the
      * @return false if the term has been already encountered in the current document,
-     *         true if the term has been encountered for the first time in the current document or if the term was for the first time encountered
+     *         true if the term has been encountered for the first time in the current document or if the term was for
+     *              the first time encountered
      * ***/
-    private static boolean addTerm(String term, int docId, int tf) {
+    private static boolean addTerm(String term, int docId, int tf)
+    {
         // Initialize term frequency to 1 if tf is not provided (tf = 0 during index construction)
         int termFreq = (tf != 0) ? tf : 1;
 
@@ -129,7 +130,8 @@ public final class PartialIndexBuilder {
         int size = invertedIndex.get(term).size();
 
         // Check if the posting list is empty or if the last posting is for a different document
-        if (invertedIndex.get(term).isEmpty() || invertedIndex.get(term).get(size - 1).getDocId() != docId) {
+        if (invertedIndex.get(term).isEmpty() || invertedIndex.get(term).get(size - 1).getDocId() != docId)
+        {
             // Add a new posting for the current document
             invertedIndex.get(term).add(new Posting(docId, termFreq));
 

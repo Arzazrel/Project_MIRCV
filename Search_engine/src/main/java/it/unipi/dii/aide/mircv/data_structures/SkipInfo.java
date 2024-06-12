@@ -6,11 +6,11 @@ import java.nio.channels.FileChannel;
 
 public class SkipInfo {
 
-    public static final int SKIPPING_INFO_SIZE = 3 * Long.BYTES;
+    public static final int SKIPPING_INFO_SIZE = 3 * Long.BYTES;    // the size
 
-    private long maxDocId;
-    private long docIdOffset;
-    private long freqOffset;
+    private long maxDocId;      //
+    private long docIdOffset;   //
+    private long freqOffset;    //
 
     public SkipInfo(long maxDocId, long docIdOffset, long freqOffset) {
         this.maxDocId = maxDocId;
@@ -51,22 +51,34 @@ public class SkipInfo {
                 '}';
     }
 
-    public void storeSkipInfoToDisk(FileChannel skipFileChannel) throws IOException {
-
+    /**
+     *
+     * @param skipFileChannel
+     * @throws IOException
+     */
+    public void storeSkipInfoToDisk(FileChannel skipFileChannel) throws IOException
+    {
         ByteBuffer skipPointsBuffer = ByteBuffer.allocate(SKIPPING_INFO_SIZE);
         skipFileChannel.position(skipFileChannel.size());
 
-        skipPointsBuffer.putLong(this.maxDocId);
-        skipPointsBuffer.putLong(this.docIdOffset);
-        skipPointsBuffer.putLong(this.freqOffset);
+        skipPointsBuffer.putLong(this.maxDocId);        // write maxDocID
+        skipPointsBuffer.putLong(this.docIdOffset);     // write docID offset
+        skipPointsBuffer.putLong(this.freqOffset);      // write freq offset
 
-        skipPointsBuffer = ByteBuffer.wrap(skipPointsBuffer.array());
+        skipPointsBuffer = ByteBuffer.wrap(skipPointsBuffer.array());   // wrap in buffer
 
         while(skipPointsBuffer.hasRemaining())
-            skipFileChannel.write(skipPointsBuffer);
+            skipFileChannel.write(skipPointsBuffer);    // write in the file (SKIP_FILE = skipInfo)
     }
 
-    public void readSkipInfoFromDisk(long start, FileChannel skipFileChannel) throws IOException {
+    /**
+     *
+     * @param start
+     * @param skipFileChannel
+     * @throws IOException
+     */
+    public void readSkipInfoFromDisk(long start, FileChannel skipFileChannel) throws IOException
+    {
         ByteBuffer skipPointsBuffer = ByteBuffer.allocate(SKIPPING_INFO_SIZE);
 
         skipFileChannel.position(start);

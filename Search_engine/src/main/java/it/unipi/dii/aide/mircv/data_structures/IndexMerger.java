@@ -31,18 +31,18 @@ public final class IndexMerger {
     /**
      *  function to merge the block of the inverted index
      */
-    public static void mergeBlocks() {
-        System.out.println("Merging partial files...");                     // print of the merging start
-
-        int nrBlocks = dictionaryBlockOffsets.size();           // dictionary number
+    public static void mergeBlocks()
+    {
+        int nrBlocks = dictionaryBlockOffsets.size();           // dictionary block number
         DataStructureHandler.readBlockOffsetsFromDisk();        // get offsets of dictionary blocks from disk
         MappedByteBuffer buffer;
         // array containing the current read offset for each block
         ArrayList<Long> currentBlockOffset = new ArrayList<>(nrBlocks);
-        currentBlockOffset.addAll(dictionaryBlockOffsets);
+        currentBlockOffset.addAll(dictionaryBlockOffsets);      // set the offset for each blocks
 
+        printLoad("Merging partial files...");                     // print of the merging start
         // var which indicates the steps of 'i' progression print during merge
-        System.out.println("Compression " + Flags.isCompressionEnabled());
+        printDebug("Compression " + Flags.isCompressionEnabled());
 
         // open file and create channels for reading the partial dictionary and index file and write the complete index and dictionary file
         try (
@@ -78,7 +78,7 @@ public final class IndexMerger {
             // build temp structures
             DictionaryElem tempDE = new DictionaryElem();       // empty temporary DictionaryELem, contains the accumulated data for each term
             ArrayList<Posting> tempPL = new ArrayList<>();      // empty temporary PostingList, contains the accumulated data for each term
-            DictionaryElem currentDE = new DictionaryElem();       // current DictionaryElem, contains the data taken from the queue in the current iteration
+            DictionaryElem currentDE = new DictionaryElem();    // current DictionaryElem, contains the data taken from the queue in the current iteration
             ArrayList<Posting> currentPL;   // current PostingList, contains the data taken from the queue in the current iteration
 
             TermBlock currentTermBlock;     // var that contain the TermBlock extract from pq in the current iteration
@@ -86,67 +86,66 @@ public final class IndexMerger {
             int block_id = -1;  // var that contain the blockID of the TermBlock extract from pq in the current iteration
 
             // Merging the posting list -> SEE NOTE 1
-            while(!pq.isEmpty()) {
-
-                // get first element from priority queue
-                currentTermBlock = pq.poll();               // get lowest term from priority queue
+            while(!pq.isEmpty())
+            {   // -- start - while 0
+                currentTermBlock = pq.poll();               // get lowest (first) term from priority queue
                 assert currentTermBlock != null;
                 term = currentTermBlock.getTerm();          // get the term
                 block_id = currentTermBlock.getBlock();     // get the blockID
 
                 // If condition to verify if there are other elements -> SEE NOTE 2
-                if (currentBlockOffset.get(block_id) + getDictElemSize()  < (block_id == (currentBlockOffset.size()-1) ? dictChannel.size() : dictionaryBlockOffsets.get(block_id +1))){
+                if (currentBlockOffset.get(block_id) + getDictElemSize()  < (block_id == (currentBlockOffset.size()-1) ? dictChannel.size() : dictionaryBlockOffsets.get(block_id +1)))
+                {
                     buffer = dictChannel.map(FileChannel.MapMode.READ_ONLY, currentBlockOffset.get(block_id) + getDictElemSize(), TERM_DIM); // get first element of the block
                     String[] t = StandardCharsets.UTF_8.decode(buffer).toString().split("\0");      // get the term of element
                     if (!(t.length == 0))           // control check if term is not empty
                         pq.add(new TermBlock(t[0], block_id));  //add to the priority queue a term block element (term + its blocks number)
                 }
-
                 // get current elem of dictionary
                 currentDE.readDictionaryElemFromDisk(currentBlockOffset.get(block_id), dictChannel);
                 // get current posting list
                 currentPL = readPostingListFromDisk(currentDE.getOffsetDocId(), currentDE.getOffsetTermFreq(), currentDE.getDf(), docidChannel, termfreqChannel);
 
-                if (tempDE.getTerm().equals("")) {        // first iteration
-
+                if (tempDE.getTerm().equals(""))    // first iteration
+                {   // -- start - if 0
                     //set temp variables values with value of the element taken in the current iteration
                     tempDE = currentDE;
                     tempDE.setOffsetTermFreq(outTermFreqChannel.size());
                     tempDE.setOffsetDocId(outDocIdChannel.size());
                     tempPL = currentPL;
 
-                } else {                                // is not the first iteration
-
+                }   // -- end - if 0
+                else                                // is not the first iteration
+                {   // -- start - else 0- isn't the first term --
                     // same term found (respect the previous iteration), temporary structures update
-                    if (currentDE.getTerm().equals(tempDE.getTerm())) {
-
+                    if (currentDE.getTerm().equals(tempDE.getTerm()))
+                    {   // -- start - if 0.1
                         // update DictionaryElem
                         tempDE.addCf(currentDE.getCf());        // update Cf
                         tempDE.addDf(currentDE.getDf());        // update Df
-
                         assert tempPL != null;
                         tempPL.addAll(currentPL);               // add all new postings
-
-//                        if(currentDE.getMaxTf() > tempDE.getMaxTf())       //update maxTf
-//                            tempDE.setMaxTf(currentDE.getMaxTf());
-                    }
-                    else{    // different term found, write to disk the complete data of the previous term
-
+                        /*
+                        if(currentDE.getMaxTf() > tempDE.getMaxTf())       //update maxTf
+                            tempDE.setMaxTf(currentDE.getMaxTf());
+                        //*/
+                    }   // -- end - if 0.1
+                    else    // different term found, write to disk the complete data of the previous term
+                    {   // -- start - else 0.1
                         Flags.setConsiderSkippingBytes(true);
-
-                        //update DocID and Term Frequency offset ( equal to the end of the files)
-                        tempDE.setOffsetTermFreq(outTermFreqChannel.size());
-                        tempDE.setOffsetDocId(outDocIdChannel.size());
-
-//                        tempDE.computeIdf();
-//                        tempDE.computeMaxTFIDF();
-
-
+                        // update DocID and Term Frequency offset ( equal to the end of the files)
+                        tempDE.setOffsetTermFreq(outTermFreqChannel.size());    // update TermFreq offset
+                        tempDE.setOffsetDocId(outDocIdChannel.size());          // update DocID offset
+                        /*
+                        tempDE.computeIdf();
+                        tempDE.computeMaxTFIDF();
+                        //*/
                         assert tempPL != null;
 
                         int lenPL = tempPL.size();
                         int[] tempCompressedLength = new int[2];
-                        if(lenPL >= SKIP_POINTERS_THRESHOLD) {
+                        if(lenPL >= SKIP_POINTERS_THRESHOLD)
+                        {   // -- start - if 0.1.1
                             int skipInterval = (int) Math.ceil(Math.sqrt(lenPL));        // one skip every rad(docs)
                             int nSkip = 0;
 
@@ -174,8 +173,9 @@ public final class IndexMerger {
                                 tempDE.setTermFreqSize(tempCompressedLength[0]);
                                 tempDE.setDocIdSize(tempCompressedLength[1]);
                             }
-                        }
-                        else {
+                        }   // -- end - if 0.1.1
+                        else
+                        {   // -- start - else 0.1.1
                             if(Flags.isCompressionEnabled()){
                                 int[] compressedLength = DataStructureHandler.storeCompressedPostingIntoDisk(tempPL, outTermFreqChannel, outDocIdChannel);//store index with compression - unary compression for termfreq
                                 assert compressedLength != null;
@@ -184,22 +184,21 @@ public final class IndexMerger {
                             }
                             else
                                 storePostingListIntoDisk(tempPL, outTermFreqChannel, outDocIdChannel);  // write InvertedIndexElem to disk
-                        }
+                        }   // -- end - else 0.1.1
                         tempDE.storeDictionaryElemIntoDisk(outDictionaryChannel);
 
                         Flags.setConsiderSkippingBytes(false);
-
                         //set temp variables values
                         tempDE = currentDE;
                         tempPL = currentPL;
-                    }
-                }
-                currentDE = new DictionaryElem();
-                i++;
+                    }   // -- start - else 0.1
+                }   // -- end - else 0- isn't the first term --
 
+                currentDE = new DictionaryElem();   // create new element of the dictionary
+                i++;
                 // update the offset of next element to read from the block read in this iteration
                 currentBlockOffset.set(block_id, currentBlockOffset.get(block_id) + getDictElemSize());
-            }
+            }   // -- end - while 0
 
             printDebug("Merge ended, total number of iterations (i) is: " + i);
 //            delete_tempFiles();                                                                       !!!!!!!!!!!!!!!!

@@ -9,17 +9,21 @@ import java.nio.channels.FileChannel;
 
 import static it.unipi.dii.aide.mircv.utils.Constants.*;
 
+/**
+ *  Stores the flag values chosen by the users.
+ */
 public final class Flags {
 
     private static boolean sws_flag = false;            // true = stop words removal enabled, false = stop words removal disabled
     private static boolean compression_flag = false;    // true = compression enabled, false = compression disabled
     private static boolean scoring_flag = false;        // true = scoring enable, false = scoring disable
+    private static boolean skip_flag = false;           // true = skipping enable, false = skipping disable
 
-    private static boolean skip_flag = false;           //
-
-//    private static boolean isSPIMI = false;
-//    private static boolean isMerge = false;
-//    private static boolean isQuery = false;
+    /*
+    private static boolean isSPIMI = false;
+    private static boolean isMerge = false;
+    private static boolean isQuery = false;
+    */
 
     // -- start -- get method
     public static boolean isSwsEnabled() { return sws_flag; }
@@ -43,9 +47,14 @@ public final class Flags {
 
     public static void setConsiderSkippingBytes(boolean skip_flag) { Flags.skip_flag = skip_flag; }
 
-    // function to store the user's choices for the flags
-    public static void storeFlagsIntoDisk() {
-        printLoad("Storing flags into disk...");
+    // -- start -- functions
+
+    /**
+     * Function to store the user's choices for the flags.
+     */
+    public static void storeFlagsIntoDisk()
+    {
+        printLoad("Storing flags into disk...");    // control print for the user
 
         try (
             RandomAccessFile raf = new RandomAccessFile(FLAGS_FILE, "rw");
@@ -62,7 +71,9 @@ public final class Flags {
         }
     }
 
-    // function to read the user's choices for the flags
+    /**
+     * Function to read the user's choices for the flags
+     */
     public static void readFlagsFromDisk()
     {
         printLoad("Loading flags from disk...");   // control print for the user
@@ -72,7 +83,6 @@ public final class Flags {
         {
             ByteBuffer flagsBuffer = ByteBuffer.allocate(12);
             flagsRaf.getChannel().position(0);
-
 
             flagsRaf.getChannel().read(flagsBuffer);            // Read flag values from file
             flagsBuffer.rewind();                               // Move to the beginning of file for reading
@@ -94,10 +104,12 @@ public final class Flags {
         }
     }
 
-    // function to show the user's choices for the flags
+    /**
+     * Function to show the user's choices for the flags.
+     */
     public static void printFlags()
     {
-        printUI("The user's choices for the flags are:");               // control print for the user
+        printUI("The user's choices for the flags are:");                   // control print for the user
         printUI("- is stopwords removal enabled : " + isSwsEnabled());      // print choice for stopwords removal
         printUI("- is compression enabled : " + isCompressionEnabled());    // print choice for compression
         printUI("- is scoring BM25 enabled : " + isScoringEnabled());       // print choice for BM25 scoring function
@@ -105,7 +117,7 @@ public final class Flags {
     }
 
     /**
-     * Function that check if there is the 'flags.txt' file in "/resources" folder
+     * Function that check if there is the 'flags.txt' file in "/resources" folder.
      *
      * @return  true -> there is
      *          false -> there isn't

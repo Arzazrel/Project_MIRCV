@@ -8,23 +8,36 @@ import java.nio.charset.StandardCharsets;
 
 import static it.unipi.dii.aide.mircv.utils.Constants.*;
 
-public class DocumentElement {
+/**
+ * class to
+ */
+public class DocumentElement
+{
+    // -- static variable
+    public static final int DOCNO_DIM = 10;         // Length of docno (in bytes), maximum 10 Bytes
+    public final static int DOCELEM_SIZE = INT_BYTES + DOCNO_DIM + INT_BYTES;   // Size in bytes of docid, docno, and doclength
 
-    public static final int DOCNO_DIM = 10;                     // Length of docno (in bytes)
-    public final static int DOCELEM_SIZE = 4 + DOCNO_DIM + 4;   // Size in bytes of docid, docno, and doclength
+    // -- not static variable (single document element)
+    private int docid;      // docID of the document
+    private String docno;   // docNo of the document
+    private int doclength;  // length (number of word) of the document
 
-    //single document element with correspondent docid and relative length
-    private int docid;
-    private String docno;
-    private int doclength;
-
-
+    /**
+     * Constructor with parameter.
+     *
+     * @param docno     the docNo of the document
+     * @param docid     the docID of the document
+     * @param doclength the length (number of words) of the document
+     */
     public DocumentElement(String docno, int docid, int doclength) {
         this.docno = docno;
         this.doclength = doclength;
         this.docid = docid;
     }
 
+    /**
+     * Constructor without parameters.
+     */
     public DocumentElement() {
         this.docno = "";
         this.docid = 0;
@@ -60,14 +73,13 @@ public class DocumentElement {
 
 
     /**
-     * function to read one Document Element from disk
+     * Function to read one Document Element from disk and set the values read into the variables of this instance
      *
      * @param start     offset of the document reading from document file
      * @param channel   indicate the file from which to read
-     * @return a DocumentElement with the value read from disk
      */
-    public void readDocumentElementFromDisk(int start, FileChannel channel) throws IOException {
-
+    public void readDocumentElementFromDisk(int start, FileChannel channel) throws IOException
+    {
         MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, start, DOCELEM_SIZE);
 
         if(buffer == null)      // Buffer not created
@@ -76,13 +88,12 @@ public class DocumentElement {
         CharBuffer.allocate(DOCNO_DIM); //allocate a charbuffer of the dimension reserved to docno
         CharBuffer charBuffer = StandardCharsets.UTF_8.decode(buffer);
 
-        if(charBuffer.toString().split("\0").length == 0)
+        if(charBuffer.toString().split("\0").length == 0)   // check that the docNo is not empty
             return;
 
-        docno =  charBuffer.toString().split("\0")[0]; //split using end string character
-        buffer.position(DOCNO_DIM);             //skip docno
-        docid = buffer.getInt();
-        doclength = buffer.getInt();
-
+        docno =  charBuffer.toString().split("\0")[0];    //split using end string character
+        buffer.position(DOCNO_DIM);                             // skip docno
+        docid = buffer.getInt();                                // read the docID
+        doclength = buffer.getInt();                            // read the length of the document
     }
 }
