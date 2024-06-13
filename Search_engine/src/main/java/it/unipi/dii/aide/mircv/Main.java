@@ -3,6 +3,7 @@ package it.unipi.dii.aide.mircv;
 import it.unipi.dii.aide.mircv.compression.Unary;
 import it.unipi.dii.aide.mircv.compression.VariableBytes;
 import it.unipi.dii.aide.mircv.data_structures.*;
+import it.unipi.dii.aide.mircv.utils.FileSystem;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -13,10 +14,10 @@ import static it.unipi.dii.aide.mircv.utils.FileSystem.*;
 import static it.unipi.dii.aide.mircv.utils.Constants.*;
 import static it.unipi.dii.aide.mircv.data_structures.Flags.*;
 
-public class Main {
-
-    public static void main(String[] args) throws IOException {
-
+public class Main
+{
+    public static void main(String[] args) throws IOException
+    {
         Scanner sc = new Scanner(System.in);
         long startTime, endTime;                // variables to calculate the execution time
 
@@ -30,6 +31,7 @@ public class Main {
                     "\n\t  i -> build the index" +
                     "\n\t  d -> offset debug" +
                     "\n\t  u -> calculate term upper bound and document upper bound" +
+                    "\n\t  f -> see or change flags" +
                     "\n\t  q -> query mode" +
                     "\n\t  t -> query test mode" +
                     "\n\t  x -> exit" +
@@ -57,32 +59,8 @@ public class Main {
                     continue;                                   // go next while cycle
 
                 case "i":
-                    file_cleaner();                             // delete all created files
 
-                    setSws(getUserChoice(sc, "stopwords removal"));    // take user preferences on the removal of stopwords
-                    setCompression(getUserChoice(sc, "compression"));  // take user preferences on the compression
-                    setScoring(getUserChoice(sc, "scoring"));          // take user preferences on the scoring
-
-                    storeFlagsIntoDisk();      // store Flags
-                    // Do SPIMI Algorithm
-                    System.out.println("\nIndexing...");
-                    startTime = System.currentTimeMillis();         // start time to SPIMI Algorithm
-                    PartialIndexBuilder.SPIMIalgorithm();          // do SPIMI
-                    endTime = System.currentTimeMillis();           // end time of SPIMI algorithm
-                    printTime("\nSPIMI Algorithm done in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
-
-                    // merge blocks into disk
-                    startTime = System.currentTimeMillis();         // start time to merge blocks
-                    IndexMerger.mergeBlocks();                      // merge blocks
-                    endTime = System.currentTimeMillis();           // end time of merge blocks
-                    printTime("\nBlocks merged in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
-
-                    // calculate term upper bound and doc upper bound
-                    Flags.setConsiderSkippingBytes(true);
-                    if (!queryStartControl()) {
-                        return;                           // error exit
-                    }
-                    TermDocUpperBound.calculateTermsUpperBound();   // calculate term upper bound for each term of dictionary
+                    makeIndexing(true, sc);             // make the inverted index
 
                     continue;                           // go next while iteration
                 case "d":
@@ -92,16 +70,102 @@ public class Main {
                     printDebug(QueryProcessor.dictionary.getTermStat(term).toString());
 
                     continue;                           // go next while iteration
-                case "u":
+                case "u":       // load or calculate the Term Upper Bound
 
-                    Flags.setConsiderSkippingBytes(true);
-                    if (!queryStartControl()) {
-                        return;                           // error exit
+                    calculateTUBs();
+
+                    continue;                           // go next while iteration
+                case "f":       // see or change the flags
+                    // Variables for control of operations to be redone in case of changed flags
+                    boolean rebuildIndexing = false;    // var indicating if it's necessary to rebuild the indexing (recompute of TUBs is included)
+                    boolean recomputeTUB = false;       // var indicating if it's necessary to recompute the Term Upper Bounds
+
+                    // -- control for file into disk
+                    if (!Flags.isThereFlagsFile())
+                        printUI("The flags file is not saved in the disk. The flags will have the default value (all flags equal to false).\n");
+                    else
+                        readFlagsFromDisk();    // read the flags values from the disk
+
+                    printFlagsUI();         // print the flags values with explanation for user
+
+                    // prints for user
+                    printUI("\nChanging the value of the flags may cause to redo some operations ( such as rebuilding the inverted index, recalculating the Term Upper Bounds and etc...)");
+                    printUI("\nDo you want change the flags value?");
+                    boolean yes = false;        // true = user want change any values
+                    boolean no = false;         // true = user don't want change any values
+                    do
+                    {
+                        printUI("Type Y for change or N for don't change.");
+                        try
+                        {
+                            String choice = sc.nextLine().toUpperCase();        // take the user's choice
+                            // check the user's input
+                            if (choice.equals("Y"))
+                                yes = true;             // set yes
+                            else if (choice.equals("N"))
+                                no = true;              // set no
+
+                        } catch (NumberFormatException nfe) {
+                            printError("Insert a valid character.");
+                        }
+                    } while (!(yes || no));  // continues until isConjunctive or isDisjunctive is set
+
+                    if (no)
+                        continue;       // the user doesn't want to change the values
+
+                    // -- user wants to change the values
+                    boolean sws = false;            // var for user preferences on the removal of stopwords
+                    boolean compression = false;    // var for user preferences on the compression
+                    boolean scoring = false;        // var for take user preferences on the scoring
+                    boolean skipping = false;       // var for take user preferences on the skipping
+                    boolean query_eff = false;      // var for take user preferences on the dynamic pruning algorithm (in query execution)
+
+                    // take the new values
+                    sws = getUserChoice(sc, "stopwords removal");    // take user preferences on the removal of stopwords
+                    compression = getUserChoice(sc, "compression");  // take user preferences on the compression
+                    scoring = getUserChoice(sc, "scoring");          // take user preferences on the scoring
+                    skipping = getUserChoice(sc, "skipping");        // take user preferences on the skipping
+                    query_eff = getUserChoice(sc, "dynamic pruning algorithm"); // take user preferences on the dynamic pruning algorithm
+
+                    // check the changed values
+                    if (isSwsEnabled() != sws)
+                    {
+                        printDebug("The value of the stopwords removal flag has been changed.");
+                        setSws(sws);                            // change the value
+                        rebuildIndexing = true;                 // set the value for the recomputing
                     }
-                    TermDocUpperBound.calculateTermsUpperBound();   // calculate term upper bound for each term of dictionary
-                    //TermDocUpperBound.readTermUpperBoundTableFromDisk();
+                    if (isCompressionEnabled() != compression)
+                    {
+                        printDebug("The value of the compression flag has been changed.");
+                        setCompression(compression);            // change the value
+                        //rebuildIndexing = true;                 // set the value for the recomputing
+                    }
+                    if (isScoringEnabled() != scoring)
+                    {
+                        printDebug("The value of the scoring flag has been changed.");
+                        setScoring(scoring);                    // change the value
+                        recomputeTUB = true;                    // set the value for the recomputing
+                    }
+                    if (considerSkippingBytes() != skipping)
+                    {
+                        printDebug("The value of the skipping flag has been changed.");
+                        setConsiderSkippingBytes(skipping);     // change the value
+                    }
+                    if (isDynamicPruningEnabled() != query_eff)
+                    {
+                        printDebug("The value of the dynamic pruning algorithm flag has been changed.");
+                        setDynamicPruning(query_eff);           // change the value
+                        if (isDynamicPruningEnabled())
+                            recomputeTUB = true;                    // set the value for the recomputing
+                    }
 
-                    TermDocUpperBound.calculateDocsUpperBound();    // calculate doc upper bound for each doc of docTable
+                    storeFlagsIntoDisk();      // store flags into disk
+
+                    // in according to the changed flags values remake index or other
+                    if (rebuildIndexing)
+                        makeIndexing(false, sc);
+                    else if(recomputeTUB)
+                        calculateTUBs();
 
                     continue;                           // go next while iteration
                 case "q":       // query
@@ -200,6 +264,75 @@ public class Main {
         }
     }
 
+    // ----------------------------------------- start : mode(switch) functions -----------------------------------------
+
+    /**
+     * Function to making the inverted index (SPIMI, merge and calculate Term Upper Bound)
+     *
+     * @param takeFlags if true: have to set the flags | if false: have not to set the flags
+     * @param sc
+     * @throws IOException
+     */
+    private static void makeIndexing(boolean takeFlags, Scanner sc) throws IOException
+    {
+        long startTime, endTime;                // variables to calculate the execution time
+
+        file_cleaner();             // delete all created files
+
+        // take user choice for the flags
+        if (takeFlags)
+        {
+            printFlagsUI();             // print the flags values with explanation for user
+
+            setSws(getUserChoice(sc, "stopwords removal"));    // take user preferences on the removal of stopwords
+            setCompression(getUserChoice(sc, "compression"));  // take user preferences on the compression
+            setScoring(getUserChoice(sc, "scoring"));          // take user preferences on the scoring
+            setConsiderSkippingBytes(getUserChoice(sc, "skipping"));            // take user preferences on the scoring
+            setDynamicPruning(getUserChoice(sc, "dynamic pruning algorithm"));  // take user preferences on the scoring
+
+            storeFlagsIntoDisk();       // store Flags
+        }
+        // do SPIMI Algorithm
+        printLoad("\nIndexing...");
+        startTime = System.currentTimeMillis();         // start time to SPIMI Algorithm
+        PartialIndexBuilder.SPIMIalgorithm();           // do SPIMI
+        endTime = System.currentTimeMillis();           // end time of SPIMI algorithm
+        printTime("\nSPIMI Algorithm done in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+        // merge blocks into disk
+        startTime = System.currentTimeMillis();         // start time to merge blocks
+        IndexMerger.mergeBlocks();                      // merge blocks
+        endTime = System.currentTimeMillis();           // end time of merge blocks
+        printTime("\nBlocks merged in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+        // calculate term upper bound and doc upper bound
+        Flags.setConsiderSkippingBytes(true);
+        if (!queryStartControl())
+            return;                           // error exit
+
+        TermDocUpperBound.calculateTermsUpperBound();   // calculate term upper bound for each term of dictionary
+    }
+
+    /**
+     * Function to calculate the Term Upper bound for each term in the vocabulary.
+     *
+     * @throws IOException
+     */
+    private static void calculateTUBs() throws IOException
+    {
+        Flags.setConsiderSkippingBytes(true);
+        if (!queryStartControl())
+            return;                           // error exit
+
+        TermDocUpperBound.calculateTermsUpperBound();   // calculate term upper bound for each term of dictionary
+        //TermDocUpperBound.readTermUpperBoundTableFromDisk();
+
+        TermDocUpperBound.calculateDocsUpperBound();    // calculate doc upper bound for each doc of docTable
+    }
+
+    // ----------------------------------------- end : mode(switch) functions -----------------------------------------
+
+    // ------------------------------------------- start : utility functions -------------------------------------------
     /**
      * fucntion to get the choise of the user for options, the options are pass
      *
@@ -219,24 +352,7 @@ public class Main {
             }
         }
     }
-
-
-    /**
-     * function to shows the user the ranked results (DocID) of the query executed
-     *
-     * @param rankedResults the results returned by the query
-     *//*
-    private static void printQueryResults(ArrayList<Integer> rankedResults)
-    {
-        if (rankedResults.size() != 0)      // there are results
-        {
-            System.out.println(ANSI_CYAN + "Query results:" + ANSI_RESET);
-            for (int i = 0; i < rankedResults.size(); i++)
-                printUI((i + 1) + " - " + rankedResults.get(i));
-        }
-        else                                // there aren't results
-            printUI("No results found for this query.");
-    }*/
+    // ------------------------------------------- end : utility functions -------------------------------------------
 }
 
 

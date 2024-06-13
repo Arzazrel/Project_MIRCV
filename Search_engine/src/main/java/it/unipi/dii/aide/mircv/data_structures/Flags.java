@@ -12,12 +12,14 @@ import static it.unipi.dii.aide.mircv.utils.Constants.*;
 /**
  *  Stores the flag values chosen by the users.
  */
-public final class Flags {
-
+public final class Flags
+{
+    private static int numberOfFlags = 5;       // indicates the number of flags (to be read or write into or from disk)
     private static boolean sws_flag = false;            // true = stop words removal enabled, false = stop words removal disabled
     private static boolean compression_flag = false;    // true = compression enabled, false = compression disabled
     private static boolean scoring_flag = false;        // true = scoring enable, false = scoring disable
     private static boolean skip_flag = false;           // true = skipping enable, false = skipping disable
+    private static boolean qdPruning_flag = false;      // // true = query executed with dynamic pruning algorithm (WAND), false = query executed with classic DAAT algorithm
 
     /*
     private static boolean isSPIMI = false;
@@ -34,6 +36,8 @@ public final class Flags {
 
     public static boolean considerSkippingBytes() { return skip_flag; }
 
+    public static boolean isDynamicPruningEnabled() { return qdPruning_flag; }
+
     // -- start -- set method
     public static void setSws(boolean sws_flag) { Flags.sws_flag = sws_flag; }
 
@@ -46,6 +50,8 @@ public final class Flags {
     }
 
     public static void setConsiderSkippingBytes(boolean skip_flag) { Flags.skip_flag = skip_flag; }
+
+    public static void setDynamicPruning(boolean qdPruning_flag) { Flags.qdPruning_flag = qdPruning_flag;}
 
     // -- start -- functions
 
@@ -60,11 +66,13 @@ public final class Flags {
             RandomAccessFile raf = new RandomAccessFile(FLAGS_FILE, "rw");
             FileChannel channel = raf.getChannel()
         ) {
-            MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, (long) Integer.BYTES * 3); //offset_size (size of dictionary offset) * number of blocks
+            MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, (long) Integer.BYTES * numberOfFlags); //offset_size (size of dictionary offset) * number of blocks
 
             buffer.putInt(isSwsEnabled() ? 1 : 0);             // write stop words removal user's choice
             buffer.putInt(isCompressionEnabled() ? 1 : 0);     // write compression user's choice
             buffer.putInt(isScoringEnabled() ? 1 : 0);         // write scoring user's choice
+            buffer.putInt(considerSkippingBytes() ? 1 : 0);    // write skipping user's choice
+            buffer.putInt(isDynamicPruningEnabled() ? 1 : 0);  // write dynamic pruning user's choice
 
         } catch (IOException ioe) {
             ioe.printStackTrace();
@@ -81,7 +89,7 @@ public final class Flags {
         try (
             RandomAccessFile flagsRaf = new RandomAccessFile(new File(FLAGS_FILE), "rw"))
         {
-            ByteBuffer flagsBuffer = ByteBuffer.allocate(12);
+            ByteBuffer flagsBuffer = ByteBuffer.allocate(Integer.BYTES * numberOfFlags);
             flagsRaf.getChannel().position(0);
 
             flagsRaf.getChannel().read(flagsBuffer);            // Read flag values from file
@@ -90,14 +98,18 @@ public final class Flags {
             // Get flag values from buffer
             int isSwsEnabled = flagsBuffer.getInt();            // read stop words removal user's choice
             int isCompressionEnabled = flagsBuffer.getInt();    // read compression user's choice
-            int isScoringEnabled = flagsBuffer.getInt();        // scoring user's choice
+            int isScoringEnabled = flagsBuffer.getInt();        // read scoring user's choice
+            int skip_flag = flagsBuffer.getInt();               // read skipping user's choice
+            int qdPruning_flag = flagsBuffer.getInt();          // read dynamic pruning user's choice
 
             // Set flag values with values read
-            setSws(isSwsEnabled == 1);
-            setCompression(isCompressionEnabled == 1);
-            setScoring(isScoringEnabled == 1);
+            setSws(isSwsEnabled == 1);                          // set stop words removal user's choice
+            setCompression(isCompressionEnabled == 1);          // set compression user's choice
+            setScoring(isScoringEnabled == 1);                  // set scoring user's choice
+            setConsiderSkippingBytes(skip_flag == 1);           // set skipping user's choice
+            setDynamicPruning(qdPruning_flag == 1);             // set dynamic pruning user's choice
 
-            printFlags();   // show to the user the flags values read
+            printFlagsDebug();   // show to the user the flags values read
 
         } catch (IOException ioe) {
             ioe.printStackTrace();
@@ -105,15 +117,39 @@ public final class Flags {
     }
 
     /**
-     * Function to show the user's choices for the flags.
+     * Function to show the user's choices for the flags (debug mode).
+     * Debug mode -> print only if debug is enabled and show only the value of the flags.
      */
-    public static void printFlags()
+    public static void printFlagsDebug()
     {
-        printUI("The user's choices for the flags are:");                   // control print for the user
-        printUI("- is stopwords removal enabled : " + isSwsEnabled());      // print choice for stopwords removal
-        printUI("- is compression enabled : " + isCompressionEnabled());    // print choice for compression
-        printUI("- is scoring BM25 enabled : " + isScoringEnabled());       // print choice for BM25 scoring function
-        printUI("- is skipping enabled : " + considerSkippingBytes());      // print choice for skipping
+        printDebug("- stopwords removal flag : " + isSwsEnabled());         // print choice for stopwords removal
+        printDebug("- compression flag : " + isCompressionEnabled());       // print choice for compression
+        printDebug("- scoring BM25 flag : " + isScoringEnabled());          // print choice for BM25 scoring function
+        printDebug("- skipping flag : " + considerSkippingBytes());         // print choice for skipping
+        printDebug("- dynamic pruning flag : " + isDynamicPruningEnabled());// print choice for query with dynamic pruning algorithm
+    }
+
+    /**
+     * Function to show the user's choices for the flags (UI mode).
+     * Exhaustively shows to the user the values of the flags and their meaning.
+     */
+    public static void printFlagsUI()
+    {
+        printUI("Explanation of the flags:");
+        printUI("1) stopwords removal -> if is true: the stopwords will be removed from the queries, the inverted index and dictionary.");
+        printUI("2) compression       -> if is true: the compression of the inverted index will be enabled.");
+        printUI("3) scoring BM25      -> if is true: the scoring function used will be BM25.");
+        printUI("                     -> if is false: the scoring function used will be TFIDF.");
+        printUI("4) skipping          -> if is true: make the skipping in the inverted index.");
+        printUI("5) dynamic pruning   -> if is true: queries will be executed with dynamic pruning algorithm (WAND).");
+        printUI("                     -> if is false: queries will be executed with classic DAAT algorithm.");
+
+        printUI("\nThe user's choices for the flags are:");                     // control print for the user
+        printUI("- is stopwords removal enabled : " + isSwsEnabled());          // print choice for stopwords removal
+        printUI("- is compression enabled : " + isCompressionEnabled());        // print choice for compression
+        printUI("- is scoring BM25 enabled : " + isScoringEnabled());           // print choice for BM25 scoring function
+        printUI("- is skipping enabled : " + considerSkippingBytes());          // print choice for skipping
+        printUI("- is dynamic pruning enabled : " + isDynamicPruningEnabled()); // print choice for skipping
     }
 
     /**

@@ -20,16 +20,25 @@ public final class FileSystem {
      * function to delete all the file except "stopwords.txt", "collection.tsv", and "msmarco-test2020-queries.tsv"
      * that are in resources.
      */
-    public static void file_cleaner() {
+    public static void file_cleaner()
+    {
         try {
+            // delete folders
             File partial_folder = new File(PARTIAL_FOLDER);
             FileUtils.cleanDirectory(partial_folder);       // delete files in partial folder
             File merged_folder = new File(MERGED_FOLDER);
             FileUtils.cleanDirectory(merged_folder);        // delete files in merged folder
+            File upperBound_folder = new File(UPPERBOUND_FOLDER);
+            FileUtils.cleanDirectory(upperBound_folder);    // delete files in upperBound folder
 
+            // delete files
             File flags = new File(FLAGS_FILE);
             if(flags.exists())
                 FileUtils.delete(flags);                    // delete flags file if exist
+
+            File collectionStatistics = new File(STATS_FILE);
+            if(collectionStatistics.exists())
+                FileUtils.delete(collectionStatistics);     // delete collection statistics file if exist
 
         } catch (IOException e) {
             e.printStackTrace();

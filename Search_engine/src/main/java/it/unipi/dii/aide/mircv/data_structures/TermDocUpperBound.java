@@ -53,6 +53,9 @@ public class TermDocUpperBound
 
         termsList = new ArrayList<>(QueryProcessor.getDictionary().keySet());   // read all the term of the dictionary
         scoringFunc = Flags.isScoringEnabled();             // take user's choice about using scoring function
+        // if BM25 scoring function is enabled calculate the average document length
+        if (scoringFunc)
+            QueryProcessor.setAvgDocLen();      // calculate avgDocLen
 
         // scan all term in the dictionary
         for (String term : termsList)
@@ -63,13 +66,13 @@ public class TermDocUpperBound
         }
         endTime = System.currentTimeMillis();           // end time to calculate all term upper bound
         // shows term upper bound calculation time
-        printTime("*** Calculated all term upper bound( " + termCount + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        printTime("Calculated all term upper bound( " + termCount + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
         startTime = System.currentTimeMillis();         // start time to store all term upper bound
         storeTermUpperBoundTableIntoDisk();     // save the hashmap into disk
         endTime = System.currentTimeMillis();           // end time to store all term upper bound
         // shows term upper bound storing time
-        printTime("*** Stored all term upper bound( " + termCount + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        printTime("Stored all term upper bound( " + termCount + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
     /**

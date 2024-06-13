@@ -33,7 +33,7 @@ public final class QueryProcessor {
     // variable to BM25
     private static double k = 1.2;      // typical values between 1,2 and 2
     private static double b = 0.75;     // typical values around 0.75
-    private static double avgDocLen;     // average document length
+    private static double avgDocLen;     // average document length (used in BM25 scoring function)
     static PriorityQueue<QueryProcessor.ResultBlock> resPQ;     // priority queue for the result of scoring function for the best numberOfResults docs
 
     /**
@@ -51,9 +51,8 @@ public final class QueryProcessor {
 
         // take user's choices that affecting the query execution
         boolean scoringFunc = Flags.isScoringEnabled();      // take user's choice about using scoring function
-        //boolean scoringFunc = true;      // to debug use, to activate BM25
 
-        //printDebug("User choice for scoring is: " + scoringFunc);
+        printDebug("User choice for scoring is: " + scoringFunc);
         if (scoringFunc)
             avgDocLen = CollectionStatistics.getTotDocLen() / CollectionStatistics.getNDocs();  // set average doc len
 
@@ -73,9 +72,15 @@ public final class QueryProcessor {
 
             //DAATAlgorithm(processedQuery,scoringFunc,isConjunctive,numberOfResults);        // apply DAAT to calculate the score of the Docs
             //resPQ.clear();
-            DAATAlgWAND(processedQuery,scoringFunc,isConjunctive,numberOfResults);      // apply DAAT + WAND V.0 to calculate the score of the Docs
+            //DAATAlgWAND(processedQuery,scoringFunc,isConjunctive,numberOfResults);      // apply DAAT + WAND V.0 to calculate the score of the Docs
             //resPQ.clear();
             //DAATAlgMAXSCORE(processedQuery,scoringFunc,isConjunctive,numberOfResults);  // apply DAAT + MaxScore V.0 to calculate the score of the Docs
+
+            // take user's choice about using dynamic pruning algorithm
+            if (Flags.isDynamicPruningEnabled())
+                DAATAlgWAND(processedQuery,scoringFunc,isConjunctive,numberOfResults);      // apply DAAT + WAND to calculate the score of the Docs
+            else
+                DAATAlgorithm(processedQuery,scoringFunc,isConjunctive,numberOfResults);        // apply DAAT to calculate the score of the Docs
 
             rankedResults = getRankedResults(numberOfResults);          // get ranked results
 
@@ -346,7 +351,15 @@ public final class QueryProcessor {
         printTime("*** DAAT V.0.5 (only 1 postingList) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
-    // ---- NEW VERSION OF DAAT WITH WAND-- START ----
+    /**
+     * function for apply the Document at a Time algorithm with WAND algorithm as dynamic pruning algorithm.
+     *
+     * @param processedQuery    array list for containing the query term
+     * @param scoringFunc       indicates the preference for scoring. if false use TFIDF, if true use BM25.
+     * @param isConjunctive     indicates whether the query is conjunctive or disjunctive type (default is disjunctive)
+     * @param numberOfResults   indicated the max number of result to return to user
+     * @throws FileNotFoundException
+     */
     private static void DAATAlgWAND(ArrayList<String> processedQuery, boolean scoringFunc , boolean isConjunctive, int numberOfResults) throws FileNotFoundException
     {
         resPQ = new PriorityQueue<>(numberOfResults, new CompareTerm());    // length equal to the number of results to be returned to the user
@@ -837,6 +850,13 @@ public final class QueryProcessor {
         return scoreBM25;
     }
 
+    /**
+     * Function to calculate the average document length used in BM25 scoring function.
+     */
+    public static void setAvgDocLen()
+    {
+        avgDocLen = CollectionStatistics.getTotDocLen() / CollectionStatistics.getNDocs();  // set average doc len
+    }
     // -------- end: scoring function --------
 
     // -------- start: utilities function --------
