@@ -58,7 +58,7 @@ public class Main
                     printTime( "Merged in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
                     continue;                                   // go next while cycle
 
-                case "i":
+                case "i":       // calculate the indexing
 
                     makeIndexing(true, sc);             // make the inverted index
 
@@ -72,7 +72,7 @@ public class Main
                     continue;                           // go next while iteration
                 case "u":       // load or calculate the Term Upper Bound
 
-                    calculateTUBs();
+                    calculateTUBs();            // calculate TUBs
 
                     continue;                           // go next while iteration
                 case "f":       // see or change the flags
@@ -138,7 +138,7 @@ public class Main
                     {
                         printDebug("The value of the compression flag has been changed.");
                         setCompression(compression);            // change the value
-                        //rebuildIndexing = true;                 // set the value for the recomputing
+                        rebuildIndexing = true;                 // set the value for the recomputing
                     }
                     if (isScoringEnabled() != scoring)
                     {
@@ -150,6 +150,7 @@ public class Main
                     {
                         printDebug("The value of the skipping flag has been changed.");
                         setConsiderSkippingBytes(skipping);     // change the value
+                        rebuildIndexing = true;                 // set the value for the recomputing
                     }
                     if (isDynamicPruningEnabled() != query_eff)
                     {
@@ -168,9 +169,9 @@ public class Main
                         calculateTUBs();
 
                     continue;                           // go next while iteration
-                case "q":       // query
+                case "q":       // execute a query
 
-                    Flags.setConsiderSkippingBytes(true);
+                    //Flags.setConsiderSkippingBytes(true);
                     ArrayList<Integer> rankedResults;       // ArrayList that contain the ranked results of query
                     int numberOfResults = 0;    // take the integer entered by users that indicate the number of results wanted for query
 
@@ -242,7 +243,7 @@ public class Main
                     int validNum = 0;     // 1 = positive number - 0 = negative number or not a number
                     int numberOfQueries = 0;    // take the integer entered by users that indicate the number of queries to test
 
-                    Flags.setConsiderSkippingBytes(true);
+                    //Flags.setConsiderSkippingBytes(true);
 
                     // do while for choosing the number of results to return
                     do {
@@ -306,7 +307,7 @@ public class Main
         printTime("\nBlocks merged in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
         // calculate term upper bound and doc upper bound
-        Flags.setConsiderSkippingBytes(true);
+        //Flags.setConsiderSkippingBytes(true);
         if (!queryStartControl())
             return;                           // error exit
 
@@ -320,7 +321,7 @@ public class Main
      */
     private static void calculateTUBs() throws IOException
     {
-        Flags.setConsiderSkippingBytes(true);
+        //Flags.setConsiderSkippingBytes(true);
         if (!queryStartControl())
             return;                           // error exit
 

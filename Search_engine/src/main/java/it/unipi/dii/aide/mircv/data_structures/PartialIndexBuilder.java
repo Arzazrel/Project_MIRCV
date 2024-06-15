@@ -15,9 +15,11 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
-
-public final class PartialIndexBuilder {
-
+/**
+ * Class to make the partial inverted index, dictionary and document table.
+ */
+public final class PartialIndexBuilder
+{
     // Data structures initialization
     static HashMap<Integer, DocumentElement> documentTable = new HashMap<>();     // hash table DocID to related DocElement
     static Dictionary dictionary = new Dictionary();                              // dictionary in memory
@@ -34,25 +36,25 @@ public final class PartialIndexBuilder {
         int termCounter = 0;        // counter for TermID
         int totDocLen = 0;          // variable for the sum of the lengths of all documents
 
+        printDebug("The memory available for each block is: " + memoryAvailable + " bites ( " + (double)((double)memoryAvailable/(double)1073741824) + " GB)");
+
         File file = new File(COLLECTION_PATH);
         try (
             final TarArchiveInputStream tarArchiveInputStream = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(file)));
         ) {
             TarArchiveEntry tarArchiveEntry = tarArchiveInputStream.getNextTarEntry();
             BufferedReader buffer_collection;
-            if(tarArchiveEntry == null)
+            if(tarArchiveEntry == null)     // empty collection
                 return;
             buffer_collection = new BufferedReader(new InputStreamReader(tarArchiveInputStream, StandardCharsets.UTF_8));
-
-            String record;          // string to contain the document
+            String record;                  // string to contain the document
 
             // scan all documents in the collection
             while ((record = buffer_collection.readLine()) != null)
             {   // -- start - while 0 - scan all docs --
                 int separator = record.indexOf("\t");       // check for malformed line, no \t
                 if (record.isBlank() || separator == -1)    // empty string or composed by whitespace characters or malformed
-                    continue;
-
+                    continue;       // malformed doc -> go to the next doc
 
                 ArrayList<String> preprocessed = TextProcessor.preprocessText(record); // Preprocessing of document text
                 String docno = preprocessed.remove(0);      // get the DocNO of the current document
@@ -63,7 +65,7 @@ public final class PartialIndexBuilder {
 
                 DocumentElement de = new DocumentElement(docno, docCounter, preprocessed.size());   // create new Document element
                 documentTable.put(docCounter, de);      // add current Document into Document Table in memory
-                totDocLen += preprocessed.size();       // add current document length
+                totDocLen += preprocessed.size();       // update total doc length, add current document length (value will be stored in collection statistics)
                 // scan all term in the current document
                 for (String term : preprocessed)
                 {   // -- start - for 0 - scan all term in current doc --
@@ -78,6 +80,7 @@ public final class PartialIndexBuilder {
                     assert !term.equals("");
                     DictionaryElem dictElem = dictionary.getOrCreateTerm(term,termCounter);     // Dictionary build
 
+                    // check if the term is already find in this doc or it is the first time
                     if(addTerm(term, docCounter, 0))
                         dictElem.addDf(1);  // update document frequency (number of docs in which there is the term)
                     dictElem.addCf(1);  // update collection frequency (number of occurrences of the term in the collection)
@@ -125,31 +128,31 @@ public final class PartialIndexBuilder {
 
         // Get or create the PostingList associated with the term
         if(!invertedIndex.containsKey(term))
-            invertedIndex.put(term, new ArrayList<>());
+            invertedIndex.put(term, new ArrayList<>());     // inverted index doesn't contain the term -> adds it
 
-        int size = invertedIndex.get(term).size();
+        int size = invertedIndex.get(term).size();          // take the size of posting lists related to the term
 
         // Check if the posting list is empty or if the last posting is for a different document
         if (invertedIndex.get(term).isEmpty() || invertedIndex.get(term).get(size - 1).getDocId() != docId)
         {
-            // Add a new posting for the current document
-            invertedIndex.get(term).add(new Posting(docId, termFreq));
+            invertedIndex.get(term).add(new Posting(docId, termFreq));  // Add a new posting for the current doc
 
             // Print term frequency and term frequency in the current posting (only during index construction)
             if (tf != 0)
-                printDebug("TF: " + tf + " TERMFREQ: " + termFreq);
+                printDebug("SPIMI(add term): term: " + term + "TF: " + tf + " TERMFREQ: " + termFreq);
 
-            return true; // Increment df only if it's a new document
-        } else {
-            // Increment the term frequency for the current document
-            invertedIndex.get(term).get(size - 1).addTermFreq(1);
-            return false; // No need to increment df
+            return true;    // it's a new doc for this term -> Increment df
         }
-
+        else    // term
+        {
+            invertedIndex.get(term).get(size - 1).addTermFreq(1); // Increment the term frequency for the current doc
+            return false;   // this term has already been found in this doc -> no need to increment df
+        }
     }
 
     // method to free memory by deleting the information in document table, dictionary,and inverted index
-    private static void freeMemory(){
+    private static void freeMemory()
+    {
         documentTable.clear();
         dictionary.getTermToTermStat().clear();
         invertedIndex.clear();

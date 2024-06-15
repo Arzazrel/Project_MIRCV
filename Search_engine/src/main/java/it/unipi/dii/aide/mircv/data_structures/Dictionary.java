@@ -121,6 +121,19 @@ public class Dictionary
                 dictElem.setCf(buffer.getInt());                // read and set Cf
                 dictElem.setOffsetTermFreq(buffer.getLong());   // read and set offset Tf
                 dictElem.setOffsetDocId(buffer.getLong());      // read and set offset DID
+                ///*    // new version
+                if(Flags.considerSkippingBytes())           // if skipping is enabled
+                {
+                    if(Flags.isCompressionEnabled())    // check if the compression flag is enabled
+                    {
+                        dictElem.setTermFreqSize(buffer.getInt());  //
+                        dictElem.setDocIdSize(buffer.getInt());     //
+                    }
+                    dictElem.setSkipOffset(buffer.getLong());       //
+                    dictElem.setSkipArrLen(buffer.getInt());        //
+                }
+                //*/
+                /*      // old version
                 if(Flags.isCompressionEnabled())    // check if the compression flag is enabled
                 {
                     dictElem.setTermFreqSize(buffer.getInt());  //
@@ -128,6 +141,7 @@ public class Dictionary
                 }
                 dictElem.setSkipOffset(buffer.getLong());       //
                 dictElem.setSkipOffset(buffer.getInt());        //
+                //*/
                 termToTermStat.put(term, dictElem);             // add DictionaryElem into memory
             }
 

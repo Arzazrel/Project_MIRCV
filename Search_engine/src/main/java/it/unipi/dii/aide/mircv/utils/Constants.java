@@ -49,7 +49,7 @@ public final class Constants {
 
     public static final int TERM_DIM = 20;                  // Length of a term (in bytes)
     public static int N_POSTINGS = 0;                       // Number of partial postings to save in the file
-    public static final int SKIP_POINTERS_THRESHOLD = 1024;
+    public static final int SKIP_POINTERS_THRESHOLD = 1024; // minimum size of a posting list to activate skipping (if posting list is greater than threshold will be used skipping otherwise skipping will be not used)
 
     // -------------------------------------- Constants for file offsets ----------------------------------------------
 

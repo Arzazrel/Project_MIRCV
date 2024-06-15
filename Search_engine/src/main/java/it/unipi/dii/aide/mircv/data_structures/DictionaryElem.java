@@ -12,20 +12,13 @@ import static it.unipi.dii.aide.mircv.utils.Logger.dict_logger;
 /**
  *  Stores unique terms and their statistics.
  */
-public class DictionaryElem {
-
-    static int getDictElemSize() {
-        // if compression case, need to store 2 more integers (dimension of compressed DocID and Term Frequency values)
-        int DICT_ELEM_SIZE = TERM_DIM + 2*Integer.BYTES + 2*Long.BYTES;
-        return DICT_ELEM_SIZE + ((Flags.considerSkippingBytes() && Flags.isCompressionEnabled()) ? 2*Integer.BYTES : 0)
-                              + ((Flags.considerSkippingBytes()) ? (Long.BYTES + Integer.BYTES) : 0);
-    }
-
-    private String term;        // 32 byte
+public class DictionaryElem
+{
+    private String term;        // 20 byte
     private int df;             // document frequency, number of documents in which there is the term
     private int cf;             // collection frequency, number of occurrences of the term in the collection
-    private long offsetTermFreq;// starting point of the posting list of the term in the term freq file
-    private long offsetDocId;   // starting point of the posting list of the term in the docid file
+    private long offsetTermFreq;// starting point of the posting list of the term in the term freq file (set in partial(SPIMI) and total index)
+    private long offsetDocId;   // starting point of the posting list of the term in the docid file (set in partial(SPIMI) and total index)
 
     // compression
     private int docIdSize;      // dimension in byte of compressed docid of the posting list
@@ -33,8 +26,7 @@ public class DictionaryElem {
 
     // skipping
     private long skipOffset;    // offset of the skip element
-    private int skipArrLen;     // len of the skip array
-
+    private int skipArrLen;     // len of the skip array (equal to the number of skipping block)
     /*
     private double idf;
     private double maxTf;
@@ -149,6 +141,20 @@ public class DictionaryElem {
     //public double getMaxTf() { return maxTf; }
     //public double getMaxTFIDF() { return maxTFIDF; }
 
+    /**
+     * Function that returns the size of a DictionaryElem.
+     * The size change in according to the value of the flags for skipping and compression.
+     *
+     * @return  the size of dictionaryElem as int
+     */
+    static int getDictElemSize()
+    {
+        // if compression case, need to store 2 more integers (dimension of compressed DocID and Term Frequency values)
+        int DICT_ELEM_SIZE = TERM_DIM + 2*Integer.BYTES + 2*Long.BYTES;
+        return DICT_ELEM_SIZE + ((Flags.considerSkippingBytes() && Flags.isCompressionEnabled()) ? 2*Integer.BYTES : 0)
+                + ((Flags.considerSkippingBytes()) ? (Long.BYTES + Integer.BYTES) : 0);
+    }
+
     @Override
     public String toString()
     {
@@ -173,8 +179,8 @@ public class DictionaryElem {
      *
      * @param channel   indicate the file where to write
      */
-    void storeDictionaryElemIntoDisk(FileChannel channel){
-
+    void storeDictionaryElemIntoDisk(FileChannel channel)
+    {
         try {
             MappedByteBuffer buffer;
             buffer = channel.map(FileChannel.MapMode.READ_WRITE, channel.size(), getDictElemSize());
@@ -193,10 +199,10 @@ public class DictionaryElem {
             buffer.putInt(cf);                                          // write Cf
             buffer.putLong(offsetTermFreq);                             // write offset Tf
             buffer.putLong(offsetDocId);                                // write offset DID
-            if(Flags.considerSkippingBytes())       // if skipping enabled
+            if(Flags.considerSkippingBytes())       // if skipping is enabled
             {
                 // if in merge phase, need to store also the size of DocID and Term Frequency compressed values
-                if (Flags.isCompressionEnabled())       // if skipping enabled
+                if (Flags.isCompressionEnabled())       // if compression is enabled
                 {
                     buffer.putInt(termFreqSize);            //
                     buffer.putInt(docIdSize);               //
@@ -248,8 +254,13 @@ public class DictionaryElem {
             cf = buffer.getInt();               // read Cf
             offsetTermFreq = buffer.getLong();  // read offset Tf
             offsetDocId = buffer.getLong();     // read offset DID
-            if(Flags.considerSkippingBytes())           // if skipping enabled
+            if(Flags.considerSkippingBytes())           // if skipping is enabled
             {
+                if (Flags.isCompressionEnabled())       // if compression is enabled
+                {
+                    termFreqSize = buffer.getInt();            //
+                    docIdSize = buffer.getInt();               //
+                }
                 skipOffset = buffer.getLong();
                 skipArrLen = buffer.getInt();
                 /*

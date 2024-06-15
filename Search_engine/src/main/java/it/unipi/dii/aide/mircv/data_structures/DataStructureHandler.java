@@ -80,7 +80,6 @@ public final class DataStructureHandler
             {
                 printDebug("OFFSET BLOCK " + i + ": " + dictionaryBlockOffsets.get(i));
                 buffer.putLong(dictionaryBlockOffsets.get(i)); //store into file the dictionary offset of the i-th block
-                printDebug(String.valueOf(dictionaryBlockOffsets.get(i)));
             }
 
             printDebug(dictionaryBlockOffsets.size() + " blocks stored");

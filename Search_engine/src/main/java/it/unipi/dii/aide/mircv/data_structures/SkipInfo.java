@@ -8,27 +8,29 @@ public class SkipInfo {
 
     public static final int SKIPPING_INFO_SIZE = 3 * Long.BYTES;    // the size
 
-    private long maxDocId;      //
-    private long docIdOffset;   //
-    private long freqOffset;    //
+    private long maxDocId;      // the maximum DocID in the skipping block
+    private long docIdOffset;   // offset of the first docID in the next skipping block
+    private long freqOffset;    // offset of the first termFreq in the next skipping block
 
-    public SkipInfo(long maxDocId, long docIdOffset, long freqOffset) {
+    /**
+     *
+     *
+     * @param maxDocId
+     * @param docIdOffset
+     * @param freqOffset
+     */
+    public SkipInfo(long maxDocId, long docIdOffset, long freqOffset)
+    {
         this.maxDocId = maxDocId;
         this.docIdOffset = docIdOffset;
         this.freqOffset = freqOffset;
     }
 
-    public long getMaxDocId() {
-        return maxDocId;
-    }
+    public long getMaxDocId() { return maxDocId; }
 
-    public void setMaxDocId(long maxDocId) {
-        this.maxDocId = maxDocId;
-    }
+    public void setMaxDocId(long maxDocId) { this.maxDocId = maxDocId; }
 
-    public long getDocIdOffset() {
-        return docIdOffset;
-    }
+    public long getDocIdOffset() { return docIdOffset; }
 
     public void setDocIdOffset(long docIdOffset) {
         this.docIdOffset = docIdOffset;

@@ -18,7 +18,8 @@ import static java.lang.Math.min;
 /**
  * class to merge the InverteIndex
  */
-public final class IndexMerger {
+public final class IndexMerger
+{
     // Priority queue which will contain the first term (in lexicographic order) of each block. Used for merge and to
     // take from all the blocks the terms in the right order.
     private static final PriorityQueue<TermBlock> pq = new PriorityQueue<>(dictionaryBlockOffsets.size() == 0 ? 1 : dictionaryBlockOffsets.size(), new CompareTerm());
@@ -28,17 +29,18 @@ public final class IndexMerger {
     }
 
     static int i = 0;       // counter used only for control prints
+
     /**
      *  function to merge the block of the inverted index
      */
     public static void mergeBlocks()
     {
-        int nrBlocks = dictionaryBlockOffsets.size();           // dictionary block number
+        int nrBlocks = dictionaryBlockOffsets.size();           // get partial dictionary block number
         DataStructureHandler.readBlockOffsetsFromDisk();        // get offsets of dictionary blocks from disk
         MappedByteBuffer buffer;
-        // array containing the current read offset for each block
+        // array containing the current read pointer offset for each block
         ArrayList<Long> currentBlockOffset = new ArrayList<>(nrBlocks);
-        currentBlockOffset.addAll(dictionaryBlockOffsets);      // set the offset for each blocks
+        currentBlockOffset.addAll(dictionaryBlockOffsets);      // set the offset for each blocks, at the beginning are set to the start of block offset
 
         printLoad("Merging partial files...");                     // print of the merging start
         // var which indicates the steps of 'i' progression print during merge
@@ -69,7 +71,8 @@ public final class IndexMerger {
                 FileChannel outSkipChannel = skipFile.getChannel()
         ) {
             // scroll all blocks and add the first term of each block to priority queue
-            for(int i = 0; i <  nrBlocks; i++) {
+            for(int i = 0; i <  nrBlocks; i++)
+            {
                 buffer = dictChannel.map(FileChannel.MapMode.READ_ONLY, currentBlockOffset.get(i), TERM_DIM); //map current block in memory
                 String term = StandardCharsets.UTF_8.decode(buffer).toString().split("\0")[0];  // get first term of the block
                 pq.add(new TermBlock(term, i));     // add to the priority queue a TermBlock element (term + its blocks number)
@@ -132,8 +135,8 @@ public final class IndexMerger {
                     }   // -- end - if 0.1
                     else    // different term found, write to disk the complete data of the previous term
                     {   // -- start - else 0.1
-                        Flags.setConsiderSkippingBytes(true);
-                        // update DocID and Term Frequency offset ( equal to the end of the files)
+                        //Flags.setConsiderSkippingBytes(true);     // don't set always ++++++++++++++++++++++++++++
+                        // update DocID and Term Frequency offset ( equal to the end of the complete files)
                         tempDE.setOffsetTermFreq(outTermFreqChannel.size());    // update TermFreq offset
                         tempDE.setOffsetDocId(outDocIdChannel.size());          // update DocID offset
                         /*
@@ -141,53 +144,65 @@ public final class IndexMerger {
                         tempDE.computeMaxTFIDF();
                         //*/
                         assert tempPL != null;
-
-                        int lenPL = tempPL.size();
+                        // start the part for skipping and compression
+                        int lenPL = tempPL.size();                  // take the size of the posting list
                         int[] tempCompressedLength = new int[2];
-                        if(lenPL >= SKIP_POINTERS_THRESHOLD)
+                        // check if the skipping flags is true and if the posting list length is greater than the minimum value for the skipping
+                        if(Flags.considerSkippingBytes() && (lenPL >= SKIP_POINTERS_THRESHOLD) )
                         {   // -- start - if 0.1.1
-                            int skipInterval = (int) Math.ceil(Math.sqrt(lenPL));        // one skip every rad(docs)
-                            int nSkip = 0;
+                            // number of postings in each skipping block, one skipping block every rad(postingListLength)
+                            int skipInterval = (int) Math.ceil(Math.sqrt(lenPL));
+                            int nSkip = 0;          // counter for the skipping block
 
-                            for(int i = 0; i < lenPL; i += skipInterval) {
-                                List<Posting> subPL = tempPL.subList(i, min(i + skipInterval, lenPL));
+                            // scan the posting list for each skipping block
+                            for(int i = 0; i < lenPL; i += skipInterval)
+                            {
+                                List<Posting> subPL = tempPL.subList(i, min(i + skipInterval, lenPL));  // take the sublist to put in this skipping block
                                 ArrayList<Posting> tempSubPL = new ArrayList<>(subPL);
-                                if (Flags.isCompressionEnabled()) {
+
+                                if (Flags.isCompressionEnabled())       // check if the compression is enabled
+                                {
                                     int[] compressedLength = DataStructureHandler.storeCompressedPostingIntoDisk(tempSubPL, outTermFreqChannel, outDocIdChannel);//store index with compression - unary compression for termfreq
                                     assert compressedLength != null;
                                     tempCompressedLength[0] += compressedLength[0];
                                     tempCompressedLength[1] += compressedLength[1];
                                     SkipInfo sp = new SkipInfo(subPL.get(subPL.size()-1).getDocId(), outDocIdChannel.size(), outTermFreqChannel.size());
                                     sp.storeSkipInfoToDisk(outSkipChannel);
-                                } else {
-                                    storePostingListIntoDisk(tempSubPL, outTermFreqChannel, outDocIdChannel);  // write InvertedIndexElem to disk
-                                    SkipInfo sp = new SkipInfo(subPL.get(subPL.size()-1).getDocId(), outDocIdChannel.size(),  outTermFreqChannel.size());
-                                    sp.storeSkipInfoToDisk(outSkipChannel);
                                 }
-                                nSkip++;
+                                else
+                                {
+                                    storePostingListIntoDisk(tempSubPL, outTermFreqChannel, outDocIdChannel);  // write InvertedIndexElem to disk (the sub-posting list that represent the skipping block
+                                    SkipInfo sp = new SkipInfo(subPL.get(subPL.size()-1).getDocId(), outDocIdChannel.size(),  outTermFreqChannel.size());
+                                    sp.storeSkipInfoToDisk(outSkipChannel);     // store skip info in the file into disk
+                                }
+                                nSkip++;        // update the skipping block counter
 
                             }
-                            tempDE.setSkipArrLen(nSkip);
-                            tempDE.setSkipOffset(outSkipChannel.size());
-                            if(Flags.isCompressionEnabled()) {
-                                tempDE.setTermFreqSize(tempCompressedLength[0]);
-                                tempDE.setDocIdSize(tempCompressedLength[1]);
+                            tempDE.setSkipArrLen(nSkip);                    // save the number of skipping block
+                            tempDE.setSkipOffset(outSkipChannel.size());    // save the offset of the first skipping box
+
+                            if(Flags.isCompressionEnabled())                // check if compression is enabled
+                            {
+                                tempDE.setTermFreqSize(tempCompressedLength[0]);    //
+                                tempDE.setDocIdSize(tempCompressedLength[1]);       //
                             }
                         }   // -- end - if 0.1.1
-                        else
+                        else        // the posting list is too small for skipping
                         {   // -- start - else 0.1.1
-                            if(Flags.isCompressionEnabled()){
+                            if(Flags.isCompressionEnabled())
+                            {
                                 int[] compressedLength = DataStructureHandler.storeCompressedPostingIntoDisk(tempPL, outTermFreqChannel, outDocIdChannel);//store index with compression - unary compression for termfreq
                                 assert compressedLength != null;
                                 tempDE.setTermFreqSize(compressedLength[0]);
                                 tempDE.setDocIdSize(compressedLength[1]);
                             }
-                            else
+                            else        // simplest case: save the posting list without skipping nor compression. (case: no skipping, no compression or yes skipping but posting list too small)
                                 storePostingListIntoDisk(tempPL, outTermFreqChannel, outDocIdChannel);  // write InvertedIndexElem to disk
                         }   // -- end - else 0.1.1
-                        tempDE.storeDictionaryElemIntoDisk(outDictionaryChannel);
 
-                        Flags.setConsiderSkippingBytes(false);
+                        tempDE.storeDictionaryElemIntoDisk(outDictionaryChannel);       // store dictionary
+
+                        //Flags.setConsiderSkippingBytes(false);
                         //set temp variables values
                         tempDE = currentDE;
                         tempPL = currentPL;

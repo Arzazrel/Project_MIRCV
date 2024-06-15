@@ -144,12 +144,12 @@ public final class Flags
         printUI("5) dynamic pruning   -> if is true: queries will be executed with dynamic pruning algorithm (WAND).");
         printUI("                     -> if is false: queries will be executed with classic DAAT algorithm.");
 
-        printUI("\nThe user's choices for the flags are:");                     // control print for the user
-        printUI("- is stopwords removal enabled : " + isSwsEnabled());          // print choice for stopwords removal
-        printUI("- is compression enabled : " + isCompressionEnabled());        // print choice for compression
-        printUI("- is scoring BM25 enabled : " + isScoringEnabled());           // print choice for BM25 scoring function
-        printUI("- is skipping enabled : " + considerSkippingBytes());          // print choice for skipping
-        printUI("- is dynamic pruning enabled : " + isDynamicPruningEnabled()); // print choice for skipping
+        printUI("\nThe user's choices for the flags are:");                         // control print for the user
+        printUI("- is stopwords removal enabled : " + isSwsEnabled());              // print choice for stopwords removal
+        printUI("- is compression enabled       : " + isCompressionEnabled());      // print choice for compression
+        printUI("- is scoring BM25 enabled      : " + isScoringEnabled());          // print choice for BM25 scoring function
+        printUI("- is skipping enabled          : " + considerSkippingBytes());     // print choice for skipping
+        printUI("- is dynamic pruning enabled   : " + isDynamicPruningEnabled());   // print choice for dynamic pruning algorithm
     }
 
     /**
