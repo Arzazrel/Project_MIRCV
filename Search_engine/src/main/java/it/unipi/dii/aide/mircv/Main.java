@@ -22,7 +22,8 @@ public class Main
         long startTime, endTime;                // variables to calculate the execution time
 
         // while constituting the user interface
-        while (true) {
+        while (true)
+        {
             // print of the user interface
             printUI(
                     "\n********** SEARCH ENGINE **********" +
@@ -39,8 +40,8 @@ public class Main
             String mode = sc.nextLine();        // take user's choice
 
             // switch to run user's choice
-            switch (mode) {
-
+            switch (mode)
+            {
                 case "m":       // per debugging, prova solo il merge
                     delete_mergedFiles();
                     //setCompression(true);  // take user preferences on the compression
