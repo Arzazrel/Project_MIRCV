@@ -19,7 +19,7 @@ import static it.unipi.dii.aide.mircv.utils.Constants.*;
 import static it.unipi.dii.aide.mircv.utils.Logger.*;
 
 /**
- * This class perform the calculating of term upper bound and document upper bound
+ * This class perform the calculating of term upper bound.
  */
 
 public class TermDocUpperBound

@@ -9,6 +9,7 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
+import static it.unipi.dii.aide.mircv.data_structures.SkipInfo.*;
 import static it.unipi.dii.aide.mircv.data_structures.DataStructureHandler.*;
 import static it.unipi.dii.aide.mircv.data_structures.DictionaryElem.getDictElemSize;
 import static it.unipi.dii.aide.mircv.data_structures.PartialIndexBuilder.*;
@@ -154,6 +155,13 @@ public final class IndexMerger
                             int skipInterval = (int) Math.ceil(Math.sqrt(lenPL));
                             int nSkip = 0;          // counter for the skipping block
 
+                            // +++++++++++++++++++++++++++++++++++
+                            if (tempDE.getTerm().equals("how"))
+                            {
+                                printDebug("Index merger - skipping -> term 'how' postingListSize: " + lenPL + " skipInterval: " + skipInterval);
+                            }
+                            // +++++++++++++++++++++++++++++++++++
+
                             // scan the posting list for each skipping block
                             for(int i = 0; i < lenPL; i += skipInterval)
                             {
@@ -174,12 +182,17 @@ public final class IndexMerger
                                     storePostingListIntoDisk(tempSubPL, outTermFreqChannel, outDocIdChannel);  // write InvertedIndexElem to disk (the sub-posting list that represent the skipping block
                                     SkipInfo sp = new SkipInfo(subPL.get(subPL.size()-1).getDocId(), outDocIdChannel.size(),  outTermFreqChannel.size());
                                     sp.storeSkipInfoToDisk(outSkipChannel);     // store skip info in the file into disk
+                                    // +++++++++++++++++++++++++++++++++++
+                                    if (tempDE.getTerm().equals("how") && (nSkip < 20))
+                                    {
+                                        printDebug("-- skip block: " + nSkip + " maxDID: " + subPL.get(subPL.size()-1).getDocId() + " e pos: " + i);
+                                    }
+                                    // +++++++++++++++++++++++++++++++++++
                                 }
                                 nSkip++;        // update the skipping block counter
-
                             }
                             tempDE.setSkipArrLen(nSkip);                    // save the number of skipping block
-                            tempDE.setSkipOffset(outSkipChannel.size());    // save the offset of the first skipping box
+                            tempDE.setSkipOffset(outSkipChannel.size()-((long) nSkip * SKIPPING_INFO_SIZE));    // save the offset of the first skipping box
 
                             if(Flags.isCompressionEnabled())                // check if compression is enabled
                             {
