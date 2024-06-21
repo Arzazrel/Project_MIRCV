@@ -59,8 +59,8 @@ public final class FileSystem {
     /**
      * function to delete all the temporary files in the partial folder
      */
-    public static void delete_tempFiles() {
-
+    public static void delete_tempFiles()
+    {
         File partial_directory = new File(PARTIAL_FOLDER);
         try {
             FileUtils.cleanDirectory(partial_directory);    // delete files in partial folder
@@ -72,8 +72,8 @@ public final class FileSystem {
     /**
      * function to delete all the merged files in the merged folder
      */
-    public static void delete_mergedFiles() {
-
+    public static void delete_mergedFiles()
+    {
         File dict = new File(DICTIONARY_FILE);
         File docid = new File(DOCID_FILE);
         File termfreq = new File(TERMFREQ_FILE);
@@ -108,13 +108,79 @@ public final class FileSystem {
         return docTable.exists() && dict.exists() && docDID.exists() && docTF.exists();
     }
 
-    // function to save docids  or tf posting list into file (in order to compare before and after compression)
-    public static void saveDocsInFile(ArrayList<Integer> postings, String tempFileName) throws FileNotFoundException {
+    /**
+     * Function to show the size of all file saved into disk. It can be useful for analyze and compare the size of the
+     * files (and consequently of the inverted index, dictionary, doc table, skip info adn Term Upper Bound) of different version and with
+     * different techniques enabled (skipping, compression and so on)
+     */
+    public static void printFileSize()
+    {
+        printUI("File sizes, if any, will be shown (divided by category).");
+
+        printUI("Partial files:");      // size of the partial files
+        File block = new File(BLOCKOFFSETS_FILE);               // blocks.txt
+        if(block.exists())
+            printSize(formatSize("blocks", block.length()));
+
+        File partDict = new File(PARTIAL_DICTIONARY_FILE);      // partial_dictionary.txt"
+        if(partDict.exists())
+            printSize(formatSize("partial_dictionary", partDict.length()));
+
+        File partDocDID = new File(PARTIAL_DOCID_FILE);         // partial_docId.txt
+        if(partDocDID.exists())
+            printSize(formatSize("partial_docId", partDocDID.length()));
+
+        File partDocTF = new File(PARTIAL_TERMFREQ_FILE);       // partial_termFreq.txt
+        if(partDocTF.exists())
+            printSize(formatSize("partial_termFreq", partDocTF.length()));
+
+        printUI("Merged files:");       // size of the merged files
+        File docTable = new File(DOCTABLE_FILE);        // documentTable.txt
+        if(docTable.exists())
+            printSize(formatSize("documentTable", docTable.length()));
+
+        File dict = new File(DICTIONARY_FILE);          // dictionary.txt"
+        if(dict.exists())
+            printSize(formatSize("dictionary", dict.length()));
+
+        File docDID = new File(DOCID_FILE);             // docId.txt
+        if(docDID.exists())
+            printSize(formatSize("docId", docDID.length()));
+
+        File docTF = new File(TERMFREQ_FILE);           // termFreq.txt
+        if(docTF.exists())
+            printSize(formatSize("termFreq", docTF.length()));
+
+        File skip = new File(SKIP_FILE);                // skipInfo
+        if(skip.exists())
+            printSize(formatSize("skipInfo", skip.length()));
+
+        printUI("TUB files:");       // size of term upper bound file
+        File termUB = new File(TERMUPPERBOUND_FILE);
+        if(termUB.exists())
+            printSize(formatSize("termsUpperBound", termUB.length()));
+
+        printUI("Generic files:");   // size of the other files (collection statistic and flags files)
+        File flags = new File(FLAGS_FILE);
+        if(flags.exists())
+            printSize(formatSize("flags", flags.length()));
+
+        File collectionStatistics = new File(STATS_FILE);
+        if(collectionStatistics.exists())
+            printSize(formatSize("collectionStatistics", collectionStatistics.length()));
+    }
+
+
+    // function to save docids or tf posting list into file (in order to compare before and after compression)
+    public static void saveDocsInFile(ArrayList<Integer> postings, String tempFileName) throws FileNotFoundException
+    {
         // Create a file
         File outputf = new File(tempFileName);
 
-        try (PrintWriter outputWriter = new PrintWriter(outputf)) {
-            for (int i = 0; i < postings.size(); i++) {
+        try (PrintWriter outputWriter = new PrintWriter(outputf))
+        {
+            for (int i = 0; i < postings.size(); i++)
+            {
                 printDebug("posting" + i + ": " + postings.get(i));
                 outputWriter.print(postings.get(i));
                 outputWriter.println(); // Add a newline character
@@ -122,12 +188,13 @@ public final class FileSystem {
         }
     }
 
-    public static void saveDocsInFileSkipInfo(SkipInfo si, String tempFileName) {
+    public static void saveDocsInFileSkipInfo(SkipInfo si, String tempFileName)
+    {
         // ----------- debug file ---------------
         File outputf = new File(tempFileName);
 
-        try(PrintWriter outputWriter = new PrintWriter(outputf);) {
-
+        try(PrintWriter outputWriter = new PrintWriter(outputf);)
+        {
             outputWriter.print(si.toString());
             outputWriter.println();
         } catch (FileNotFoundException e) {

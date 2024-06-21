@@ -31,8 +31,9 @@ public class Main
                     "\n\t  m -> try merge only" +
                     "\n\t  i -> build the index" +
                     "\n\t  d -> offset debug" +
-                    "\n\t  u -> calculate term upper bound and document upper bound" +
+                    "\n\t  u -> calculate term upper bound" +
                     "\n\t  f -> see or change flags" +
+                    "\n\t  s -> see files size" +
                     "\n\t  q -> query mode" +
                     "\n\t  t -> query test mode" +
                     "\n\t  x -> exit" +
@@ -170,6 +171,11 @@ public class Main
                         calculateTUBs();
 
                     continue;                           // go next while iteration
+                case "s":       // see files size
+
+                    printFileSize();            // see and show the files size
+
+                    continue;
                 case "q":       // execute a query
 
                     //Flags.setConsiderSkippingBytes(true);

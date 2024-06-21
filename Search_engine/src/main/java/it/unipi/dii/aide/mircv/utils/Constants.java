@@ -64,14 +64,39 @@ public final class Constants {
     public static final boolean debug = false;
 
     // ---------------------------------------- Utilities for time printing -------------------------------------------
-    public static String formatTime(long start, long end) {
 
+    /**
+     * Function to format the execution time in the specified format.
+     *
+     * @param start execution start time
+     * @param end   execution end time
+     * @return      a formatted string that show the execution time.
+     */
+    public static String formatTime(long start, long end)
+    {
         long elapsedTime = end - start;
         long seconds = (elapsedTime / 1000) % 60;
         long minutes = (elapsedTime / 1000 / 60) % 60;
         long hours = (elapsedTime / 1000 / 3600);
 
         return String.format("%02d:%02d:%02d", hours, minutes, seconds);
+    }
+
+    /**
+     * Function to show the size of a file in the specified format.
+     *
+     * @param nameFile  file name
+     * @param fileSize  size (in Bytes) of the file
+     * @return          a formatted string that show the file size.
+     */
+    public static String formatSize(String nameFile, long fileSize)
+    {
+        double sizeKiloBytes = (double) fileSize / 1024;
+        double sizeMegaBytes = (double) fileSize / (1024 * 1024);
+        double sizeGigaBytes = (double) fileSize / (1024 * 1024 * 1024);
+
+
+        return String.format("The size of the file '%s' is: %d Bytes , %.3f KB , %.3f MB , %.3f GB", nameFile, fileSize, sizeKiloBytes, sizeMegaBytes, sizeGigaBytes);
     }
 
     // ------------------------------ Utilities for control printing (and color print) ---------------------------------
@@ -81,6 +106,7 @@ public final class Constants {
     public static final String ANSI_YELLOW = "\u001B[93m";      // time print
     public static final String ANSI_RED = "\033[0;31m";         // error print
     public static final String ANSI_GREEN = "\u001B[32m";       // load print
+    public static final String ANSI_ORANGE = "\u001b[38;5;208m";  // file size print
     public static final String ANSI_MAGENTA = "\u001b[35m";     // debug print
 
     // -- types print
@@ -103,6 +129,10 @@ public final class Constants {
 
     public static void printLoad(String s){
         System.out.println(ANSI_GREEN + s + ANSI_RESET);
+    }
+
+    public static void printSize(String s){
+        System.out.println(ANSI_ORANGE + s + ANSI_RESET);
     }
 
 }
