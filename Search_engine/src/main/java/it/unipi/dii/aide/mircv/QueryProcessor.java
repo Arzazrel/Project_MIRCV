@@ -8,6 +8,8 @@ import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
 import java.io.*;
+import java.nio.CharBuffer;
+import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -15,10 +17,12 @@ import java.util.*;
 import static it.unipi.dii.aide.mircv.data_structures.CollectionStatistics.readCollectionStatsFromDisk;
 import static it.unipi.dii.aide.mircv.data_structures.DataStructureHandler.readCompressedPostingListFromDisk;
 import static it.unipi.dii.aide.mircv.data_structures.DataStructureHandler.readPostingListFromDisk;
+import static it.unipi.dii.aide.mircv.data_structures.DocumentElement.DOCELEM_SIZE;
 import static it.unipi.dii.aide.mircv.data_structures.Flags.readFlagsFromDisk;
 //import static it.unipi.dii.aide.mircv.data_structures.PartialIndexBuilder.dictionaryBlockOffsets;
 import static it.unipi.dii.aide.mircv.utils.Constants.*;
 import static it.unipi.dii.aide.mircv.utils.Constants.printDebug;
+import static it.unipi.dii.aide.mircv.utils.Logger.collStats_logger;
 
 /**
  * Class to manage and execute query
@@ -28,12 +32,13 @@ public final class QueryProcessor {
     // indicate whether order all or only first "numberOfResults" results from hash table. TEST VARIABLE
     private static boolean orderAllHashMap = false;
     public static HashMap<Integer, DocumentElement> documentTable = new HashMap<>();    // hash table DocID to related DocElement
+    public static HashMap<Integer, Double> termFreqWeightTable = new HashMap<>();    // hash table DocID to related DocElement
     static it.unipi.dii.aide.mircv.data_structures.Dictionary dictionary = new Dictionary();    // dictionary in memory
     private static ArrayList<String> termNotInCollection = new ArrayList<>();   // ArrayList that contain the term that are in the query but not in the collection
     // variable to BM25
-    private static double k = 1.2;      // typical values between 1,2 and 2
-    private static double b = 0.75;     // typical values around 0.75
-    private static double avgDocLen;    // average document length (used in BM25 scoring function)
+    //private static double k = 1.2;      // typical values between 1,2 and 2
+    //private static double b = 0.75;     // typical values around 0.75
+    //private static double avgDocLen;    // average document length (used in BM25 scoring function)
     static PriorityQueue<QueryProcessor.ResultBlock> resPQ;     // priority queue for the result of scoring function for the best numberOfResults docs
 
     /**
@@ -53,8 +58,9 @@ public final class QueryProcessor {
         boolean scoringFunc = Flags.isScoringEnabled();      // take user's choice about using scoring function
 
         printDebug("User choice for scoring is: " + scoringFunc);
-        if (scoringFunc)
-            avgDocLen = CollectionStatistics.getTotDocLen() / CollectionStatistics.getNDocs();  // set average doc len
+        //if (scoringFunc)
+            //avgDocLen = CollectionStatistics.getTotDocLen() / CollectionStatistics.getNDocs();  // set average doc len
+            //avgDocLen = CollectionStatistics.getAvgDocLen();
 
         try{
             // processed the query to obtain the term
@@ -119,6 +125,7 @@ public final class QueryProcessor {
 
         readFlagsFromDisk();
         readCollectionStatsFromDisk();
+        //CollectionStatistics.printCollectionStatistics();
 
         // -- control for structures in memory - if not load them from disk
         if (!dictionary.dictionaryIsSet())
@@ -140,6 +147,11 @@ public final class QueryProcessor {
         }
         else
             printDebug("Document Table is already loaded.");
+
+        if (termFreqWeightTable.isEmpty())
+            readTFWeightFromDisk();
+        else
+            printDebug("termFreqWeightTable is already loaded.");
 
         return true;
     }
@@ -215,7 +227,7 @@ public final class QueryProcessor {
 
                     // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
                     if (scoringFunc)
-                        partialScore += ScoringBM25(currentDID,currentP.getTermFreq(), IDFweight[j]);     // use BM25
+                        partialScore += ScoringBM25(currentDID, currentP.getTermFreq(), IDFweight[j]);     // use BM25
                     else
                         partialScore += ScoringTFIDF(currentP.getTermFreq(), IDFweight[j]);               // use TFIDF
                     //printDebug("DAAT: posting del termine: " + processedQuery.get(j) + " della posting: " + j + " in pos: " + (postingListsIndex[j]-1) + " ha DID: " + currentDID + " and partialScore: " + partialScore);
@@ -480,7 +492,7 @@ public final class QueryProcessor {
 
                     // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
                     if (scoringFunc)
-                        partialScore += ScoringBM25(currentDID,currentP.getTermFreq(), IDFweight[j]);     // use BM25
+                        partialScore += ScoringBM25(currentDID, currentP.getTermFreq(), IDFweight[j]);     // use BM25
                     else
                         partialScore += ScoringTFIDF(currentP.getTermFreq(), IDFweight[j]);     // use TFIDF
                     //printDebug("------ DAAT: find DID: " + currentDID + " term: '" + processedQuery.get(j) + "' in PL: " + j + " in pos: " + (postingListsIndex[j]-1) + " and partialScore: " + partialScore);
@@ -894,7 +906,7 @@ public final class QueryProcessor {
                             currentDocUpperBound -= partialScore;               // update currentDocUpperBound
                             // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
                             if (scoringFunc)
-                                partialScore += ScoringBM25(currentDID,currentP.getTermFreq(), IDFweight[i]);   // use BM25
+                                partialScore += ScoringBM25(currentDID, currentP.getTermFreq(), IDFweight[i]);   // use BM25
                             else
                                 partialScore += ScoringTFIDF(currentP.getTermFreq(), IDFweight[i]);             // use TFIDF
                             currentDocUpperBound += partialScore;               // update currentDocUpperBound
@@ -939,7 +951,7 @@ public final class QueryProcessor {
                             currentDocUpperBound -= partialScore;               // update currentDocUpperBound
                             // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
                             if (scoringFunc)
-                                partialScore += ScoringBM25(currentDID,currentP.getTermFreq(), IDFweight[i]);   // use BM25
+                                partialScore += ScoringBM25(currentDID, currentP.getTermFreq(), IDFweight[i]);   // use BM25
                             else
                                 partialScore += ScoringTFIDF(currentP.getTermFreq(), IDFweight[i]);             // use TFIDF
                             currentDocUpperBound -= termUpperBoundList[i];      // update currentDocUpperBound
@@ -1023,7 +1035,7 @@ public final class QueryProcessor {
         // execute the term query -> optimization -> there is one posting list -> the DID are already sort
         for (Posting p : postingLists[0])
         {
-            partialScore = 0;           // reset var
+            partialScore = 0;               // reset var
             // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
             if (scoringFunc)
                 partialScore += ScoringBM25(p.getDocId(), p.getTermFreq(), IDFWeight); // use BM25
@@ -1044,7 +1056,8 @@ public final class QueryProcessor {
     // -------- start: scoring function --------
 
     /**
-     * function to calculate TFIDF for one term and one document
+     * function to calculate TFIDF for one term and one document. The complete formula is:
+     * TFIDF(t,d) = TFWeight * IDFWeight = (1 + log10(tf)) * log10(NDoc/postListLen(t))
      *
      * @param termFreq      term frequency of the term in the document
      * @param IDFweight     the IDF weight for the current term (precomputed for optimization)
@@ -1059,7 +1072,7 @@ public final class QueryProcessor {
         if (termFreq == 0)
             return (double) 0;
 
-        TFweight = (1 + Math.log10(termFreq));      // calculate TF weight
+        TFweight = termFreqWeightTable.get(termFreq);   // calculate TF weight, new version
         scoreTFIDF = TFweight * IDFweight;          // calculate TFIDF weight from Tf and IDF weight values
         //printDebug("ScoringTFIDF - TFweight = " + TFweight + " IDFweight = " + IDFweight + " scoreTFIDF = " + scoreTFIDF);
 
@@ -1067,7 +1080,7 @@ public final class QueryProcessor {
     }
 
     /**
-     * function to calculate IDF weight for each term(posting list) of the query
+     * Function to calculate IDF weight for each term(posting list) of the query. ( IDFw(t,d) = log10(NDoc / postListLen(t)) )
      *
      * @param postingListsLength    array containing the length for the posting lists
      * @return array of IDF weight, the i-th values in the array correspond to the i-th posting list(term of the query)
@@ -1087,37 +1100,114 @@ public final class QueryProcessor {
     }
 
     /**
-     * function to calculate BM25 for one term and one document
+     * Function to calculate and store the precomputed TermFreqWeight.
+     * Read the max value of the TermFreq in the collection and compute the weight for each value from 1 to max.
+     */
+    public static void calcAndStoreTFWeight()
+    {
+        int maxTF = CollectionStatistics.getMaxTermFreq();  // get the max value of TermFreq in the collection
+        double TFweight;
+        long startTime, endTime;
+
+        printLoad("Calculated and stored all useful values for termFreqWeight...");
+        startTime = System.currentTimeMillis();
+        try (
+                RandomAccessFile docStats = new RandomAccessFile(TERMFREQWEIGHT_FILE, "rw");
+                FileChannel channel = docStats.getChannel()
+        ) {
+            // double size * number of term freq weight to store
+            MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, (long) DOUBLE_BYTES * maxTF);
+
+            // scan all possible value of TermFreq weight
+            for(int i = 1; i <= maxTF; i++)
+            {
+                TFweight = (1 + Math.log10(i));         // calculate TF weight
+                termFreqWeightTable.put(i,TFweight);    // put into hash table
+                //printDebug("termFreqWeightTable ( " + i + " , " + TFweight + " )");
+                // store
+                buffer.putDouble(TFweight);             // write termFreqWeight
+            }
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+        }
+        printDebug("The maxTF is: " + maxTF + " and the size of termFreqWeightTable is: " + termFreqWeightTable.size());
+        endTime = System.currentTimeMillis();
+        printTime("TermFreqWeight calculated and stored in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+    }
+
+    /**
+     * Function to read from disk the precomputed TermFreqWeight.
+     */
+    public static void readTFWeightFromDisk()
+    {
+        long startTime, endTime;
+        int tf = 1;
+
+        printLoad("Loading all useful values for termFreqWeight from disk...");
+
+        startTime = System.currentTimeMillis();
+        if (!termFreqWeightTable.isEmpty())
+            termFreqWeightTable.clear();
+
+        try (
+                RandomAccessFile docStats = new RandomAccessFile(TERMFREQWEIGHT_FILE, "rw");
+                FileChannel channel = docStats.getChannel()
+        ) {
+            MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
+
+            if(buffer == null)      // Buffer not created
+                return;
+
+            // for to read all termFreqWeight stored into disk
+            for (int i = 0; i < channel.size(); i += DOUBLE_BYTES)
+            {
+                termFreqWeightTable.put(tf, buffer.getDouble());
+                tf++;
+            }
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+        }
+        endTime = System.currentTimeMillis();
+        printTime("TermFreqWeight loaded in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        //printDebug("The maxTF is: " + CollectionStatistics.getMaxTermFreq() + " and the size of termFreqWeightTable is: " + termFreqWeightTable.size());
+        //printDebug("TermFreqWeight hashtable: " + termFreqWeightTable);
+    }
+
+    /**
+     * Function to calculate BM25 for one term and one document. The complete formula is:
+     * BM25(t,d) = ( tf / (k * ((1 - b) + b * (docLen / avgDocLen)) + termFreq) ) * log10(NDoc/postListLen(t))
      *
-     * @param DocID             DocID of the document processed
-     * @param termFreq          term frequency of the term in the document
+     * @param DocID         DocID of the document processed
+     * @param termFreq      term frequency of the term in the document
      * @param IDFweight     the IDF weight for the current term (precomputed for optimization)
      * @return  the BM25 score for one term and one document. The total score for a document will be the sum of the
      *          result of this function for each term that is both in the document and in the query
      */
     private static Double ScoringBM25(int DocID, int termFreq, double IDFweight)
     {
-        double docLen, denominator, scoreBM25;     // variables to calculate the BM25 score value
+        double denominator, scoreBM25;      // variables to calculate the BM25 score value
 
         // control to avoid log and division to 0
         if (termFreq == 0)
             return (double) 0;
 
-        docLen = documentTable.get(DocID).getDoclength();   // get doc length
-        denominator = k * ((1 - b) + b * (docLen / avgDocLen)) + termFreq;                      // calculate TF weight
+        denominator = documentTable.get(DocID).getDenomPartBM25() + termFreq;
         scoreBM25 = (termFreq / denominator) * IDFweight;      // calculate TFIDF weight from Tf and IDF weight values
         //printDebug("ScoringBM25 - docLen = " + docLen + " denominator = " + denominator + " IDFweight = " + IDFweight + " scoreBM25 = " + scoreBM25);
 
         return scoreBM25;
     }
 
+
     /**
      * Function to calculate the average document length used in BM25 scoring function.
      */
+    /*
     public static void setAvgDocLen()
     {
         avgDocLen = CollectionStatistics.getTotDocLen() / CollectionStatistics.getNDocs();  // set average doc len
     }
+    */
     // -------- end: scoring function --------
 
     // -------- start: utilities function --------

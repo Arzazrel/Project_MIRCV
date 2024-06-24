@@ -313,6 +313,10 @@ public class Main
         endTime = System.currentTimeMillis();           // end time of merge blocks
         printTime("\nBlocks merged in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
+        //CollectionStatistics.printCollectionStatistics();           //
+        DataStructureHandler.calcAndStoreDenPartBM25inDocTable();   // calculate the partial denominator BM25 for optimization
+        QueryProcessor.calcAndStoreTFWeight();
+
         // calculate term upper bound and doc upper bound
         //Flags.setConsiderSkippingBytes(true);
         if (!queryStartControl())
@@ -331,6 +335,8 @@ public class Main
         //Flags.setConsiderSkippingBytes(true);
         if (!queryStartControl())
             return;                           // error exit
+
+        DataStructureHandler.calcAndStoreDenPartBM25inDocTable();
 
         TermDocUpperBound.calculateTermsUpperBound();   // calculate term upper bound for each term of dictionary
         //TermDocUpperBound.readTermUpperBoundTableFromDisk();

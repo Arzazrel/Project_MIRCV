@@ -54,8 +54,8 @@ public class TermDocUpperBound
         termsList = new ArrayList<>(QueryProcessor.getDictionary().keySet());   // read all the term of the dictionary
         scoringFunc = Flags.isScoringEnabled();             // take user's choice about using scoring function
         // if BM25 scoring function is enabled calculate the average document length
-        if (scoringFunc)
-            QueryProcessor.setAvgDocLen();      // calculate avgDocLen
+        //if (scoringFunc)
+        //    QueryProcessor.setAvgDocLen();      // calculate avgDocLen
 
         // scan all term in the dictionary
         for (String term : termsList)

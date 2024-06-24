@@ -39,7 +39,8 @@ public final class Constants {
     public static final String SKIP_FILE = MERGED_FOLDER + "skipInfo";
 
     // -- file in UPPERBOUND_FOLDER --
-    public static final String TERMUPPERBOUND_FILE = UPPERBOUND_FOLDER + "termsUpperBound";  // file in which terms upper bound are stored
+    public static final String TERMUPPERBOUND_FILE = UPPERBOUND_FOLDER + "termsUpperBound"; // file in which terms upper bound are stored
+    public static final String TERMFREQWEIGHT_FILE = UPPERBOUND_FOLDER + "termFreqWeight";  // file in which term freq weight are stored
 
     // -------------------------------- Constants for variable bytes -------------------------------------------
 

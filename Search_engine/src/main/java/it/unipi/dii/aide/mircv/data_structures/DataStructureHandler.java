@@ -50,6 +50,7 @@ public final class DataStructureHandler
                 buffer.put(StandardCharsets.UTF_8.encode(charBuffer));
                 buffer.putInt(de.getDocid());
                 buffer.putInt(de.getDoclength());
+                buffer.putDouble(de.getDenomPartBM25());
 
                 if(debug)
                     docTable_logger.logInfo(de.toString());
@@ -57,6 +58,87 @@ public final class DataStructureHandler
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public static void calcAndStoreDenPartBM25inDocTable()
+    {
+        long startTime,endTime;             // variables to calculate the execution time
+        double denomPartBM25;
+        double k = CollectionStatistics.getK();
+        double b = CollectionStatistics.getB();
+        double avgDocLen = CollectionStatistics.getAvgDocLen();
+
+        printLoad("\nCalculate and storing the denominator part for BM25 in Document Table into disk...");
+
+        // if docTable is not in memory load it
+        if(QueryProcessor.documentTable.isEmpty())
+        {
+            try
+            {
+                readDocumentTableFromDisk(false);
+            }
+            catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        //printDebug("The docTable size before is: " + QueryProcessor.documentTable.size());
+        //printDebug("k: " + k + " b: " + b + " avgDocLen: " + avgDocLen);
+
+        // if exist delete file
+        File docTable = new File(DOCTABLE_FILE);        // documentTable.txt
+        if(docTable.exists())
+            docTable.delete();
+
+        // calculate
+        startTime = System.currentTimeMillis();         // start time for calculate
+
+        try (RandomAccessFile raf = new RandomAccessFile(DOCTABLE_FILE, "rw");
+             FileChannel channel = raf.getChannel())
+        {
+            MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_WRITE, channel.size(), (long) DOCELEM_SIZE * QueryProcessor.documentTable.size());
+
+            if(buffer == null)      // Buffer not created
+                return;
+            // scan all document elements of the Document Table
+            for(DocumentElement de: QueryProcessor.documentTable.values())
+            {
+                // calculate -> k * ((1 - b) + b * (docLen / avgDocLen))
+                denomPartBM25 = k * ((1 - b) + b * (de.getDoclength() / avgDocLen));
+                de.setDenomPartBM25(denomPartBM25);
+
+                /*
+                if ( (de.getDocid() == 6559899) || (de.getDocid() == 5803000) || (de.getDocid() == 967372))
+                {
+                    printDebug("the docLen read is: " + de.getDoclength() + " and the avgLen read is: " + avgDocLen + " k: " + k + " b: " + b);
+                    printDebug("The denominator calculated is: " + denomPartBM25);
+                    printDebug("The denominator get from docTable is: " + QueryProcessor.documentTable.get(de.getDocid()).getDenomPartBM25());
+                }
+                //*/
+
+                // store
+                CharBuffer charBuffer = CharBuffer.allocate(DOCNO_DIM);     //allocate bytes for docno
+
+                for (int i = 0; i < de.getDocno().length(); i++)    //put every char into charbuffer
+                    charBuffer.put(i, de.getDocno().charAt(i));
+
+                // write docno, docid and doclength into document file
+                buffer.put(StandardCharsets.UTF_8.encode(charBuffer));
+                buffer.putInt(de.getDocid());
+                buffer.putInt(de.getDoclength());
+                buffer.putDouble(de.getDenomPartBM25());
+
+                //printDebug("The denominator stored is: " + de.getDenomPartBM25());
+
+                if(debug)
+                    docTable_logger.logInfo(de.toString());
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        //printDebug("The docTable size after is: " + QueryProcessor.documentTable.size());
+        endTime = System.currentTimeMillis();           // end time for calculate
+
+        printTime("\nCalculate and stored the denominator part for BM25 in Document Table in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
     /**
@@ -202,7 +284,7 @@ public final class DataStructureHandler
                 if(indexBuilding)
                     PartialIndexBuilder.documentTable.put(de.getDocid(), new DocumentElement(de.getDocno(), de.getDocid(), de.getDoclength()));
                 else
-                    QueryProcessor.documentTable.put(de.getDocid(), new DocumentElement(de.getDocno(), de.getDocid(), de.getDoclength()));
+                    QueryProcessor.documentTable.put(de.getDocid(), new DocumentElement(de.getDocno(), de.getDocid(), de.getDoclength(), de.getDenomPartBM25()));
             }
         }
     }
@@ -231,7 +313,7 @@ public final class DataStructureHandler
             {
                 dictionaryBlockOffsets.add(buffer.getLong());
                 buffer.position((i+1)*LONG_BYTES); //skip to position of the data of the next block to read
-                printDebug("OFFSET BLOCK " + i + ": " + dictionaryBlockOffsets.get(i));
+                //printDebug("OFFSET BLOCK " + i + ": " + dictionaryBlockOffsets.get(i));
             }
 
             printDebug(dictionaryBlockOffsets.size() + " blocks loaded");

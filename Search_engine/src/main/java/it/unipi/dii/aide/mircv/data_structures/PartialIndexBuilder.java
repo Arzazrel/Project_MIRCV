@@ -35,6 +35,13 @@ public final class PartialIndexBuilder
         int docCounter = 1;         // counter for DocID
         int termCounter = 0;        // counter for TermID
         int totDocLen = 0;          // variable for the sum of the lengths of all documents
+        double avgDocLen;           // average document length (used in BM25 scoring function)
+        int emptyDocs = 0;          // number of empty docs in the collection
+        int minlenDoc = 100000;     // len of the shortest doc in the collection
+        int maxLenDoc = 0;          // len of the longest doc in the collection
+        int maxTermFreq = 0;        // max termFreq in the collection
+        int tempCurrTF = 0;         //
+        int malformedDocs = 0;      //
 
         printDebug("The memory available for each block is: " + memoryAvailable + " bites ( " + (double)((double)memoryAvailable/(double)1073741824) + " GB)");
 
@@ -54,14 +61,30 @@ public final class PartialIndexBuilder
             {   // -- start - while 0 - scan all docs --
                 int separator = record.indexOf("\t");       // check for malformed line, no \t
                 if (record.isBlank() || separator == -1)    // empty string or composed by whitespace characters or malformed
+                {
+                    malformedDocs++;
                     continue;       // malformed doc -> go to the next doc
+                }
 
                 ArrayList<String> preprocessed = TextProcessor.preprocessText(record); // Preprocessing of document text
                 String docno = preprocessed.remove(0);      // get the DocNO of the current document
 
                 // check if document is empty
                 if (preprocessed.isEmpty() || (preprocessed.size() == 1 && preprocessed.get(0).equals("")))
+                {
+                    emptyDocs++;
                     continue;              // skip to next while iteration (next document)
+                }
+
+                // to collect collection statistics
+                if (preprocessed.size() < minlenDoc)
+                {
+                    minlenDoc = preprocessed.size();
+                }
+                if (preprocessed.size() > maxLenDoc)
+                {
+                    maxLenDoc = preprocessed.size();
+                }
 
                 DocumentElement de = new DocumentElement(docno, docCounter, preprocessed.size());   // create new Document element
                 documentTable.put(docCounter, de);      // add current Document into Document Table in memory
@@ -86,6 +109,10 @@ public final class PartialIndexBuilder
                     dictElem.addCf(1);  // update collection frequency (number of occurrences of the term in the collection)
 
                     N_POSTINGS++;       // update number of partial postings to save in the file
+
+                    tempCurrTF = invertedIndex.get(term).get(invertedIndex.get(term).size() - 1).getTermFreq();
+                    if (tempCurrTF > maxTermFreq)
+                        maxTermFreq = tempCurrTF;
                 }   // -- end - for 0 - scan all term in current doc --
                 docCounter++;       // update DocID counter
 
@@ -102,8 +129,18 @@ public final class PartialIndexBuilder
             }   // -- end - while 0 - scan all docs --
             DataStructureHandler.storeBlockOffsetsIntoDisk();   // store into file all the blocks offset
 
-            CollectionStatistics.setNDocs(docCounter);      // set total number of Document in the collection
-            CollectionStatistics.setTotDocLen(totDocLen);   // set the sum of the all document length in the collection
+            printDebug("Malformed docs: " + malformedDocs);
+            printDebug("The number of empty docs is: " + emptyDocs + " the shortest doc have len of: " + minlenDoc + " the longest doc have len of: " + maxLenDoc + " the max TermFreq is: " + maxTermFreq);
+            // calculate and store collection statistics values
+            avgDocLen = (double) totDocLen / docCounter;    // set average doc len
+
+            CollectionStatistics.setNDocs(docCounter);          // set total number of Document in the collection
+            CollectionStatistics.setTotDocLen(totDocLen);       // set the sum of the all document length in the collection
+            CollectionStatistics.setAvgDocLen(avgDocLen);       // set the Doc average len
+            CollectionStatistics.setEmptyDocs(emptyDocs);       // set the number of empty docs in the collection
+            CollectionStatistics.setMinLenDoc(minlenDoc);       // set the len of the shortest doc in the collection
+            CollectionStatistics.setMaxLenDoc(maxLenDoc);       // set the len of the longest doc in the collection
+            CollectionStatistics.setMaxTermFreq(maxTermFreq);   // set the max termFreq in the collection
             CollectionStatistics.storeCollectionStatsIntoDisk();    // store collection statistics into disk
 
         } catch (IOException e) {

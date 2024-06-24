@@ -109,7 +109,7 @@ public final class Flags
             setConsiderSkippingBytes(skip_flag == 1);           // set skipping user's choice
             setDynamicPruning(qdPruning_flag == 1);             // set dynamic pruning user's choice
 
-            printFlagsDebug();   // show to the user the flags values read
+            //printFlagsDebug();   // show to the user the flags values read
 
         } catch (IOException ioe) {
             ioe.printStackTrace();

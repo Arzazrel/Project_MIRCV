@@ -15,12 +15,15 @@ public class DocumentElement
 {
     // -- static variable
     public static final int DOCNO_DIM = 10;         // Length of docno (in bytes), maximum 10 Bytes
-    public final static int DOCELEM_SIZE = INT_BYTES + DOCNO_DIM + INT_BYTES;   // Size in bytes of docid, docno, and doclength
+    public final static int DOCELEM_SIZE = INT_BYTES + DOCNO_DIM + INT_BYTES + DOUBLE_BYTES;   // Size in bytes of docid, docno, and doclength
 
     // -- not static variable (single document element)
     private int docid;      // docID of the document
     private String docno;   // docNo of the document
     private int doclength;  // length (number of word) of the document
+
+    // the denominator in BM25 is = k * ((1 - b) + b * (docLen / avgDocLen)) + termFreq;
+    private double denomPartBM25;   // first part of denominator, saved for optimization purpose = k * ((1 - b) + b * (docLen / avgDocLen))
 
     /**
      * Constructor with parameter.
@@ -29,10 +32,28 @@ public class DocumentElement
      * @param docid     the docID of the document
      * @param doclength the length (number of words) of the document
      */
-    public DocumentElement(String docno, int docid, int doclength) {
+    public DocumentElement(String docno, int docid, int doclength)
+    {
         this.docno = docno;
         this.doclength = doclength;
         this.docid = docid;
+        this.denomPartBM25 = 0;
+    }
+
+    /**
+     * Constructor with all parameters.
+     *
+     * @param docno         the docNo of the document
+     * @param docid         the docID of the document
+     * @param doclength     the length (number of words) of the document
+     * @param denomPartBM25 // first part of denominator in BM25
+     */
+    public DocumentElement(String docno, int docid, int doclength, double denomPartBM25)
+    {
+        this.docno = docno;
+        this.doclength = doclength;
+        this.docid = docid;
+        this.denomPartBM25 = denomPartBM25;
     }
 
     /**
@@ -42,6 +63,7 @@ public class DocumentElement
         this.docno = "";
         this.docid = 0;
         this.doclength = 0;
+        this.denomPartBM25 = 0;
     }
 
 
@@ -71,6 +93,14 @@ public class DocumentElement
         this.docid = docid;
     }
 
+    public double getDenomPartBM25() {
+        return denomPartBM25;
+    }
+
+    public void setDenomPartBM25(double denomPartBM25) {
+        this.denomPartBM25 = denomPartBM25;
+    }
+
 
     /**
      * Function to read one Document Element from disk and set the values read into the variables of this instance
@@ -95,5 +125,6 @@ public class DocumentElement
         buffer.position(DOCNO_DIM);                             // skip docno
         docid = buffer.getInt();                                // read the docID
         doclength = buffer.getInt();                            // read the length of the document
+        denomPartBM25 = buffer.getDouble();                     // read the part of denominator of BM25
     }
 }

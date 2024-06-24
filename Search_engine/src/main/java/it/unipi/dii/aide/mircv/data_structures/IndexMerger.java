@@ -45,7 +45,7 @@ public final class IndexMerger
 
         printLoad("Merging partial files...");                     // print of the merging start
         // var which indicates the steps of 'i' progression print during merge
-        printDebug("Compression " + Flags.isCompressionEnabled());
+        //printDebug("Compression " + Flags.isCompressionEnabled());
 
         // open file and create channels for reading the partial dictionary and index file and write the complete index and dictionary file
         try (
@@ -155,12 +155,12 @@ public final class IndexMerger
                             int skipInterval = (int) Math.ceil(Math.sqrt(lenPL));
                             int nSkip = 0;          // counter for the skipping block
 
-                            // +++++++++++++++++++++++++++++++++++
+                            /*// +++++++++++++++++++++++++++++++++++
                             if (tempDE.getTerm().equals("how"))
                             {
                                 printDebug("Index merger - skipping -> term 'how' postingListSize: " + lenPL + " skipInterval: " + skipInterval);
                             }
-                            // +++++++++++++++++++++++++++++++++++
+                            // +++++++++++++++++++++++++++++++++++ */
 
                             // scan the posting list for each skipping block
                             for(int i = 0; i < lenPL; i += skipInterval)
@@ -182,12 +182,12 @@ public final class IndexMerger
                                     storePostingListIntoDisk(tempSubPL, outTermFreqChannel, outDocIdChannel);  // write InvertedIndexElem to disk (the sub-posting list that represent the skipping block
                                     SkipInfo sp = new SkipInfo(subPL.get(subPL.size()-1).getDocId(), outDocIdChannel.size(),  outTermFreqChannel.size());
                                     sp.storeSkipInfoToDisk(outSkipChannel);     // store skip info in the file into disk
-                                    // +++++++++++++++++++++++++++++++++++
+                                    /*// +++++++++++++++++++++++++++++++++++
                                     if (tempDE.getTerm().equals("how") && (nSkip < 20))
                                     {
                                         printDebug("-- skip block: " + nSkip + " maxDID: " + subPL.get(subPL.size()-1).getDocId() + " e pos: " + i);
                                     }
-                                    // +++++++++++++++++++++++++++++++++++
+                                    // +++++++++++++++++++++++++++++++++++*/
                                 }
                                 nSkip++;        // update the skipping block counter
                             }
@@ -214,7 +214,6 @@ public final class IndexMerger
                         }   // -- end - else 0.1.1
 
                         tempDE.storeDictionaryElemIntoDisk(outDictionaryChannel);       // store dictionary
-
                         //Flags.setConsiderSkippingBytes(false);
                         //set temp variables values
                         tempDE = currentDE;
