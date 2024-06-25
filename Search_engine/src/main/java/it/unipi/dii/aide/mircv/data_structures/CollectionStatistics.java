@@ -1,11 +1,14 @@
 package it.unipi.dii.aide.mircv.data_structures;
 
+import it.unipi.dii.aide.mircv.QueryProcessor;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.*;
 
 import static it.unipi.dii.aide.mircv.utils.Constants.*;
 import static it.unipi.dii.aide.mircv.utils.Logger.collStats_logger;
@@ -15,7 +18,9 @@ import static it.unipi.dii.aide.mircv.utils.Logger.collStats_logger;
  */
 public final class CollectionStatistics
 {
-    public final static int COLLSTATS_SIZE = INT_BYTES * 5 + DOUBLE_BYTES * 4;   // Size in bytes
+    private static HashMap<Integer, Long> termFreqTable = new HashMap<>();   // hash table TermFreqValue to related occurrence
+    final static int mostFreqPos = 5;   // indicates how many term Freq gets
+    public final static int COLLSTATS_SIZE = INT_BYTES * 7 + DOUBLE_BYTES * 5 + LONG_BYTES * mostFreqPos + DOUBLE_BYTES * mostFreqPos + INT_BYTES * mostFreqPos;   // Size in bytes
     private static int nDocs;           // number of documents in the collection
     private static double totDocLen;    // sum of the all document length in the collection
 
@@ -27,13 +32,19 @@ public final class CollectionStatistics
     private static int minLenDoc = 0;   // len of the shortest doc in the collection
     private static int maxLenDoc = 0;   // len of the longest doc in the collection
     private static int maxTermFreq = 0; // max termFreq in the collection
+    private static int maxPLLength = 0;     //
+    private static int minPLLength = 0;     //
+    private static double avgPLLength = 0;  //
+    private static long[] mostTFOcc = new long[mostFreqPos];         //
+    private static double[] mostTFPerc = new double[mostFreqPos];    //
+    private static int[] mostTF = new int[mostFreqPos];              //
 
 
     private CollectionStatistics() {
         throw new UnsupportedOperationException();
     }
 
-
+    // ---- start -- set and get methods ----
     public static int getNDocs() {
         return nDocs;
     }
@@ -106,6 +117,96 @@ public final class CollectionStatistics
         CollectionStatistics.maxTermFreq = maxTermFreq;
     }
 
+    public static int getMaxPLLength() {
+        return maxPLLength;
+    }
+
+    public static void setMaxPLLength(int maxPLLength) {
+        CollectionStatistics.maxPLLength = maxPLLength;
+    }
+
+    public static int getMinPLLength() {
+        return minPLLength;
+    }
+
+    public static void setMinPLLength(int minPLLength) {
+        CollectionStatistics.minPLLength = minPLLength;
+    }
+
+    public static double getAvgPLLength() {
+        return avgPLLength;
+    }
+
+    public static void setAvgPLLength(double avgPLLength) {
+        CollectionStatistics.avgPLLength = avgPLLength;
+    }
+
+    // ---- end -- set and get methods ----
+
+    // -- start -- function to manage the hash table for the termfreq occurrence
+    public static HashMap<Integer, Long> getTermFreqTable() { return termFreqTable; }
+
+    /**
+     * Function to add termfreq and their occurrence in the collection.
+     * If the term freq is not present in the table is the first occurrence and value is set to 1. If the term freq is
+     * already present in the table the value of occurrence is incremented by 1.
+     *
+     * @param termFreq  is the termFreq value
+     */
+    public static void addTFOccToTermFreqTable(int termFreq)
+    {
+        long currTFOcc = 0;  // indicate the current Term Freq occurrence related to the TermFreq value passed as parameter
+
+        if (termFreqTable.containsKey(termFreq))    // the term is already present in the hashtable
+        {
+            currTFOcc = termFreqTable.get(termFreq);    // get current occurrence value
+            termFreqTable.put(termFreq, (currTFOcc+1)); // update occurrence value
+        }
+        else            // term is not present in the hashtable
+            termFreqTable.put(termFreq, 1L);            // insert occurrence value
+    }
+
+    /**
+     * Function to compute the statistics related to the term Freq occurrence in the collection.
+     */
+    public static void computeTermFreqOccStatistics ()
+    {
+        PriorityQueue<CollectionStatistics.TermFreqOccBlock> resPQ = new PriorityQueue<>(new CollectionStatistics.CompareTFOTerm());
+        ArrayList<Long> ordTFOccList = new ArrayList<>();      // contain scores of all docs
+        ArrayList<Integer> ordTFList = new ArrayList<>();      // contain scores of all docs
+        TermFreqOccBlock currBlock;
+        long totFTOcc = 0;          // var to indicates the total number of term freq occurrences in the collection
+
+        if (termFreqTable.isEmpty())
+            return;
+
+        // from hash map to ordered array list
+        for (Map.Entry<Integer, Long> entry : termFreqTable.entrySet())
+        {
+            resPQ.add(new CollectionStatistics.TermFreqOccBlock(entry.getKey(), entry.getValue()));     // add to priority queue
+            totFTOcc += entry.getValue();       // update total value
+        }
+
+        // get the five most frequent values
+        for (int i=0; i < mostFreqPos; i++)
+        {
+            if (resPQ.isEmpty())    // the priority queue is empty
+            {
+                mostTFOcc[i] = 0;
+                mostTFPerc[i] = 0;
+                mostTF[i] = 0;
+            }
+            else
+            {
+                currBlock = resPQ.poll();                           // get the head block
+                mostTFOcc[i] = currBlock.getTermFreqOcc();          // set occurrence
+                mostTF[i] = currBlock.getTermFreqValue();           // set termFreqValue
+                mostTFPerc[i] = (double) (mostTFOcc[i] * 100) / totFTOcc ;      // compute the percentage
+            }
+        }
+    }
+
+    // -- end -- function to manage the hash table for the termfreq occurrence
     /**
      * Function that check if there is the 'collectionStatistics.txt' file in "/resources" folder
      *
@@ -142,6 +243,16 @@ public final class CollectionStatistics
             int minLenDoc = statsBuffer.getInt();           // read len of the shortest doc in the collection
             int maxLenDoc = statsBuffer.getInt();           // read len of the longest doc in the collection
             int maxTermFreq = statsBuffer.getInt();         // read max termFreq in the collection
+            int maxPLLength = statsBuffer.getInt();         // read the max posting list len in the collection
+            int minPLLength = statsBuffer.getInt();         // read the min posting list len in the collection
+            double avgPLLength = statsBuffer.getDouble();   // read the avg posting list len in the collection
+            // read the array values
+            for (int i=0; i < mostFreqPos; i++)
+                mostTFOcc[i] = statsBuffer.getLong();       // read TermFreqOcc (raw value)
+            for (int i=0; i < mostFreqPos; i++)
+                mostTFPerc[i] = statsBuffer.getDouble();    // read TermFreqOcc (percentage value)
+            for (int i=0; i < mostFreqPos; i++)
+                mostTF[i] = statsBuffer.getInt();           // read TermFreq value
 
             // Set collection statistics values with values read
             setNDocs(nDocs);
@@ -153,6 +264,9 @@ public final class CollectionStatistics
             setMinLenDoc(minLenDoc);
             setMaxLenDoc(maxLenDoc);
             setMaxTermFreq(maxTermFreq);
+            setMaxPLLength(maxPLLength);
+            setMinPLLength(minPLLength);
+            setAvgPLLength(avgPLLength);
 
         } catch (IOException ioe) {
             ioe.printStackTrace();
@@ -179,9 +293,16 @@ public final class CollectionStatistics
             buffer.putInt(minLenDoc);       // write len of the shortest doc in the collection
             buffer.putInt(maxLenDoc);       // write len of the longest doc in the collection
             buffer.putInt(maxTermFreq);     // write max termFreq in the collection
-
-            if(debug)
-                collStats_logger.logInfo("nDocs: " + getNDocs() + "\ntotDocLen: " + getTotDocLen());
+            buffer.putInt(maxPLLength);     // write max posting list len in the collection
+            buffer.putInt(minPLLength);     // write min posting list len in the collection
+            buffer.putDouble(avgPLLength);  // write avg posting list len in the collection
+            // write the array values
+            for (int i=0; i < mostFreqPos; i++)
+                buffer.putLong(mostTFOcc[i]);       // write TermFreqOcc (raw value)
+            for (int i=0; i < mostFreqPos; i++)
+                buffer.putDouble(mostTFPerc[i]);    // write TermFreqOcc (percentage value)
+            for (int i=0; i < mostFreqPos; i++)
+                buffer.putInt(mostTF[i]);           // write TermFreq value
 
         } catch (IOException ioe) {
             ioe.printStackTrace();
@@ -192,14 +313,80 @@ public final class CollectionStatistics
     {
         printDebug("The values of the collection statistics are:");
         printDebug("- number of document in the collection: " + nDocs);
-        printDebug("- sum of the length of all document in the collection: " + totDocLen);
-        printDebug("- average length of document in the collection: " + avgDocLen);
-        printDebug("- number of empty document in the collection: " + emptyDocs);
-        printDebug("- len of the shortest doc in the collection: " + minLenDoc);
-        printDebug("- len of the longest doc in the collection: " + maxLenDoc);
-        printDebug("- the max term frequency in the collection: " + maxTermFreq);
+        printDebug("- Documents len parameter:");
+        printDebug("-- sum of the length of all document in the collection: " + totDocLen);
+        printDebug("-- average length of document in the collection: " + avgDocLen);
+        printDebug("-- number of empty document in the collection: " + emptyDocs);
+        printDebug("-- len of the shortest doc in the collection: " + minLenDoc);
+        printDebug("-- len of the longest doc in the collection: " + maxLenDoc);
         printDebug("- BM25 parameter:");
         printDebug("-- k parameter: " + k);
         printDebug("-- b parameter: " + b);
+        printDebug("- Posting list parameter:");
+        printDebug("-- max posting list len: " + maxPLLength);
+        printDebug("-- min posting list len: " + minPLLength);
+        printDebug("-- avg posting list len: " + avgPLLength);
+        printDebug("- Term Frequency values parameter:");
+        printDebug("-- the max term frequency in the collection: " + maxTermFreq);
+        printDebug("-- Top " + mostFreqPos + " Term Frequency occurrence list (from the most common to the rarest):");
+        for (int i=0; i < mostFreqPos; i++)
+            printDebug("---- pos " + (i+1) + " -> TermFreqValue: " + mostTF[i] + " , occurrence: " + mostTFOcc[i] + " (row value) , occurrence: " + mostTFPerc[i] + "%");
+    }
+
+    /**
+     * class to define termUpperBoundPostingList. The priority queue contains instances of termUpperBoundPostingList
+     * representing ...
+     */
+    private static class TermFreqOccBlock
+    {
+        int termFreqValue;      //
+        long termFreqOcc;       //
+
+        // constructor with parameters
+        public TermFreqOccBlock(int termFreqValue, long termFreqOcc)
+        {
+            this.termFreqValue = termFreqValue;
+            this.termFreqOcc = termFreqOcc;
+        }
+
+        // get methods
+        public int getTermFreqValue() {
+            return termFreqValue;
+        }
+
+        public long getTermFreqOcc() {
+            return termFreqOcc;
+        }
+
+        @Override
+        public String toString() {
+            return "PB{" +
+                    "Term Freq value = '" + termFreqValue + '\'' +
+                    ", term Freq occurrence =" + termFreqOcc +
+                    '}';
+        }
+    }
+
+    /**
+     * Class to compare the block, allows the order of the priority queue
+     * The order is ascending order according to term upper bound. In case of equal term upper bound values will be made
+     * order according to query position of the term. Term upper bound and position are sorted in ascending order.
+     */
+    private static class CompareTFOTerm implements Comparator<CollectionStatistics.TermFreqOccBlock>
+    {
+        @Override
+        public int compare(CollectionStatistics.TermFreqOccBlock tfb1, CollectionStatistics.TermFreqOccBlock tfb2)
+        {
+            // comparing terms
+            int scoreComparison = -Long.compare(tfb1.getTermFreqOcc(), tfb2.getTermFreqOcc());
+            // if the term upper bound are equal, compare by position
+            if (scoreComparison == 0)
+            {
+                // return order by both term upper bound and position (the TUB of the two blocks is equal)
+                return Integer.compare(tfb1.getTermFreqValue(), tfb2.getTermFreqValue());
+            }
+
+            return scoreComparison;     // return order only by score (the score of the two blocks is different)
+        }
     }
 }

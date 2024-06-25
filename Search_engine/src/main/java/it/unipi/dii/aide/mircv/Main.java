@@ -34,6 +34,7 @@ public class Main
                     "\n\t  u -> calculate term upper bound" +
                     "\n\t  f -> see or change flags" +
                     "\n\t  s -> see files size" +
+                    "\n\t  c -> see collection statistics" +
                     "\n\t  q -> query mode" +
                     "\n\t  t -> query test mode" +
                     "\n\t  x -> exit" +
@@ -176,6 +177,12 @@ public class Main
                     printFileSize();            // see and show the files size
 
                     continue;
+                case "c":       // see collection statistic
+
+                    CollectionStatistics.readCollectionStatsFromDisk(); // read statistics
+                    CollectionStatistics.printCollectionStatistics();   // show collection statistic
+
+                    continue;
                 case "q":       // execute a query
 
                     //Flags.setConsiderSkippingBytes(true);
@@ -192,7 +199,7 @@ public class Main
                         if(TermDocUpperBound.termUpperBoundFileExist())     // the file already exist
                             TermDocUpperBound.readTermUpperBoundTableFromDisk();
                         else                                                // the file not exist
-                            TermDocUpperBound.calculateTermsUpperBound();   // calculate term upper bound for each term of dictionary
+                            TermDocUpperBound.calculateTermsUpperBound(false);   // calculate term upper bound for each term of dictionary
                     }
 
                     printUI("Insert query: \n");
@@ -322,7 +329,7 @@ public class Main
         if (!queryStartControl())
             return;                           // error exit
 
-        TermDocUpperBound.calculateTermsUpperBound();   // calculate term upper bound for each term of dictionary
+        TermDocUpperBound.calculateTermsUpperBound(true);   // calculate term upper bound for each term of dictionary
     }
 
     /**
@@ -338,7 +345,7 @@ public class Main
 
         DataStructureHandler.calcAndStoreDenPartBM25inDocTable();
 
-        TermDocUpperBound.calculateTermsUpperBound();   // calculate term upper bound for each term of dictionary
+        TermDocUpperBound.calculateTermsUpperBound(false);   // calculate term upper bound for each term of dictionary
         //TermDocUpperBound.readTermUpperBoundTableFromDisk();
 
         TermDocUpperBound.calculateDocsUpperBound();    // calculate doc upper bound for each doc of docTable

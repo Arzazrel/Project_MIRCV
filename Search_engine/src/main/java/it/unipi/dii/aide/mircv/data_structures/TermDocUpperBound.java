@@ -25,22 +25,31 @@ import static it.unipi.dii.aide.mircv.utils.Logger.*;
 public class TermDocUpperBound
 {
     // Data structures initialization
-    static HashMap<Integer, Double> docUpperBoundTable = new HashMap<>();     // hash table DocID to related DocElement
+    static HashMap<Integer, Double> docUpperBoundTable = new HashMap<>();   // hash table DocID to related DocElement
     static HashMap<String, Double> termUpperBoundTable = new HashMap<>();   // hash table Term to related Posting list
 
 
     // ---------------- start: calculating functions ----------------
 
     /**
-     * calculate the term upper bound for each term in the dictionary
+     * Calculate the term upper bound for each term in the dictionary
+     *
+     * @param computeStats indicates whether or not to compute statistics on posting list lengths or occurrences of
+     *                     term freq values in the collection. It is usually set to true only after the inverted index
+     *                     is computed.
      */
-    public static void calculateTermsUpperBound()
+    public static void calculateTermsUpperBound(boolean computeStats)
     {
         ArrayList<String> termsList;    // array list for all the term
         long startTime,endTime;         // variables to calculate the execution time
         long termCount = 0;             // counter for the number of term
         double currentTUB = 0;          // contain the Term Upper Bound for the current term
         boolean scoringFunc;            // user's choice about scoring function
+        int minPLLen = 10000000;
+        int maxPLLen = 0;
+        long sumPLLen = 0;
+        double avgPLLen = 0;
+        int currPLLen = 0;
 
         // check if already exist the file
         if (termUpperBoundFileExist())
@@ -48,25 +57,46 @@ public class TermDocUpperBound
             deleteTermUpperBoundFile();         // delete the file
             printDebug("The termUpperBoundFile already exist.\nThe termUpperBoundFile erased.");    // control print
         }
+
+        if (!CollectionStatistics.getTermFreqTable().isEmpty() && computeStats)
+            CollectionStatistics.getTermFreqTable().clear();    // free the hash table, will be fill
+
         printDebug("Calculating terms upper bound..."); // control print
         startTime = System.currentTimeMillis();            // start time to calculate all term upper bound
 
         termsList = new ArrayList<>(QueryProcessor.getDictionary().keySet());   // read all the term of the dictionary
         scoringFunc = Flags.isScoringEnabled();             // take user's choice about using scoring function
-        // if BM25 scoring function is enabled calculate the average document length
-        //if (scoringFunc)
-        //    QueryProcessor.setAvgDocLen();      // calculate avgDocLen
 
         // scan all term in the dictionary
         for (String term : termsList)
         {
-            currentTUB = QueryProcessor.maxScoreTerm(term,scoringFunc); // calculate the term upper bound for the current term
+            currentTUB = QueryProcessor.maxScoreTerm(term,scoringFunc,computeStats); // calculate the term upper bound for the current term
             termUpperBoundTable.put(term,currentTUB);           // add term upper bound in the hashmap
             termCount++;        // update counter
+
+            if (computeStats)       // compute the statistics related to the PostList len
+            {
+                currPLLen = QueryProcessor.getDictionary().get(term).getDf();   // get posting list len of the current term
+                sumPLLen += currPLLen;
+                if (currPLLen > maxPLLen)   // set max
+                    maxPLLen = currPLLen;
+                if (currPLLen < minPLLen)
+                    minPLLen = currPLLen;   // set min
+            }
         }
         endTime = System.currentTimeMillis();           // end time to calculate all term upper bound
         // shows term upper bound calculation time
         printTime("Calculated all term upper bound( " + termCount + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+        if (computeStats)
+        {
+            avgPLLen = (double) sumPLLen / termCount;           // calculate avgPLLen
+            CollectionStatistics.setAvgPLLength(avgPLLen);          // set avgPLLen
+            CollectionStatistics.setMinPLLength(minPLLen);          // set minPLLen
+            CollectionStatistics.setMaxPLLength(maxPLLen);          // set maxPLLen
+            CollectionStatistics.computeTermFreqOccStatistics();    // calculate TF occurrence statistics
+            CollectionStatistics.storeCollectionStatsIntoDisk();    // save collection statistics
+        }
 
         startTime = System.currentTimeMillis();         // start time to store all term upper bound
         storeTermUpperBoundTableIntoDisk();     // save the hashmap into disk

@@ -84,9 +84,9 @@ public final class QueryProcessor {
 
             // take user's choice about using dynamic pruning algorithm
             if (Flags.isDynamicPruningEnabled())
-                //DAATAlgMAXSCORESkipping(processedQuery,scoringFunc,isConjunctive,numberOfResults);
+                DAATAlgMAXSCORESkipping(processedQuery,scoringFunc,isConjunctive,numberOfResults);
                 //DAATAlgMAXSCORE(processedQuery,scoringFunc,isConjunctive,numberOfResults);
-                DAATAlgWAND(processedQuery,scoringFunc,isConjunctive,numberOfResults);      // apply DAAT + WAND to calculate the score of the Docs
+                //DAATAlgWAND(processedQuery,scoringFunc,isConjunctive,numberOfResults);      // apply DAAT + WAND to calculate the score of the Docs
             else
                 DAATAlgorithm(processedQuery,scoringFunc,isConjunctive,numberOfResults);        // apply DAAT to calculate the score of the Docs
 
@@ -1011,9 +1011,11 @@ public final class QueryProcessor {
      *
      * @param term          the term to query (for obtain the term upper bound)
      * @param scoringFunc   indicates the preference for scoring. if false use TFIDF, if true use BM25.
+     * @param computeStats  indicates whether or not to compute statistics on occurrences of term freq values in the
+     *                      collection. It is usually set to true only after the inverted index is computed.
      * @return the term upper bound for the term passed as parameter
      */
-    public static Double maxScoreTerm(String term, boolean scoringFunc)
+    public static Double maxScoreTerm(String term, boolean scoringFunc, boolean computeStats)
     {
         ArrayList<Posting>[] postingLists;  // contains all the posting lists for each term of the query
         ArrayList<String> processedQuery;   // array list for containing the query term
@@ -1047,6 +1049,10 @@ public final class QueryProcessor {
             {
                 maxScore = partialScore;
             }
+
+            // compute term freq statistics
+            if (computeStats)
+                CollectionStatistics.addTFOccToTermFreqTable(p.getTermFreq());
         }
 
         //printDebug("Term upper bound for term: " + term + " is: " + maxScore);  // control print
@@ -1355,7 +1361,8 @@ public final class QueryProcessor {
         // retrieve the term upper bound for each posting lists and put into PQ
         for (int i = 0; i < processedQuery.size(); i++)
         {
-            pq.add(new QueryProcessor.TermUpperBoundBlock(i, maxScoreTerm(processedQuery.get(i),scoringFunc)));     // add to priority queue
+            pq.add(new QueryProcessor.TermUpperBoundBlock(i, maxScoreTerm(processedQuery.get(i),scoringFunc,false)));     // add to priority queue
+            //pq.add(new QueryProcessor.TermUpperBoundBlock(i, TermDocUpperBound.getTermUpperBound(processedQuery.get(i))));     // add to priority queue
         }
         // extract the ordered posting lists and related terms and insert them in the array of the term
         for (int i = 0; i < processedQuery.size(); i++)
@@ -1930,7 +1937,7 @@ public final class QueryProcessor {
             if(TermDocUpperBound.termUpperBoundFileExist())     // the file already exist
                 TermDocUpperBound.readTermUpperBoundTableFromDisk();
             else                                                // the file not exist
-                TermDocUpperBound.calculateTermsUpperBound();   // calculate term upper bound for each term of dictionary
+                TermDocUpperBound.calculateTermsUpperBound(false);   // calculate term upper bound for each term of dictionary
         }
 
         printDebug(" Start query test...");         // control print
