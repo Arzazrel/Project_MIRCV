@@ -1360,10 +1360,8 @@ public final class QueryProcessor {
 
         // retrieve the term upper bound for each posting lists and put into PQ
         for (int i = 0; i < processedQuery.size(); i++)
-        {
-            pq.add(new QueryProcessor.TermUpperBoundBlock(i, maxScoreTerm(processedQuery.get(i),scoringFunc,false)));     // add to priority queue
-            //pq.add(new QueryProcessor.TermUpperBoundBlock(i, TermDocUpperBound.getTermUpperBound(processedQuery.get(i))));     // add to priority queue
-        }
+            pq.add(new QueryProcessor.TermUpperBoundBlock(i, TermDocUpperBound.getTermUpperBound(processedQuery.get(i))));     // add to priority queue
+
         // extract the ordered posting lists and related terms and insert them in the array of the term
         for (int i = 0; i < processedQuery.size(); i++)
         {
