@@ -378,7 +378,7 @@ public final class DataStructureHandler
         }
 
         byte[] compressedTf = Unary.integersCompression(tf);
-        byte[] compressedDocId = VariableBytes.integersCompression(docid);
+        byte[] compressedDocId = VariableBytes.integersCompression(docid,true);
         // Create buffers for docid and termfreq
         try {
             MappedByteBuffer buffertermfreq = termfreqChannel.map(FileChannel.MapMode.READ_WRITE, termfreqChannel.size(), compressedTf.length); //number of bytes of compressed tfs
@@ -424,7 +424,7 @@ public final class DataStructureHandler
             docidBuffer.get(docids, 0, docIdSize );
 
             ArrayList<Integer> uncompressedTf = Unary.integersDecompression(tf, posting_size);
-            ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(docids);
+            ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(docids,true);
             for(int i = 0; i < posting_size; i++)
             {
                 //System.out.println("docid: " + uncompressedDocid.get(i)  + " tf: " + uncompressedTf.get(i));

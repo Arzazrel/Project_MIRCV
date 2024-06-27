@@ -37,6 +37,7 @@ public class Main
                     "\n\t  c -> see collection statistics" +
                     "\n\t  q -> query mode" +
                     "\n\t  t -> query test mode" +
+                    "\n\t  r -> compression test" +
                     "\n\t  x -> exit" +
                     "\n***********************************\n");
             String mode = sc.nextLine();        // take user's choice
@@ -45,6 +46,7 @@ public class Main
             switch (mode)
             {
                 case "m":       // per debugging, prova solo il merge
+
                     delete_mergedFiles();
                     //setCompression(true);  // take user preferences on the compression
 
@@ -59,8 +61,13 @@ public class Main
                     IndexMerger.mergeBlocks();                      // merge
                     endTime = System.currentTimeMillis();           // end time to merge blocks from disk
                     printTime( "Merged in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
-                    continue;                                   // go next while cycle
 
+                    continue;                                   // go next while cycle
+                case "r":       // execute compression and decompression test
+
+                    compressionTest();
+
+                    continue;
                 case "i":       // calculate the indexing
 
                     makeIndexing(true, sc);             // make the inverted index
@@ -349,6 +356,37 @@ public class Main
         //TermDocUpperBound.readTermUpperBoundTableFromDisk();
 
         TermDocUpperBound.calculateDocsUpperBound();    // calculate doc upper bound for each doc of docTable
+    }
+
+    /**
+     * Function to test and show the result of compression and decompression.
+     */
+    private static void compressionTest()
+    {
+        printDebug("Unary code test.");
+        ArrayList<Integer> myNumbers = new ArrayList<Integer>();
+        int listLen = 10;
+        for (int i = 0; i < listLen; i++)
+            myNumbers.add(i+1);
+        for (int i = 0; i < listLen; i++)
+            myNumbers.add(i+1);
+
+        byte[] compressedResult = Unary.integersCompression(myNumbers);     // compress to Unary
+        Unary.integersDecompression(compressedResult, listLen*2);    // decompress from Unary
+
+        printDebug("\nVariable Bytes code test.");
+        myNumbers.clear();
+        for (int i = 0; i < listLen; i++)
+            myNumbers.add(i+1);
+        for (int i = 80000; i < 80000 + listLen*2; i++)
+            myNumbers.add(i);
+        myNumbers.add(214577);
+
+        compressedResult = VariableBytes.integersCompression(myNumbers,false);    // compress to Variable Bytes
+        VariableBytes.integersDecompression(compressedResult,false);              // decompress from Variable Bytes
+        compressedResult = VariableBytes.integersCompression(myNumbers,true);    // compress to Variable Bytes
+        VariableBytes.integersDecompression(compressedResult,false);              // decompress from Variable Bytes
+        VariableBytes.integersDecompression(compressedResult,true);              // decompress from Variable Bytes
     }
 
     // ----------------------------------------- end : mode(switch) functions -----------------------------------------

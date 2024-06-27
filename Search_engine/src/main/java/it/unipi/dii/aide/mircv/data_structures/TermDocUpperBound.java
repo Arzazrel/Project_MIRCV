@@ -45,11 +45,11 @@ public class TermDocUpperBound
         long termCount = 0;             // counter for the number of term
         double currentTUB = 0;          // contain the Term Upper Bound for the current term
         boolean scoringFunc;            // user's choice about scoring function
-        int minPLLen = 10000000;
-        int maxPLLen = 0;
-        long sumPLLen = 0;
-        double avgPLLen = 0;
-        int currPLLen = 0;
+        int minPLLen = 10000000;        // contains the len of the shortest posting list of the collection
+        int maxPLLen = 0;               // contains the len of the longest posting list of the collection
+        long sumPLLen = 0;              // contains the sum of the len of the all posting lists in the collection
+        double avgPLLen = 0;            // contains the average len for the posting lists in the collection
+        int currPLLen = 0;              // current posting list len (at each iteration)
 
         // check if already exist the file
         if (termUpperBoundFileExist())

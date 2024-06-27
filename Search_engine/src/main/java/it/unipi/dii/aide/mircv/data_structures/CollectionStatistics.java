@@ -19,8 +19,8 @@ import static it.unipi.dii.aide.mircv.utils.Logger.collStats_logger;
 public final class CollectionStatistics
 {
     private static HashMap<Integer, Long> termFreqTable = new HashMap<>();   // hash table TermFreqValue to related occurrence
-    final static int mostFreqPos = 5;   // indicates how many term Freq gets
-    public final static int COLLSTATS_SIZE = INT_BYTES * 7 + DOUBLE_BYTES * 5 + LONG_BYTES * mostFreqPos + DOUBLE_BYTES * mostFreqPos + INT_BYTES * mostFreqPos;   // Size in bytes
+    final static int mostFreqPos = 20;   // indicates how many term Freq gets
+    public final static int COLLSTATS_SIZE = INT_BYTES * 7 + DOUBLE_BYTES * 11 + LONG_BYTES * mostFreqPos + DOUBLE_BYTES * mostFreqPos + INT_BYTES * mostFreqPos;   // Size in bytes
     private static int nDocs;           // number of documents in the collection
     private static double totDocLen;    // sum of the all document length in the collection
 
@@ -32,13 +32,21 @@ public final class CollectionStatistics
     private static int minLenDoc = 0;   // len of the shortest doc in the collection
     private static int maxLenDoc = 0;   // len of the longest doc in the collection
     private static int maxTermFreq = 0; // max termFreq in the collection
-    private static int maxPLLength = 0;     //
-    private static int minPLLength = 0;     //
-    private static double avgPLLength = 0;  //
-    private static long[] mostTFOcc = new long[mostFreqPos];         //
-    private static double[] mostTFPerc = new double[mostFreqPos];    //
-    private static int[] mostTF = new int[mostFreqPos];              //
+    private static int maxPLLength = 0;     // len of the longest posting list in the collection
+    private static int minPLLength = 0;     // len of the shortest posting list in the collection
+    private static double avgPLLength = 0;  // average len of the posting lists in the collection
+    // statistics of TermFreq in posting lists
+    private static long[] mostTFOcc = new long[mostFreqPos];         // array of the most common TF occurrence in raw value
+    private static double[] mostTFPerc = new double[mostFreqPos];    // array of the most common TF occurrence in percentage value
+    private static int[] mostTF = new int[mostFreqPos];              // array of the most common TF value
+    // statistics of DID in posting lists
+    private static double avgDIDGapInPL = 0;    // the average gap between DID of the same posting list (average in the whole collection)
+    private static double minAvgDIDGapInPL = 0; // the min avg gap between DID of the same posting list (average in the whole collection)
+    private static double maxAvgDIDGapInPL = 0; // the max avg gap between DID of the same posting list (average in the whole collection)
 
+    private static double avgBlockDIDGapInPL = 0;    // the average gap between DID of the same block (average in the whole collection)
+    private static double minBlockAvgDIDGapInPL = 0; // the min avg gap between DID of the same block (average in the whole collection)
+    private static double maxBlockAvgDIDGapInPL = 0; // the max avg gap between DID of the same block (average in the whole collection)
 
     private CollectionStatistics() {
         throw new UnsupportedOperationException();
@@ -140,6 +148,30 @@ public final class CollectionStatistics
     public static void setAvgPLLength(double avgPLLength) {
         CollectionStatistics.avgPLLength = avgPLLength;
     }
+
+    public static double getAvgDIDGapInPL() { return avgDIDGapInPL; }
+
+    public static void setAvgDIDGapInPL(double avgDIDGapInPL) { CollectionStatistics.avgDIDGapInPL = avgDIDGapInPL; }
+
+    public static double getMinAvgDIDGapInPL() { return minAvgDIDGapInPL; }
+
+    public static void setMinAvgDIDGapInPL(double minAvgDIDGapInPL) { CollectionStatistics.minAvgDIDGapInPL = minAvgDIDGapInPL; }
+
+    public static double getMaxAvgDIDGapInPL() { return maxAvgDIDGapInPL; }
+
+    public static void setMaxAvgDIDGapInPL(double maxAvgDIDGapInPL) { CollectionStatistics.maxAvgDIDGapInPL = maxAvgDIDGapInPL; }
+
+    public static double getAvgBlockDIDGapInPL() { return avgBlockDIDGapInPL; }
+
+    public static void setAvgBlockDIDGapInPL(double avgBlockDIDGapInPL) { CollectionStatistics.avgBlockDIDGapInPL = avgBlockDIDGapInPL; }
+
+    public static double getMinBlockAvgDIDGapInPL() { return minBlockAvgDIDGapInPL; }
+
+    public static void setMinBlockAvgDIDGapInPL(double minBlockAvgDIDGapInPL) { CollectionStatistics.minBlockAvgDIDGapInPL = minBlockAvgDIDGapInPL; }
+
+    public static double getMaxBlockAvgDIDGapInPL() { return maxBlockAvgDIDGapInPL; }
+
+    public static void setMaxBlockAvgDIDGapInPL(double maxBlockAvgDIDGapInPL) { CollectionStatistics.maxBlockAvgDIDGapInPL = maxBlockAvgDIDGapInPL; }
 
     // ---- end -- set and get methods ----
 
@@ -253,6 +285,13 @@ public final class CollectionStatistics
                 mostTFPerc[i] = statsBuffer.getDouble();    // read TermFreqOcc (percentage value)
             for (int i=0; i < mostFreqPos; i++)
                 mostTF[i] = statsBuffer.getInt();           // read TermFreq value
+            // read statistics of DID in posting lists
+            double avgDIDGapInPL = statsBuffer.getDouble();         // read avg gap between DID of the same posting list
+            double minAvgDIDGapInPL = statsBuffer.getDouble();      // read min avg gap between DID of the same posting list
+            double maxAvgDIDGapInPL = statsBuffer.getDouble();      // read max avg gap between DID of the same posting list
+            double avgBlockDIDGapInPL = statsBuffer.getDouble();    // read avg gap between DID of the same block
+            double minBlockAvgDIDGapInPL = statsBuffer.getDouble(); // read the min avg gap between DID of the same block
+            double maxBlockAvgDIDGapInPL = statsBuffer.getDouble(); // read the max avg gap between DID of the same block
 
             // Set collection statistics values with values read
             setNDocs(nDocs);
@@ -267,6 +306,13 @@ public final class CollectionStatistics
             setMaxPLLength(maxPLLength);
             setMinPLLength(minPLLength);
             setAvgPLLength(avgPLLength);
+
+            setAvgDIDGapInPL(avgDIDGapInPL);
+            setMinAvgDIDGapInPL(minAvgDIDGapInPL);
+            setMaxAvgDIDGapInPL(maxAvgDIDGapInPL);
+            setAvgBlockDIDGapInPL(avgBlockDIDGapInPL);
+            setMinBlockAvgDIDGapInPL(minBlockAvgDIDGapInPL);
+            setMaxBlockAvgDIDGapInPL(maxBlockAvgDIDGapInPL);
 
         } catch (IOException ioe) {
             ioe.printStackTrace();
@@ -303,17 +349,26 @@ public final class CollectionStatistics
                 buffer.putDouble(mostTFPerc[i]);    // write TermFreqOcc (percentage value)
             for (int i=0; i < mostFreqPos; i++)
                 buffer.putInt(mostTF[i]);           // write TermFreq value
+            // write statistics of DID in posting lists
+            buffer.putDouble(avgDIDGapInPL);            // write avg gap between DID of the same posting list
+            buffer.putDouble(minAvgDIDGapInPL);         // write min avg gap between DID of the same posting list
+            buffer.putDouble(maxAvgDIDGapInPL);         // write max avg gap between DID of the same posting list
+            buffer.putDouble(avgBlockDIDGapInPL);       // write avg gap between DID of the same block
+            buffer.putDouble(minBlockAvgDIDGapInPL);    // write the min avg gap between DID of the same block
+            buffer.putDouble(maxBlockAvgDIDGapInPL);    // write the max avg gap between DID of the same block
 
         } catch (IOException ioe) {
             ioe.printStackTrace();
         }
     }
 
+    /**
+     * Function to show all collection statistics.
+     */
     public static void printCollectionStatistics()
     {
         printDebug("The values of the collection statistics are:");
         printDebug("- number of document in the collection: " + nDocs);
-        printDebug("- Documents len parameter:");
         printDebug("-- sum of the length of all document in the collection: " + totDocLen);
         printDebug("-- average length of document in the collection: " + avgDocLen);
         printDebug("-- number of empty document in the collection: " + emptyDocs);
@@ -330,7 +385,16 @@ public final class CollectionStatistics
         printDebug("-- the max term frequency in the collection: " + maxTermFreq);
         printDebug("-- Top " + mostFreqPos + " Term Frequency occurrence list (from the most common to the rarest):");
         for (int i=0; i < mostFreqPos; i++)
-            printDebug("---- pos " + (i+1) + " -> TermFreqValue: " + mostTF[i] + " , occurrence: " + mostTFOcc[i] + " (row value) , occurrence: " + mostTFPerc[i] + "%");
+            printDebug("---- pos " + (i+1) + " -> TermFreqValue: " + mostTF[i] + " , occurrence: " + mostTFOcc[i] + " (row value) , " + String.format("%.4f", mostTFPerc[i]) + " %");
+        printDebug("- Statistics of DocID gap in posting list:");
+        printDebug("-- Generic:");
+        printDebug("---- the average gap between DID of the same posting list: " + avgDIDGapInPL);
+        printDebug("---- the min avg gap between DID of the same posting list: " + minAvgDIDGapInPL);
+        printDebug("---- the max avg gap between DID of the same posting list: " + maxAvgDIDGapInPL);
+        printDebug("-- With partition in block of the posting lists (es. skipping or compression). Skipping enabled '" + Flags.considerSkippingBytes() + "' and compression enabled '" + Flags.isCompressionEnabled() + "' :");
+        printDebug("---- the average gap between DID of the same block: " + avgBlockDIDGapInPL);
+        printDebug("---- the min avg gap between DID of the same block: " + minBlockAvgDIDGapInPL);
+        printDebug("---- the max avg gap between DID of the same block: " + maxBlockAvgDIDGapInPL);
     }
 
     /**

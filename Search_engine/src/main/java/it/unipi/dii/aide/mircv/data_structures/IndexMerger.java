@@ -42,6 +42,16 @@ public final class IndexMerger
         // array containing the current read pointer offset for each block
         ArrayList<Long> currentBlockOffset = new ArrayList<>(nrBlocks);
         currentBlockOffset.addAll(dictionaryBlockOffsets);      // set the offset for each blocks, at the beginning are set to the start of block offset
+        // var to the collection statistics
+        double avgDIDGapInPL = 0;           // the average gap between DID of the same posting list
+        double minAvgDIDGapInPL = 1000;     // the min avg gap between DID of the same posting list
+        double maxAvgDIDGapInPL = 0;        // the max avg gap between DID of the same posting list
+        double currDIDGap = 0;
+        double avgBlockDIDGapInPL = 0;      // the average gap between DID of the same block
+        double minBlockAvgDIDGapInPL = 1000;// the min avg gap between DID of the same block
+        double maxBlockAvgDIDGapInPL = 0;   // the max avg gap between DID of the same block
+        double currBlockDIDGap = 0;
+        double currBlockListDIDGap = 0;
 
         printLoad("Merging partial files...");                     // print of the merging start
         // var which indicates the steps of 'i' progression print during merge
@@ -145,8 +155,18 @@ public final class IndexMerger
                         tempDE.computeMaxTFIDF();
                         //*/
                         assert tempPL != null;
-                        // start the part for skipping and compression
                         int lenPL = tempPL.size();                  // take the size of the posting list
+
+                        // part of statistics
+                        currDIDGap = (double) (tempPL.get(lenPL - 1).getDocId() - tempPL.get(0).getDocId()) / lenPL;
+
+                        if (currDIDGap < minAvgDIDGapInPL)
+                            minAvgDIDGapInPL = currDIDGap;
+                        if (currDIDGap > maxAvgDIDGapInPL)
+                            maxAvgDIDGapInPL = currDIDGap;
+
+                        avgDIDGapInPL += currDIDGap;
+                        // start the part for skipping and compression
                         int[] tempCompressedLength = new int[2];
                         // check if the skipping flags is true and if the posting list length is greater than the minimum value for the skipping
                         if(Flags.considerSkippingBytes() && (lenPL >= SKIP_POINTERS_THRESHOLD) )
@@ -167,6 +187,17 @@ public final class IndexMerger
                             {
                                 List<Posting> subPL = tempPL.subList(i, min(i + skipInterval, lenPL));  // take the sublist to put in this skipping block
                                 ArrayList<Posting> tempSubPL = new ArrayList<>(subPL);
+
+                                // part of statistics
+                                currBlockDIDGap = (double) (subPL.get(subPL.size() - 1).getDocId() - subPL.get(0).getDocId()) / subPL.size();
+
+                                if (currBlockDIDGap < minBlockAvgDIDGapInPL)
+                                    minBlockAvgDIDGapInPL = currBlockDIDGap;
+                                if (currBlockDIDGap > maxBlockAvgDIDGapInPL)
+                                    maxBlockAvgDIDGapInPL = currBlockDIDGap;
+
+                                currBlockListDIDGap += currBlockDIDGap;
+                                // end statistics part
 
                                 if (Flags.isCompressionEnabled())       // check if the compression is enabled
                                 {
@@ -199,6 +230,9 @@ public final class IndexMerger
                                 tempDE.setTermFreqSize(tempCompressedLength[0]);    //
                                 tempDE.setDocIdSize(tempCompressedLength[1]);       //
                             }
+
+                            // part of the collection statistics
+                            avgBlockDIDGapInPL += currBlockListDIDGap / nSkip;
                         }   // -- end - if 0.1.1
                         else        // the posting list is too small for skipping
                         {   // -- start - else 0.1.1
@@ -228,6 +262,17 @@ public final class IndexMerger
             }   // -- end - while 0
 
             printDebug("Merge ended, total number of iterations (i) is: " + i);
+
+            CollectionStatistics.setAvgDIDGapInPL(avgDIDGapInPL / CollectionStatistics.getNDocs());
+            CollectionStatistics.setMinAvgDIDGapInPL(minAvgDIDGapInPL);
+            CollectionStatistics.setMaxAvgDIDGapInPL(maxAvgDIDGapInPL);
+            if(Flags.considerSkippingBytes())   // set statistics related to block
+            {
+                CollectionStatistics.setAvgBlockDIDGapInPL(avgBlockDIDGapInPL / CollectionStatistics.getNDocs());
+                CollectionStatistics.setMinBlockAvgDIDGapInPL(minBlockAvgDIDGapInPL);
+                CollectionStatistics.setMaxBlockAvgDIDGapInPL(maxBlockAvgDIDGapInPL);
+            }
+            CollectionStatistics.storeCollectionStatsIntoDisk();    // store
 //            delete_tempFiles();                                                                       !!!!!!!!!!!!!!!!
 
         } catch (IOException e) {
