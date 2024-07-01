@@ -27,19 +27,17 @@ import static it.unipi.dii.aide.mircv.utils.Logger.collStats_logger;
 /**
  * Class to manage and execute query
  */
-public final class QueryProcessor {
-
+public final class QueryProcessor
+{
     // indicate whether order all or only first "numberOfResults" results from hash table. TEST VARIABLE
     private static boolean orderAllHashMap = false;
     public static HashMap<Integer, DocumentElement> documentTable = new HashMap<>();    // hash table DocID to related DocElement
     public static HashMap<Integer, Double> termFreqWeightTable = new HashMap<>();    // hash table DocID to related DocElement
     static it.unipi.dii.aide.mircv.data_structures.Dictionary dictionary = new Dictionary();    // dictionary in memory
     private static ArrayList<String> termNotInCollection = new ArrayList<>();   // ArrayList that contain the term that are in the query but not in the collection
-    // variable to BM25
-    //private static double k = 1.2;      // typical values between 1,2 and 2
-    //private static double b = 0.75;     // typical values around 0.75
-    //private static double avgDocLen;    // average document length (used in BM25 scoring function)
     static PriorityQueue<QueryProcessor.ResultBlock> resPQ;     // priority queue for the result of scoring function for the best numberOfResults docs
+
+    static PriorityQueue<QueryProcessor.DIDBlock> pqv1 = new PriorityQueue<>(new CompareDIDBlock());
 
     /**
      * fuction to manage the query request. Prepare and execute the query and return the results.
@@ -76,20 +74,13 @@ public final class QueryProcessor {
                 return rankedResults;
             }
 
-            //DAATAlgorithm(processedQuery,scoringFunc,isConjunctive,numberOfResults);        // apply DAAT to calculate the score of the Docs
-            //resPQ.clear();
-            //DAATAlgWAND(processedQuery,scoringFunc,isConjunctive,numberOfResults);      // apply DAAT + WAND V.0 to calculate the score of the Docs
-            //resPQ.clear();
-            //DAATAlgMAXSCORE(processedQuery,scoringFunc,isConjunctive,numberOfResults);  // apply DAAT + MaxScore V.0 to calculate the score of the Docs
-
             // take user's choice about using dynamic pruning algorithm
             if (Flags.isDynamicPruningEnabled())
-                DAATAlgMAXSCORESkipping(processedQuery,scoringFunc,isConjunctive,numberOfResults);
-                //DAATAlgMAXSCORE(processedQuery,scoringFunc,isConjunctive,numberOfResults);
+                DAATAlgMAXSCORESkipping(processedQuery,scoringFunc,isConjunctive,numberOfResults);  // apply DAAT + MaxScore (skipping) to calculate the score of the Docs
+                //DAATAlgMAXSCORE(processedQuery,scoringFunc,isConjunctive,numberOfResults);        // apply DAAT + MaxScore (no skipping) to calculate the score of the Docs
                 //DAATAlgWAND(processedQuery,scoringFunc,isConjunctive,numberOfResults);      // apply DAAT + WAND to calculate the score of the Docs
             else
                 DAATAlgorithm(processedQuery,scoringFunc,isConjunctive,numberOfResults);        // apply DAAT to calculate the score of the Docs
-
 
             rankedResults = getRankedResults(numberOfResults);          // get ranked results
 
@@ -893,7 +884,6 @@ public final class QueryProcessor {
                     if ((postingLists[i] != null) && (postingListsIndex[i] < postingLists[i].size()))
                     {
                         //printDebug("---- NonEP HOP -> search the DID " + currentDID + " for the term: '" + orderedQueryTerm[i] + "' in the posting list: " + i + " in pos: " + postingListsIndex[i] + " and max len: " + postingLists[i].size() + " and did is: " + postingLists[i].get(postingListsIndex[i]).getDocId());
-
                         postListCurrDID = postingLists[i].get(postingListsIndex[i]).getDocId();
 
                         // check first position
@@ -914,28 +904,32 @@ public final class QueryProcessor {
                             resetScore = false;         // reset the partial score
                             //printDebug("------ NonEP -> FIND the DID " + currentDID + " in posting: " + i + " in pos: " + postingListsIndex[i] + " with valueDID: " + postingLists[i].get(postingListsIndex[i]).getDocId() + " update DUB: " + currentDocUpperBound + " and partialScore: " + partialScore);
                             postingListsIndex[i]++;     // update the index of the postin list
+                            //if (currentDocUpperBound <= threshold)
+                            //    break;
+                            //else
                             continue;
                         }
-                        else if (postListCurrDID > currentDID)
+                        else if (postListCurrDID > currentDID)      // the searched DID is not in this posting list
                         {
                             currentDocUpperBound -= termUpperBoundList[i];      // update currentDocUpperBound
                             //printDebug("------ NonEP - First position > currentDID. update DUB " + currentDocUpperBound + " partialScore: " + partialScore + " in PL: " + i + " in pos: " + postingListsIndex[i]);
                             continue;       // go to the next step
                         }
-                        else    // postListCurrDID < currentDID
+                        else    // postListCurrDID < currentDID, search in the posting listw
                         {
                             assert skipListArray != null;
-                            postingListsIndex[i] = skipListArray[i].nextGEQ(currentDID);
+                            postingListsIndex[i] = skipListArray[i].nextGEQ(currentDID, postingListsIndex[i]);
                             //printDebug("Uses skipping -> postingListSize: " + postingLists[i].size() + " search DID: " + currentDID + " and nextGEQ return position " + pos + " that have DID: " + (pos < postingLists[i].size() ? postingLists[i].get(pos).getDocId() : " out of bound"));
                         }
 
+                        // check the index returned by nextGEQ
                         if (postingListsIndex[i] >= postingLists[i].size())  // check for out of bound in case of reaching the end of the list
                         {
                             //printDebug("NextGEQ return index: " + postingListsIndex[i] + " greater than size: " + postingLists[i].size());
                             continue;
                         }
 
-                        postListCurrDID = postingLists[i].get(postingListsIndex[i]).getDocId();
+                        postListCurrDID = postingLists[i].get(postingListsIndex[i]).getDocId(); // take the did
 
                         if (postListCurrDID != currentDID)
                         {
@@ -949,12 +943,12 @@ public final class QueryProcessor {
                             currentP = postingLists[i].get(postingListsIndex[i]);              // take posting
                             //printDebug("------ NonEP -> FIND the DID " + currentDID + " old DUB: " + currentDocUpperBound + " and old partialScore: " + partialScore);
                             currentDocUpperBound -= partialScore;               // update currentDocUpperBound
+                            currentDocUpperBound -= termUpperBoundList[i];      // update currentDocUpperBound
                             // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
                             if (scoringFunc)
                                 partialScore += ScoringBM25(currentDID, currentP.getTermFreq(), IDFweight[i]);   // use BM25
                             else
                                 partialScore += ScoringTFIDF(currentP.getTermFreq(), IDFweight[i]);             // use TFIDF
-                            currentDocUpperBound -= termUpperBoundList[i];      // update currentDocUpperBound
                             currentDocUpperBound += partialScore;               // update currentDocUpperBound
 
                             resetScore = false;         // reset the partial score
@@ -1204,16 +1198,6 @@ public final class QueryProcessor {
         return scoreBM25;
     }
 
-
-    /**
-     * Function to calculate the average document length used in BM25 scoring function.
-     */
-    /*
-    public static void setAvgDocLen()
-    {
-        avgDocLen = CollectionStatistics.getTotDocLen() / CollectionStatistics.getNDocs();  // set average doc len
-    }
-    */
     // -------- end: scoring function --------
 
     // -------- start: utilities function --------
@@ -1281,7 +1265,6 @@ public final class QueryProcessor {
             for (String term : processedQuery)
             {
                 //printDebug("DAAT: retrieve posting list of  " + term);
-
                 DictionaryElem de = dictionary.getTermToTermStat().get(term);
 
                 // there is a posting list for the query term == the term is in the collection
@@ -1430,6 +1413,13 @@ public final class QueryProcessor {
         return sumTUBList.length-1;
     }
 
+    /**
+     *
+     *
+     * @param orderedQueryTerm
+     * @param postingLists
+     * @return
+     */
     private static SkipList[] SetAllSkipList(String[] orderedQueryTerm, ArrayList<Posting>[] postingLists)
     {
         SkipList[] tempSkipListArray;       //
@@ -1458,63 +1448,26 @@ public final class QueryProcessor {
     }
 
     /**
-     * function that given the posting lists of each term in a given query returns an ordered list of the DocIDs
+     * Function that given the posting lists of each term in a given query returns an ordered list of the DocIDs
      * present in the all posting lists
      *
      * @param postingLists  the posting lists of each term in the query
      * @return  an ordered ArrayList of the DocIDs in the posting lists
      */
-    private static ArrayList<Integer> DIDOrderedListOfQuery(ArrayList<Posting>[] postingLists, boolean isConjunctive) throws FileNotFoundException {
-
-        // ordered list of the DocID present in the all posting lists of the term present in the query
-        ArrayList<Integer> orderedList = new ArrayList<>();
+    private static ArrayList<Integer> DIDOrderedListOfQuery(ArrayList<Posting>[] postingLists, boolean isConjunctive) throws FileNotFoundException
+    {
         LinkedHashMap<Integer, Integer> hashDocID = new LinkedHashMap<>();  //hashmap to get all DocID without copies
-        long startTime,endTime;                         // variables to calculate the execution time
-        int currentDocID = 0;                           // var to contain the current DocID
-
-        //printDebug("The isConjunctive passed as parameter has this value: " + isConjunctive);
-        /* print posting lists
-        for (int i = 0; i < postingLists.length; i++)
-        {
-            if (postingLists[i] == null)    // term that there isn't in collection -> posting list == null
-                continue;                   // go to next posting list
-
-            printDebug("PostingLists: " + postingLists[i]);
-        }
-        //*/
-
-        /* print how many DID there are in more than one posting list
-        int count = 0;
-        for (int i = 0; i < postingLists.length; i++)
-        {
-            if (postingLists[i] == null)    // term that there isn't in collection -> posting list == null
-                continue;                   // go to next posting list
-            // scan all DocID in the i-th posting list
-            for (Posting p : postingLists[i])
-            {
-                currentDocID = p.getDocId();            // take DocID in the current posting
-                //System.out.println(ANSI_YELLOW + "\n*** Posting: " + i + " - DID: " + currentDocID);
-                if (i == 0)
-                    hashDocID.put(currentDocID,1);      // add DocID
-                    // control check for duplicate DocID, do only after first posting list
-                else if (hashDocID.containsKey(currentDocID))
-                {
-                    printDebug("Termine a comune: " + currentDocID);
-                    count++;
-                }
-            }
-        }
-        printDebug("Termini presenti sia nella prima lista che nella seconda: " + count);
-        hashDocID.clear();
-        //*/
-
-        ///* NEW VERSION -- hash map V.2.2 -- start ------------------------------------------------------------------
-        int[] postingListsIndex = getPostingListsIndex(postingLists);   // contain the current position index for the posting list of each term in the query
         ArrayList<Integer> tempList = new ArrayList<>();    // create arrayList to contain temporarily the get DID
-        boolean allPostListScanned = false; // indicate if all posting list are fully scanned
-        boolean postingEnded = false;       // used only in conjunctive query (for optimization), indicates that one posting list is fully scanned
-        int max = 0;                        // indicates the current max DID taken
+        ArrayList<Integer> orderedList = new ArrayList<>(); // the final ordered list of the DIDs
+        boolean allPostListScanned = false;     // indicate if all posting list are fully scanned
+        boolean postingEnded = false;           // used only in conjunctive query (for optimization), indicates that one posting list is fully scanned
+        int max = 0;                            // indicates the current max DID taken
+        int currentDocID = 0;                   // var to contain the current DocID
+        long startTime,endTime;                 // variables to calculate the execution time
 
+        int[] postingListsIndex = getPostingListsIndex(postingLists);   // contain the current position index for the posting list of each term in the query
+
+        // NEW VERSION -- hash map V.2.2 -- start ------------------------------------------------------------------
         startTime = System.currentTimeMillis();             // start time to take th DocID list
         // take first DocID from posting lists
         for (int i = 0; i < postingLists.length; i++)
@@ -1626,9 +1579,7 @@ public final class QueryProcessor {
         // shows query execution time
         printTime("*** ORDERED DID LIST (no PQ V.2.2) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
         //printDebug("Ordered List (no PQ V.2.2) of DocID dim: " + orderedList.size());     // print orderedList
-        //System.out.println("Ordered List (no PQ V.2.2): " + orderedList);     // print orderedList
         // NEW VERSION -- hash map V.2.2 -- end ------------------------------------------------------------------*/
-
         return orderedList;
     }
 

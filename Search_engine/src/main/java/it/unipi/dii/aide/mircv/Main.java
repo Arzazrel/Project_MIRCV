@@ -6,10 +6,15 @@ import it.unipi.dii.aide.mircv.data_structures.*;
 import it.unipi.dii.aide.mircv.utils.FileSystem;
 
 import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Scanner;
 
 import static it.unipi.dii.aide.mircv.QueryProcessor.queryStartControl;
+import static it.unipi.dii.aide.mircv.data_structures.CollectionStatistics.readCollectionStatsFromDisk;
+import static it.unipi.dii.aide.mircv.data_structures.DataStructureHandler.readCompressedPostingListFromDisk;
+import static it.unipi.dii.aide.mircv.data_structures.DataStructureHandler.readPostingListFromDisk;
 import static it.unipi.dii.aide.mircv.utils.FileSystem.*;
 import static it.unipi.dii.aide.mircv.utils.Constants.*;
 import static it.unipi.dii.aide.mircv.data_structures.Flags.*;
@@ -363,30 +368,214 @@ public class Main
      */
     private static void compressionTest()
     {
-        printDebug("Unary code test.");
+        printDebug("1)Simple compression test, use a simple and short list: ");
         ArrayList<Integer> myNumbers = new ArrayList<Integer>();
         int listLen = 10;
-        for (int i = 0; i < listLen; i++)
-            myNumbers.add(i+1);
+
+        // -- Unary test
+        //myNumbers.add(1);
         for (int i = 0; i < listLen; i++)
             myNumbers.add(i+1);
 
+        printDebug("-- Unary code test -> the test list is: " + myNumbers);
+        // compression
         byte[] compressedResult = Unary.integersCompression(myNumbers);     // compress to Unary
-        Unary.integersDecompression(compressedResult, listLen*2);    // decompress from Unary
+        printDebug("Unary compression -- the list passed len: " + myNumbers.size() + " int with size: " + (myNumbers.size()*4) + " Bytes -> after compression the size is: " + compressedResult.length + " Bytes.");
+        Unary.printCompressedList(compressedResult);
+        // decompression
+        myNumbers = Unary.integersDecompression(compressedResult, listLen);
+        printDebug("Unary Decompression -- the compressed list len: " + listLen + " int with size: " + compressedResult.length + " Bytes -> after decompression the size is: " + (myNumbers.size()*4) + " Bytes.");
+        Unary.printDecompressedList(myNumbers);    // decompress from Unary
 
-        printDebug("\nVariable Bytes code test.");
+        // -- Variable Bytes test
         myNumbers.clear();
-        for (int i = 0; i < listLen; i++)
+        for (int i = 0; i < (listLen/2); i++)
             myNumbers.add(i+1);
-        for (int i = 80000; i < 80000 + listLen*2; i++)
+        for (int i = 80000; i < 80000 + listLen; i++)
             myNumbers.add(i);
         myNumbers.add(214577);
+        printDebug("\n-- Variable Bytes code test -> the test list is: " + myNumbers);
+        // compression DGaps = false
+        compressedResult = VariableBytes.integersCompression(myNumbers,false);  // compress to Variable Bytes
+        printDebug("VarBytes Compression -- Dgaps: " + false + " the list passed len: " + myNumbers.size() + " int with size: " + (myNumbers.size()*4) + " Bytes -> after compression the size is: " + compressedResult.length + " Bytes.");
+        VariableBytes.printCompressedList(compressedResult);
+        // decompression DGaps = false
+        myNumbers = VariableBytes.integersDecompression(compressedResult,false);
+        printDebug("VarBytes Decompression -- Dgaps: " + false + " the compressed list with size: " + compressedResult.length + " Bytes -> after decompression the size is: " + (myNumbers.size()*4) + " Bytes.");
+        VariableBytes.printDecompressedList(myNumbers);                                // decompress from Variable Bytes
+        // compression DGaps = true
+        compressedResult = VariableBytes.integersCompression(myNumbers,true);   // compress to Variable Bytes
+        printDebug("VarBytes Compression -- Dgaps: " + false + " the list passed len: " + myNumbers.size() + " int with size: " + (myNumbers.size()*4) + " Bytes -> after compression the size is: " + compressedResult.length + " Bytes.");
+        VariableBytes.printCompressedList(compressedResult);
+        // decompression DGaps = false
+        myNumbers = VariableBytes.integersDecompression(compressedResult,false);
+        printDebug("VarBytes Decompression -- Dgaps: " + false + " the compressed list with size: " + compressedResult.length + " Bytes -> after decompression the size is: " + (myNumbers.size()*4) + " Bytes.");
+        VariableBytes.printDecompressedList(myNumbers);            // decompress from Variable Bytes
+        // decompression DGaps = true
+        myNumbers = VariableBytes.integersDecompression(compressedResult,true);
+        printDebug("VarBytes Decompression -- Dgaps: " + true + " the compressed list with size: " + compressedResult.length + " Bytes -> after decompression the size is: " + (myNumbers.size()*4) + " Bytes.");
+        VariableBytes.printDecompressedList(myNumbers);             // decompress from Variable Bytes
 
-        compressedResult = VariableBytes.integersCompression(myNumbers,false);    // compress to Variable Bytes
-        VariableBytes.integersDecompression(compressedResult,false);              // decompress from Variable Bytes
-        compressedResult = VariableBytes.integersCompression(myNumbers,true);    // compress to Variable Bytes
-        VariableBytes.integersDecompression(compressedResult,false);              // decompress from Variable Bytes
-        VariableBytes.integersDecompression(compressedResult,true);              // decompress from Variable Bytes
+        // check if the posting list isn't already compressed
+        if (!Flags.isThereFlagsFile())
+            printError("Error: missing required files.");
+        else
+        {
+            readFlagsFromDisk();
+            if (!Flags.isCompressionEnabled())
+            {
+                //compPLTest("giacomo");
+                compPLTest("how");
+            }
+            else
+                printDebug("The posting list is already compressed.");
+        }
+    }
+
+    /**
+     * Function to test and show the result of compression and decompression on a posting list.
+     *
+     * @param term  the term related to the posting list to compress and decompress
+     */
+    private static void compPLTest(String term)
+    {
+        ArrayList<Integer> termFreqToCompress = new ArrayList<>();  // array list to contain the TF to compress
+        ArrayList<Integer> docIDsToCompress =  new ArrayList<>();   // array list to contain the DID to compress
+        ArrayList<Integer> decompressTF;        // array list to contain the decompressed TF
+        ArrayList<Integer> decomDIDNoDGaps;     // array list to contain the decompressed DID
+        ArrayList<Integer> decomDIDDGaps;       // array list to contain the decompressed DID
+        ArrayList<Integer> decomDIDDGapsBlock;  // array list to contain the decompressed DID
+        ArrayList<Posting> postingList;         // array list for the posting list of the term
+        byte[] compressedTermFreq;              //
+        byte[] compDocIDWithoutDGaps;           //
+        byte[] compDocIDDGaps;                  //
+        byte[] compDocIDDGapsBlock;             //
+        int NotCompressedLen;                   // len in bytes
+        int blockSize = 1024;                   //
+        long startTime, endTime;                // variables to calculate the execution time
+
+        // -- control for structures in memory - if not load them from disk
+        if (!QueryProcessor.dictionary.dictionaryIsSet())
+        {
+            startTime = System.currentTimeMillis();
+            QueryProcessor.dictionary.readDictionaryFromDisk();
+            endTime = System.currentTimeMillis();
+            printTime( "Dictionary loaded in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        }
+
+        printDebug("\n2)More complicated compression test, usa a posting list of a term: " + term);
+        // check if the term is in the dictionarys
+        if (QueryProcessor.dictionary.getTermToTermStat().containsKey(term))
+        {
+            // get the posting list of the term passed as parameter
+            try(
+                    // open complete files to read the postingList
+                    RandomAccessFile docidFile = new RandomAccessFile(DOCID_FILE, "rw");
+                    RandomAccessFile termfreqFile = new RandomAccessFile(TERMFREQ_FILE, "rw");
+
+                    // FileChannel
+                    FileChannel docIdChannel = docidFile.getChannel();
+                    FileChannel termFreqChannel = termfreqFile.getChannel()
+            ) {
+                DictionaryElem de = QueryProcessor.dictionary.getTermToTermStat().get(term);
+                startTime = System.currentTimeMillis();
+                postingList = readPostingListFromDisk(de.getOffsetDocId(),de.getOffsetTermFreq(),de.getDf(),docIdChannel,termFreqChannel);
+                endTime = System.currentTimeMillis();
+                printTime( "Posting list loaded in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+            // fill the array list for termFreq and DocID
+            assert postingList != null;
+            for (Posting p : postingList)
+            {
+                termFreqToCompress.add(p.getTermFreq());
+                docIDsToCompress.add(p.getDocId());
+            }
+            NotCompressedLen = postingList.size() * 4;
+
+            // test of compression and decompression
+            printDebug("- NOT COMPRESSED -> PL size: " + postingList.size() + " TermFreq: " + (postingList.size()*4) + " Bytes , DID: " + (postingList.size()*4) +" Bytes\n");
+            // -- compression
+            // ---- TF compression
+            printLoad("Term Freq Unary compression...");
+            startTime = System.currentTimeMillis();
+            compressedTermFreq = Unary.integersCompression(termFreqToCompress);     // compress to Unary
+            endTime = System.currentTimeMillis();
+            printTime( "Compressed in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+            // ---- DID compression
+            printLoad("\nDID VariableBytes (No DGaps) compression...");
+            startTime = System.currentTimeMillis();
+            compDocIDWithoutDGaps = VariableBytes.integersCompression(docIDsToCompress,false);    // compress to Variable Bytes
+            endTime = System.currentTimeMillis();
+            printTime( "Compressed in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+            printLoad("DID VariableBytes (DGaps) compression...");
+            startTime = System.currentTimeMillis();
+            compDocIDDGaps = VariableBytes.integersCompression(docIDsToCompress,true);    // compress to Variable Bytes
+            endTime = System.currentTimeMillis();
+            printTime( "Compressed in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+            printLoad("DID VariableBytes (DGaps with block) compression...");
+            startTime = System.currentTimeMillis();
+            compDocIDDGapsBlock = VariableBytes.intCompDGapsBlock(docIDsToCompress,blockSize);    // compress to Variable Bytes
+            endTime = System.currentTimeMillis();
+            printTime( "Compressed in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+            // -- decompression
+            // ---- TF decompression
+            printLoad("\nTerm Freq Unary decompression...");
+            startTime = System.currentTimeMillis();
+            decompressTF = Unary.integersDecompression(compressedTermFreq, postingList.size());    // decompress from Unary
+            endTime = System.currentTimeMillis();
+            printTime( "Decompressed in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+            // ---- DID decompression
+            printLoad("\nDID VariableBytes (No DGaps) decompression...");
+            startTime = System.currentTimeMillis();
+            decomDIDNoDGaps = VariableBytes.integersDecompression(compDocIDWithoutDGaps,false);            // decompress from Variable Bytes
+            endTime = System.currentTimeMillis();
+            printTime( "Decompressed in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+            printLoad("DID VariableBytes (DGaps) decompression...");
+            startTime = System.currentTimeMillis();
+            decomDIDDGaps = VariableBytes.integersDecompression(compDocIDDGaps,true);            // decompress from Variable Bytes
+            endTime = System.currentTimeMillis();
+            printTime( "Decompressed in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+            printLoad("DID VariableBytes (DGaps block) decompression...");
+            startTime = System.currentTimeMillis();
+            decomDIDDGapsBlock = VariableBytes.intDecompDGapsBlock(compDocIDDGapsBlock,blockSize);            // decompress from Variable Bytes
+            endTime = System.currentTimeMillis();
+            printTime( "Decompressed in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+            // verify the correctness of compression and decompression
+            // -- verify term freq (unary)
+            if (isTwoIntArrayListEqual(termFreqToCompress, decompressTF))
+                printDebug("Successful compression and decompression of TermFreq list.");
+            else
+                printDebug("Not successful compression and decompression of TermFreq list.");
+
+            // -- verify DID (var bytes)
+            if (isTwoIntArrayListEqual(docIDsToCompress, decomDIDNoDGaps) && isTwoIntArrayListEqual(docIDsToCompress, decomDIDDGaps) && isTwoIntArrayListEqual(docIDsToCompress, decomDIDDGapsBlock))
+                printDebug("Successful compression and decompression of DocID list.");
+            else
+                printDebug("Not successful compression and decompression of DocID list.");
+
+            // print statistics result
+            printDebug("Statistics results:");
+            printDebug("- TermFreq not compressed: " + formatBytes(NotCompressedLen));
+            printDebug("--> Unary compression: " + formatBytes(compressedTermFreq.length) + " -> " + differenceBetweenTwoInt(NotCompressedLen, compressedTermFreq.length));
+            printDebug("- DocID not compressed: " + formatBytes(NotCompressedLen));
+            printDebug("--> Var Bytes NoDGaps compression: " + formatBytes(compDocIDWithoutDGaps.length) + " -> " + differenceBetweenTwoInt(NotCompressedLen, compDocIDWithoutDGaps.length));
+            printDebug("--> Var Bytes DGaps compression: " + formatBytes(compDocIDDGaps.length) + " -> " + differenceBetweenTwoInt(NotCompressedLen, compDocIDDGaps.length));
+            printDebug("--> Var Bytes DGaps Block compression: " + formatBytes(compDocIDDGapsBlock.length) + " Bytes -> " + differenceBetweenTwoInt(NotCompressedLen, compDocIDDGapsBlock.length));
+        }
+        else
+            printError("The term isn't in the list.");
     }
 
     // ----------------------------------------- end : mode(switch) functions -----------------------------------------

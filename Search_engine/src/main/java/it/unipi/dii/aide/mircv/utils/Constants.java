@@ -1,5 +1,7 @@
 package it.unipi.dii.aide.mircv.utils;
 
+import java.util.ArrayList;
+
 /**
  * Class to define all the constant (name, path, etc...) used in the application.
  */
@@ -100,6 +102,22 @@ public final class Constants {
         return String.format("The size of the file '%s' is: %d Bytes , %.3f KB , %.3f MB , %.3f GB", nameFile, fileSize, sizeKiloBytes, sizeMegaBytes, sizeGigaBytes);
     }
 
+    /**
+     * Function to show the size of a file in the specified format.
+     *
+     * @param size  size (in Bytes) of the file
+     * @return          a formatted string that show the file size.
+     */
+    public static String formatBytes( long size)
+    {
+        double sizeKiloBytes = (double) size / 1024;
+        double sizeMegaBytes = (double) size / (1024 * 1024);
+        double sizeGigaBytes = (double) size / (1024 * 1024 * 1024);
+
+
+        return String.format(" %d Bytes , %.3f KB , %.3f MB , %.3f GB", size, sizeKiloBytes, sizeMegaBytes, sizeGigaBytes);
+    }
+
     // ------------------------------ Utilities for control printing (and color print) ---------------------------------
     // -- terminal colors
     public static final String ANSI_RESET = "\u001B[0m";        // reset the colour of the print
@@ -136,4 +154,61 @@ public final class Constants {
         System.out.println(ANSI_ORANGE + s + ANSI_RESET);
     }
 
+    // ------------------------------ Utilities for array list comparison ---------------------------------
+
+    /**
+     * Function to compare two array lists of integers.
+     *
+     * @param al0   the first
+     * @param al1   the second
+     * @return      if 'true' the array lists are the same, if 'false' the array lists aren't the same
+     */
+    public static boolean isTwoIntArrayListEqual(ArrayList<Integer> al0, ArrayList<Integer> al1)
+    {
+        if (al0.isEmpty() || al1.isEmpty())     // check if are empty
+            return false;
+
+        if (al0.size() != al1.size())           // check if are the same size
+            return false;
+
+        // check that all element in both array list are the same and in the same order
+        for (int i=0; i < al0.size(); i++)
+        {
+            if (!al0.get(i).equals(al1.get(i)))
+                return false;
+        }
+
+        return true;
+    }
+
+    /**
+     *
+     *
+     * @param num0
+     * @param num1
+     * @return
+     */
+    public static String differenceBetweenTwoInt(int num0, int num1)
+    {
+        int difference = 0;
+        double percentageDiff = 0;
+        int max;
+        int min;
+
+        if (num0 >= num1)
+        {
+            max = num0;
+            min = num1;
+        }
+        else
+        {
+            max = num1;
+            min = num0;
+        }
+
+        difference = max - min;
+        percentageDiff = (double) (difference * 100) /max;
+
+        return (String.format(" difference is: %d Bytes (in percentage) is: %.3f", difference, percentageDiff) +"%");
+    }
 }
