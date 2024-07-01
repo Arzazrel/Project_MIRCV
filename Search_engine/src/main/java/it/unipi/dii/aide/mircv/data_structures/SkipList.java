@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+
+import static java.lang.Math.max;
 import static java.lang.Math.min;
 
 import static it.unipi.dii.aide.mircv.utils.Constants.*;
@@ -128,8 +130,15 @@ public class SkipList
         return tempSkipList;
     }
 
-    // advances the iterator forward to the next posting with a document identifier greater than or equal to
-    public int nextGEQ(int docID)
+    /**
+     * Function to advance the iterator forward to the next posting with a document identifier greater than or equal to
+     * the searched one.
+     *
+     * @param docID
+     * @param currentPos
+     * @return
+     */
+    public int nextGEQ(int docID, int currentPos)
     {
         int searchIndex = -1;    //
         SkipInfo currentSI;
@@ -137,14 +146,13 @@ public class SkipList
         int endBlockPos = currPostList.size()-1;
 
         // check the next hop
-        if(skipElemIterator == null)        //no blocks or finished
+        if(skipElemIterator == null)        // no blocks or finished
             return postListIndex;
 
         // check if the posting list length is enough for skipping
         if (currPostList.size() >= SKIP_POINTERS_THRESHOLD)
         {
             currentSI = points.get(pointsIndex);        // initialize the current SkipInfo
-
             //printDebug("++ IN nextGEQ - 0 iteration -> search DID: " + docID + " skipArrayPosition: " + pointsIndex + " wit maxDID: " + currentSI.getMaxDocId());
             // use skipping to find the searched DocID
             while (currentSI.getMaxDocId() < docID)
@@ -160,18 +168,11 @@ public class SkipList
             // the searched DocID is in the current skip block (if there is)
             // the current skip block(if isn't the last block) start in: startPos = pointsIndex * skipInterval and end in: endPos = ((pointsIndex + 1) * skipInterval) - 1
             startBlockPos = pointsIndex * skipInterval;
-            postListIndex = startBlockPos;
-            endBlockPos = ((pointsIndex + 1) * skipInterval) - 1;
-            //printDebug("++ IN nextGEQ end iteration -> effective maxDID: " + currPostList.get(endBlockPos).getDocId());
+            postListIndex = max(startBlockPos, currentPos);                         // SEE NOTE 0
+            endBlockPos = min((currPostList.size()-1), ((pointsIndex + 1) * skipInterval) - 1);
+            //printDebug("++ IN nextGEQ end iteration -> search: " + docID + " and startblock: " + startBlockPos + " postlistIndex: " + postListIndex + " -> effective maxDID: " + currPostList.get(endBlockPos).getDocId());
 
-            searchIndex = booleanSearch(docID, min((currPostList.size()-1), endBlockPos));    // search the index of the searched DocID
-            /*
-            if (endBlockPos < currPostList.size())
-                searchIndex = booleanSearch(docID, endBlockPos);    // search the index of the searched DocID
-            else
-                searchIndex = booleanSearch(docID, (currPostList.size()-1));    // search the index of the searched DocID
-            */
-
+            searchIndex = booleanSearch(docID, endBlockPos);    // search the index of the searched DocID
             //printDebug("Used skipping -> found position: " + searchIndex + " with DocID: " + currPostList.get(searchIndex).getDocId());
         }
         else        // posting list too small, normal binary search
@@ -183,15 +184,22 @@ public class SkipList
         return searchIndex;
     }
 
+    /**
+     * Function to do the binary search in the block.
+     *
+     * @param targetDID the searched DocID
+     * @param maxPos    the position of the end of the block
+     * @return      the index of the searched DID or the next greater one
+     */
     private int booleanSearch(int targetDID, int maxPos)
     {
         int startPos = postListIndex;
         int endPos = maxPos;
-        int currentPos = startPos;
+        int currentPos;
 
         while (true)
         {
-            if (startPos > endPos)
+            if (startPos > endPos)      // end of the research, the searched DID is not in the list
             {
                 //printDebug("++ in boolean search ++ did not found.");
                 //printDebug("++++ startPos: " + startPos + " adn DID: " + currPostList.get(startPos).getDocId());
@@ -218,6 +226,9 @@ public class SkipList
         }
     }
 
+    /**
+     *
+     */
     public void testReadAllSkip()
     {
         int i = 0;
@@ -238,40 +249,13 @@ public class SkipList
         else
             printDebug("The posting list is too small, the skipping is not used.");
     }
-
-    /*  // START - OLD VERSION -
-    //moves sequentially the iterator to the next posting
-    public void next()
-    {
-
-        if(postingIterator.hasNext()) {
-            currPosting = postingIterator.next();
-            return;
-        }
-
-        if(skipElemIterator == null || !skipElemIterator.hasNext()) {      //no blocks or finished
-            currPosting = null;
-            return;
-        }
-
-        SkipInfo si = skipElemIterator.next();
-
-//        postingIterator =
-
-    }
-
-
-    //returns the score of the current posting
-    public double score() {
-        return 0.0;
-    }
-
-    // advances the iterator forward to the next posting with a document identifier greater than or equal to
-    // d ⇒ skipping
-    public void nextGEQ(long docID) throws IOException
-    {
-
-    }
-    //*/   // END - OLD VERSION -
-
 }
+
+/*
+ * -- NOTE 0 --
+ * this way when several consecutive searches will target the same block you will not do the binary search each time on
+ * the whole block but from time to time in a smaller portion.
+ *
+ *
+ *
+ */

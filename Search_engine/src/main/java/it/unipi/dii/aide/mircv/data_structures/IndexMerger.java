@@ -139,25 +139,17 @@ public final class IndexMerger
                         tempDE.addDf(currentDE.getDf());        // update Df
                         assert tempPL != null;
                         tempPL.addAll(currentPL);               // add all new postings
-                        /*
-                        if(currentDE.getMaxTf() > tempDE.getMaxTf())       //update maxTf
-                            tempDE.setMaxTf(currentDE.getMaxTf());
-                        //*/
                     }   // -- end - if 0.1
                     else    // different term found, write to disk the complete data of the previous term
                     {   // -- start - else 0.1
-                        //Flags.setConsiderSkippingBytes(true);     // don't set always ++++++++++++++++++++++++++++
                         // update DocID and Term Frequency offset ( equal to the end of the complete files)
                         tempDE.setOffsetTermFreq(outTermFreqChannel.size());    // update TermFreq offset
                         tempDE.setOffsetDocId(outDocIdChannel.size());          // update DocID offset
-                        /*
-                        tempDE.computeIdf();
-                        tempDE.computeMaxTFIDF();
-                        //*/
+
                         assert tempPL != null;
                         int lenPL = tempPL.size();                  // take the size of the posting list
 
-                        // part of statistics
+                        // -- part of statistics --
                         currDIDGap = (double) (tempPL.get(lenPL - 1).getDocId() - tempPL.get(0).getDocId()) / lenPL;
 
                         if (currDIDGap < minAvgDIDGapInPL)
@@ -166,8 +158,10 @@ public final class IndexMerger
                             maxAvgDIDGapInPL = currDIDGap;
 
                         avgDIDGapInPL += currDIDGap;
+                        // -- end statistics part --
+
                         // start the part for skipping and compression
-                        int[] tempCompressedLength = new int[2];
+                        int[] tempCompressedLength = new int[2];        // array for compression len values [0] -> TF, [1] -> DID
                         // check if the skipping flags is true and if the posting list length is greater than the minimum value for the skipping
                         if(Flags.considerSkippingBytes() && (lenPL >= SKIP_POINTERS_THRESHOLD) )
                         {   // -- start - if 0.1.1
@@ -188,7 +182,7 @@ public final class IndexMerger
                                 List<Posting> subPL = tempPL.subList(i, min(i + skipInterval, lenPL));  // take the sublist to put in this skipping block
                                 ArrayList<Posting> tempSubPL = new ArrayList<>(subPL);
 
-                                // part of statistics
+                                // -- part of statistics --
                                 currBlockDIDGap = (double) (subPL.get(subPL.size() - 1).getDocId() - subPL.get(0).getDocId()) / subPL.size();
 
                                 if (currBlockDIDGap < minBlockAvgDIDGapInPL)
@@ -197,14 +191,14 @@ public final class IndexMerger
                                     maxBlockAvgDIDGapInPL = currBlockDIDGap;
 
                                 currBlockListDIDGap += currBlockDIDGap;
-                                // end statistics part
+                                // -- end statistics part --
 
                                 if (Flags.isCompressionEnabled())       // check if the compression is enabled
                                 {
                                     int[] compressedLength = DataStructureHandler.storeCompressedPostingIntoDisk(tempSubPL, outTermFreqChannel, outDocIdChannel);//store index with compression - unary compression for termfreq
                                     assert compressedLength != null;
-                                    tempCompressedLength[0] += compressedLength[0];
-                                    tempCompressedLength[1] += compressedLength[1];
+                                    tempCompressedLength[0] += compressedLength[0];     // update the length for termFreq compressed in bytes for this block
+                                    tempCompressedLength[1] += compressedLength[1];     // update the length for DocID compressed in bytes for this block
                                     SkipInfo sp = new SkipInfo(subPL.get(subPL.size()-1).getDocId(), outDocIdChannel.size(), outTermFreqChannel.size());
                                     sp.storeSkipInfoToDisk(outSkipChannel);
                                 }
@@ -227,8 +221,8 @@ public final class IndexMerger
 
                             if(Flags.isCompressionEnabled())                // check if compression is enabled
                             {
-                                tempDE.setTermFreqSize(tempCompressedLength[0]);    //
-                                tempDE.setDocIdSize(tempCompressedLength[1]);       //
+                                tempDE.setTermFreqSize(tempCompressedLength[0]);    // set the total length for termFreq compressed in bytes
+                                tempDE.setDocIdSize(tempCompressedLength[1]);       // set the total length for DocID compressed in bytes
                             }
 
                             // part of the collection statistics
@@ -240,15 +234,15 @@ public final class IndexMerger
                             {
                                 int[] compressedLength = DataStructureHandler.storeCompressedPostingIntoDisk(tempPL, outTermFreqChannel, outDocIdChannel);//store index with compression - unary compression for termfreq
                                 assert compressedLength != null;
-                                tempDE.setTermFreqSize(compressedLength[0]);
-                                tempDE.setDocIdSize(compressedLength[1]);
+                                tempDE.setTermFreqSize(compressedLength[0]);    // set the total length for termFreq compressed in bytes
+                                tempDE.setDocIdSize(compressedLength[1]);       // set the total length for DocID compressed in bytes
                             }
                             else        // simplest case: save the posting list without skipping nor compression. (case: no skipping, no compression or yes skipping but posting list too small)
                                 storePostingListIntoDisk(tempPL, outTermFreqChannel, outDocIdChannel);  // write InvertedIndexElem to disk
                         }   // -- end - else 0.1.1
 
                         tempDE.storeDictionaryElemIntoDisk(outDictionaryChannel);       // store dictionary
-                        //Flags.setConsiderSkippingBytes(false);
+
                         //set temp variables values
                         tempDE = currentDE;
                         tempPL = currentPL;

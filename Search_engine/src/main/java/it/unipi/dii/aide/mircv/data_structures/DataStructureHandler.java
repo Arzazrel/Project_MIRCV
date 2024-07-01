@@ -359,36 +359,40 @@ public final class DataStructureHandler
     // -------- end: functions to read from disk --------
 
     /**
-     * function to store posting list after compression into disk
+     * Function to store posting list after compression into disk
      *
      * @param pl                posting list to store
-     * @param docidChannel      file where store DocID values
-     * @param termfreqChannel   file where store Term Frequency values
+     * @param docIDChannel      file where store DocID values
+     * @param termFreqChannel   file where store Term Frequency values
      * @return Term Frequency and DocID compressed length
      */
-    public static int[] storeCompressedPostingIntoDisk(ArrayList<Posting> pl, FileChannel termfreqChannel, FileChannel docidChannel){
+    public static int[] storeCompressedPostingIntoDisk(ArrayList<Posting> pl, FileChannel termFreqChannel, FileChannel docIDChannel)
+    {
+        ArrayList<Integer> tf = new ArrayList<>();      // arraylist to contain the term freqs of the PL
+        ArrayList<Integer> docid  = new ArrayList<>();  // arraylist to contain the DocID of the PL
+        int[] length = new int[2];                      // array to contain the values ot the lens (in Bytes) for the compressed lists
+        byte[] compressedTf;                            // array for the compressed term freq
+        byte[] compressedDocId;                         // array for the compressed DocID
 
-        ArrayList<Integer> tf = new ArrayList<>();
-        ArrayList<Integer> docid  = new ArrayList<>();
-        int[] length = new int[2];
-        //number of postings in the posting list
+        // get the term freq and the DocID
         for(Posting ps : pl) {
-            tf.add(ps.getTermFreq());
-            docid.add(ps.getDocId());
+            tf.add(ps.getTermFreq());       // get term freq
+            docid.add(ps.getDocId());       // get DocID
         }
 
-        byte[] compressedTf = Unary.integersCompression(tf);
-        byte[] compressedDocId = VariableBytes.integersCompression(docid,true);
+        compressedTf = Unary.integersCompression(tf);                              // compression of term freq (Unary)
+        compressedDocId = VariableBytes.integersCompression(docid,true);    // compression of DocID (var bytes)
         // Create buffers for docid and termfreq
         try {
-            MappedByteBuffer buffertermfreq = termfreqChannel.map(FileChannel.MapMode.READ_WRITE, termfreqChannel.size(), compressedTf.length); //number of bytes of compressed tfs
-            MappedByteBuffer bufferdocid = docidChannel.map(FileChannel.MapMode.READ_WRITE, docidChannel.size(), compressedDocId.length); //number of bytes of compressed docids
+            MappedByteBuffer bufferTermFreq = termFreqChannel.map(FileChannel.MapMode.READ_WRITE, termFreqChannel.size(), compressedTf.length); //number of bytes of compressed tfs
+            MappedByteBuffer bufferDocID = docIDChannel.map(FileChannel.MapMode.READ_WRITE, docIDChannel.size(), compressedDocId.length);       //number of bytes of compressed docids
 
-            buffertermfreq.put(compressedTf);
-            bufferdocid.put(compressedDocId);
+            bufferTermFreq.put(compressedTf);       // write the compressed term freq list
+            bufferDocID.put(compressedDocId);       // write the compressed DocID list
 
-            length[0] = compressedTf.length;
-            length[1] = compressedDocId.length;
+            length[0] = compressedTf.length;        // save the bytes of TF list
+            length[1] = compressedDocId.length;     // save the bytes of DID list
+            //printDebug("Store length -> length[0] (termFreq): " + length[0] + " and length[1] (DID): " + length[1]);
             return length;
 
         } catch (IOException e) {
@@ -399,7 +403,7 @@ public final class DataStructureHandler
     }
 
     /**
-     * function to store posting list after compression into disk
+     * Function to read posting list after compression into disk
      *
      * @param offsetDocId       offset from where to start the read of the DocID values
      * @param offsetTermFreq    offset from where to start the read of the Term Frequency values
@@ -412,19 +416,21 @@ public final class DataStructureHandler
      */
     public static ArrayList<Posting> readCompressedPostingListFromDisk(long offsetDocId, long offsetTermFreq, int termFreqSize, int docIdSize, int posting_size, FileChannel docidChannel, FileChannel termfreqChannel) {
 
-        ArrayList<Posting> uncompressed = new ArrayList<>();
-        byte[] docids = new byte[docIdSize];
-        byte[] tf = new byte[termFreqSize];
+        ArrayList<Posting> uncompressed = new ArrayList<>();    // decompressed posting list
+        byte[] docids = new byte[docIdSize];                    // array for the compressed DocID list
+        byte[] tf = new byte[termFreqSize];                     // array for the compressed TermFreq list
 
         try {
             MappedByteBuffer docidBuffer = docidChannel.map(FileChannel.MapMode.READ_ONLY, offsetDocId, docIdSize);
             MappedByteBuffer termfreqBuffer = termfreqChannel.map(FileChannel.MapMode.READ_ONLY, offsetTermFreq, termFreqSize);
 
-            termfreqBuffer.get(tf, 0, termFreqSize);
-            docidBuffer.get(docids, 0, docIdSize );
+            termfreqBuffer.get(tf, 0, termFreqSize);    // read term freq list
+            docidBuffer.get(docids, 0, docIdSize );     // read DocID list
 
-            ArrayList<Integer> uncompressedTf = Unary.integersDecompression(tf, posting_size);
-            ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(docids,true);
+            //printDebug("termFreqSize(bytes): " + termFreqSize + " docIdSize: " + docIdSize + "\ntf len: " + tf.length + " docids len: " + docids.length);
+
+            ArrayList<Integer> uncompressedTf = Unary.integersDecompression(tf, posting_size);  // decompress term freq
+            ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(docids,true);    // decompress DocID
             for(int i = 0; i < posting_size; i++)
             {
                 //System.out.println("docid: " + uncompressedDocid.get(i)  + " tf: " + uncompressedTf.get(i));

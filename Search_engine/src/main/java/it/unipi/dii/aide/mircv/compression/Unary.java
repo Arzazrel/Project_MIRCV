@@ -44,28 +44,20 @@ public class Unary
                 // check if all bits in the byte have been written
                 if (bitPosition == 8)
                 {
-                    byteToWrite++;      // go to next byte
+                    byteToWrite++;                      // go to next byte
                     compressedResult[byteToWrite] = 0;  // set the new byte to 0 in all bits
-                    bitPosition = 0;     // reset bit value
+                    bitPosition = 0;                    // reset bit value
                 }
             }
             bitPosition++;      // write the 0 to the end of series of ones to represent the num
             // check if all bits in the byte have been written
-            if (bitPosition == 8)
+            if ((bitPosition == 8) && (byteToWrite != (numBytes-1)))
             {
                 byteToWrite++;      // go to next byte
                 compressedResult[byteToWrite] = 0;  // set the new byte to 0 in all bits
                 bitPosition = 0;     // reset bit value
             }
         }
-        /*
-        for (byte b : compressedResult) {
-           System.out.print(Integer.toBinaryString(b & 0xFF) + " ");
-        }*/
-        //unaryToInt(compressedResult);
-        //integerArrayDecompression(compressedResult, 3);
-        printDebug("Unary compression -- the list passed len: " + termFreqToCompress.size() + " int with size: " + (termFreqToCompress.size()*4) + " Bytes -> after compression the size is: " + numBytes + " Bytes.");
-        printCompressedList(compressedResult);      // debug print
         return compressedResult;
     }
 
@@ -102,11 +94,7 @@ public class Unary
                     currentValue = 1;               // Reset current value
                     nIntegers++;                    // increment the number of decompressed integer
                     if (nIntegers == totNum)        // check if the current decompressed value is the last one
-                    {
-                        printDebug("Unary Decompression -- the compressed list len: " + totNum + " int with size: " + compressedArray.length + " Bytes -> after decompression the size is: " + (decompressedList.size()*4) + " Bytes.");
-                        printDecompressedList(decompressedList);      // debug print
                         return decompressedList;        // end of the decompression
-                    }
                 }
 
                 currentBit--;           // update the position of bit to read
@@ -118,7 +106,6 @@ public class Unary
                 }
             }
         }
-
         return decompressedList;
     }
 
@@ -150,7 +137,7 @@ public class Unary
      *
      * @param byteArray     the list of compressed integer, in Unary code, to be printed.
      */
-    private static void printCompressedList(byte[] byteArray)
+    public static void printCompressedList(byte[] byteArray)
     {
         for (byte b : byteArray)
             System.out.print(String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0') + " ");
@@ -163,7 +150,7 @@ public class Unary
      *
      * @param intArray      the list of decompressed integer, in Unary code, to be printed.
      */
-    private static void printDecompressedList(ArrayList<Integer> intArray)
+    public static void printDecompressedList(ArrayList<Integer> intArray)
     {
         for (int num : intArray)
             System.out.print(num + " ");
