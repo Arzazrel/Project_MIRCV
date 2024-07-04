@@ -1,5 +1,6 @@
 package it.unipi.dii.aide.mircv;
 import it.unipi.dii.aide.mircv.compression.Unary;
+import it.unipi.dii.aide.mircv.compression.VariableBytes;
 import it.unipi.dii.aide.mircv.data_structures.*;
 import it.unipi.dii.aide.mircv.data_structures.Dictionary;
 import it.unipi.dii.aide.mircv.utils.FileSystem;
@@ -17,12 +18,17 @@ import java.util.*;
 import static it.unipi.dii.aide.mircv.data_structures.CollectionStatistics.readCollectionStatsFromDisk;
 import static it.unipi.dii.aide.mircv.data_structures.DataStructureHandler.readCompressedPostingListFromDisk;
 import static it.unipi.dii.aide.mircv.data_structures.DataStructureHandler.readPostingListFromDisk;
+import static it.unipi.dii.aide.mircv.data_structures.DataStructureHandler.readAndUncompressCompressedAndSkippedPLFromDisk;
+import static it.unipi.dii.aide.mircv.data_structures.DataStructureHandler.readCompTFBlockFromDisk;
+import static it.unipi.dii.aide.mircv.data_structures.DataStructureHandler.readCompDIDBlockFromDisk;
+
 import static it.unipi.dii.aide.mircv.data_structures.DocumentElement.DOCELEM_SIZE;
 import static it.unipi.dii.aide.mircv.data_structures.Flags.readFlagsFromDisk;
 //import static it.unipi.dii.aide.mircv.data_structures.PartialIndexBuilder.dictionaryBlockOffsets;
 import static it.unipi.dii.aide.mircv.utils.Constants.*;
 import static it.unipi.dii.aide.mircv.utils.Constants.printDebug;
 import static it.unipi.dii.aide.mircv.utils.Logger.collStats_logger;
+import static java.lang.Math.min;
 
 /**
  * Class to manage and execute query
@@ -37,7 +43,8 @@ public final class QueryProcessor
     private static ArrayList<String> termNotInCollection = new ArrayList<>();   // ArrayList that contain the term that are in the query but not in the collection
     static PriorityQueue<QueryProcessor.ResultBlock> resPQ;     // priority queue for the result of scoring function for the best numberOfResults docs
 
-    static PriorityQueue<QueryProcessor.DIDBlock> pqv1 = new PriorityQueue<>(new CompareDIDBlock());
+    // priority queue for the ordered block of DID and Term freq to execute DAAT when the compression and skipping is enabled
+    static PriorityQueue<QueryProcessor.orderedDIDBlock> ordDIDPQ = new PriorityQueue<>(new CompareOrdDIDBlock());
 
     /**
      * fuction to manage the query request. Prepare and execute the query and return the results.
@@ -52,20 +59,11 @@ public final class QueryProcessor
         ArrayList<Integer> rankedResults = new ArrayList<>();   // ArrayList that contain the ranked results of query
         ArrayList<String> processedQuery;                       // array list for containing the query term
 
-        // take user's choices that affecting the query execution
-        boolean scoringFunc = Flags.isScoringEnabled();      // take user's choice about using scoring function
-
-        printDebug("User choice for scoring is: " + scoringFunc);
-        //if (scoringFunc)
-            //avgDocLen = CollectionStatistics.getTotDocLen() / CollectionStatistics.getNDocs();  // set average doc len
-            //avgDocLen = CollectionStatistics.getAvgDocLen();
-
         try{
             // processed the query to obtain the term
-            printDebug("Query before processed: " + query);
+            //printDebug("Query before processed: " + query);
             processedQuery = TextProcessor.preprocessText(query); // Preprocessing of document text
-            printDebug("Query after processed: " + processedQuery);
-            //printDebug(dictionary.getTermStat("0000").toString());
+            //printDebug("Query after processed: " + processedQuery);
 
             // check if query is empty
             if (processedQuery.isEmpty() || (processedQuery.size() == 1 && processedQuery.get(0).equals("")))
@@ -73,18 +71,12 @@ public final class QueryProcessor
                 printError("Error: query is empty, please retry.");     // mex of error
                 return rankedResults;
             }
-
-            // take user's choice about using dynamic pruning algorithm
-            if (Flags.isDynamicPruningEnabled())
-                DAATAlgMAXSCORESkipping(processedQuery,scoringFunc,isConjunctive,numberOfResults);  // apply DAAT + MaxScore (skipping) to calculate the score of the Docs
-                //DAATAlgMAXSCORE(processedQuery,scoringFunc,isConjunctive,numberOfResults);        // apply DAAT + MaxScore (no skipping) to calculate the score of the Docs
-                //DAATAlgWAND(processedQuery,scoringFunc,isConjunctive,numberOfResults);      // apply DAAT + WAND to calculate the score of the Docs
-            else
-                DAATAlgorithm(processedQuery,scoringFunc,isConjunctive,numberOfResults);        // apply DAAT to calculate the score of the Docs
+            // manage the query execution algorithm depending on the flags selected by the user
+            chooseQueryAlg(processedQuery, isConjunctive, numberOfResults);
 
             rankedResults = getRankedResults(numberOfResults);          // get ranked results
 
-            // check if array list is empty
+            // check if array list of the terms in query which are not in the dictionary (collection) is empty
             if (!termNotInCollection.isEmpty())
             {
                 printError("No match found for the following query terms: " + termNotInCollection);   // print the terms that are not in collection
@@ -147,6 +139,44 @@ public final class QueryProcessor
         return true;
     }
 
+    /**
+     * Function to choose the query execution algorithm depending on the flags selected by the user.
+     *
+     * @param processedQuery    array list for containing the query term
+     * @param isConjunctive     indicates whether the query is conjunctive or disjunctive type (default is disjunctive)
+     * @param numberOfResults   indicated the max number of result to return to user
+     */
+    private static void chooseQueryAlg(ArrayList<String> processedQuery, boolean isConjunctive, int numberOfResults) throws FileNotFoundException
+    {
+        // take user's choices that affecting the query execution
+        boolean scoringFunc = Flags.isScoringEnabled();         // take user's choice about using scoring function
+        boolean dynamicPrun = Flags.isDynamicPruningEnabled();  // take user's choice about using dynamic pruning algorithm
+        boolean compression = Flags.isCompressionEnabled();     // take user's choice about using compression
+        boolean skipping = Flags.considerSkippingBytes();       // take user's choice about using skipping
+        //printDebug("User choice for scoring is: " + scoringFunc);
+        //printDebug("User choice for pruning algorithm: " + dynamicPrun);
+        //printDebug("User choice for compression: " + compression);
+        //printDebug("User choice for skipping: " + skipping);
+
+        if (dynamicPrun)        // dynamic pruning 'true' -> use Max Score
+        {
+            if (skipping && compression)
+                DAATAlgWAND(processedQuery,scoringFunc,isConjunctive,numberOfResults);      // apply DAAT + WAND to calculate the score of the Docs
+            else if (skipping)
+                DAATAlgMAXSCORESkipping(processedQuery,scoringFunc,isConjunctive,numberOfResults);  // apply DAAT + MaxScore (skipping) to calculate the score of the Docs
+            else
+                DAATAlgMAXSCORE(processedQuery,scoringFunc,isConjunctive,numberOfResults);        // apply DAAT + MaxScore (no skipping) to calculate the score of the Docs
+        }
+        else                    // dynamic pruning 'false' -> use DAAT alg
+        {
+            if (compression && skipping)
+                DAATAlgCompSkip(processedQuery,scoringFunc,isConjunctive,numberOfResults);  // apply DAAT with compression and skipping
+            else
+                DAATAlgorithm(processedQuery,scoringFunc,isConjunctive,numberOfResults);        // apply DAAT to calculate the score of the Docs
+        }
+    }
+
+    // ------------------------------------------- START - Execution Query alg -----------------------------------------
     /**
      * function for apply the Document at a Time algorithm
      *
@@ -262,31 +292,164 @@ public final class QueryProcessor
     }
 
     /**
-     * function that given the posting lists of each term in a given query returns the number of posting lists that
-     * aren't empty
+     * Function to apply the Document at a Time algorithm when both skipping and compression are enabled. In this method
+     * you take the compressed lists and run the DAAT by decompressing only the necessary block from time to time.
+     * At the beginning takes the first block for each PL, decompress it and create the element to be placed in the
+     * priority queue (ordDIDPQ). When this is done you will extract the elements of the PQ and calculate the score.
+     * When there are no more elements inherent at a PL in the PQ it will decompress the next block of it (if any)
+     * and insert the values into the PQ.
+     * So on until the PQ is empty.
      *
-     * @param postingLists  the posting lists of each term in the query
-     * @return the number of posting lists that aren't empty
+     * @param scoringFunc       indicates the preference for scoring. if false use TFIDF, if true use BM25.
+     * @param processedQuery    array list for containing the query term
+     * @param isConjunctive     indicates whether the query is conjunctive or disjunctive type (default is disjunctive)
+     * @param numberOfResults   indicated the max number of result to return to user
      */
-    private static int NumberOfPostingListNotEmpty (ArrayList<Posting>[] postingLists)
+    private static void DAATAlgCompSkip(ArrayList<String> processedQuery, boolean scoringFunc , boolean isConjunctive, int numberOfResults) throws FileNotFoundException
     {
-        int postingListNotEmpty = 0;    // contains the number of posting lists related to the query terms that aren't empty
+        resPQ = new PriorityQueue<>(numberOfResults, new CompareTerm());    // length equal to the number of results to be returned to the user
+        String[] terms = new String[processedQuery.size()];                 // array containing the terms of the query
+        SkipList[] skipListArray;           // array of the Skip List reference related to the term of query
+        int pLNotEmpty = 0;                 // contains the number of posting lists related to the query terms that aren't empty
+        double[] IDFweight;                 // array containing the IDF weight for each posting list
+        int[] lengthPostingList;            // array containing the length of the posting lists
+        int[] blockIndex;                   // contain the index of the next block of skipList for each PL
+        int[] elmOfBlockDone;               // contain the counter of the element belong to the same PL block
+        int[] totalElemOfBlok;              // contain the total number of element of the same block in the PQ
+        int previousDID = 0;                // DID of the previous doc processed in algorithm
+        int currentDID = 0;                 // DID of the current doc processed in algorithm
+        int currIndexPL = 0;                // indicates the index of the PL from which the current element taken from the PQ originates
+        orderedDIDBlock currElem;           // the current (at each iteration) element poll from ordDIDPQ
+        int docScoreCalc = 0;               // indicates the number of documents whose score was calculated (0 to number of results requested by the user)
+        double partialScore = 0;            // var that contain partial score
+        boolean resetScore = false;         // used only in conjunctive case. indicates that the score must be set to 0 (the current Doc there aren't all the term of the query)
+        long startTime,endTime;             // variables to calculate the execution time
 
-        // control check for empty posting lists (the terms are not present in the document collection)
-        if (postingLists.length == 0)
+        // check the number of the term that have PL (which are in the dictionary)
+        pLNotEmpty = numberOfQueryTermsInDictionary(processedQuery);
+        // create the skip List reference related to the term of query
+        skipListArray = skipListInitDAAT(processedQuery);
+
+        // check the number of posting lists not empty and perform the best choice
+        if (pLNotEmpty == 0)        // all terms in the query aren't in the dictionary or empty query
+            return;     // exit
+        else if (pLNotEmpty == 1)   // there is only 1 postingList (query with one term or query with more term but only one in dictionary)
         {
-            printUI("The terms in query there aren't in collection.");
-            return 0;     // exit to function
-        }
-        // scan all posting lists
-        for (int i = 0; i < postingLists.length; i++)
-        {
-            if (postingLists[i] == null)    // term that there isn't in collection -> posting list == null
-                continue;                   // go to next posting list
-            postingListNotEmpty++;          // increment counter
+            if ((processedQuery.size() != 1) && (isConjunctive))  // case of query conjunctive and more term but only one in dictionary
+                return;     // exit
+
+            // The PL is only one -> read and decompress the whole PL and use the classic optimization method
+            startTime = System.currentTimeMillis();         // start time for retrieve the posting lists of the query
+            ArrayList<Posting>[] postingLists = retrieveAllUncompPL(processedQuery, skipListArray); // get the uncompress PL
+            endTime = System.currentTimeMillis();           // end time for retrieve the posting lists of the query
+            // shows query execution time
+            printTime("*** DAAT (comp+skipping) retrieved PL (case 1 PL) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+            DAATOnePostingList(processedQuery, postingLists, scoringFunc, numberOfResults);   // execute DAAT algorithm
+            return;     // exit
         }
 
-        return postingListNotEmpty;
+        // -- more postingLists not empty --
+        // 0) take the first block of the PL
+        startTime = System.currentTimeMillis();         // start time for retrieve first block of PLs of the query
+        retrieveFirstCompBlockOfPLFromQuery(processedQuery, skipListArray); // retrieve the first block of each PL and put value in the PQ
+        endTime = System.currentTimeMillis();           // end time for retrieve first block of PLs of the query
+        // shows query execution time
+        printTime("*** DAAT (comp+skipping) retrieved first block of each PLs in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+        // 1) setting of all is need for the DAAT algorithm
+        for (int i = 0; i < processedQuery.size(); i++)             // take the term of the query
+            terms[i] = processedQuery.get(i);
+        lengthPostingList = retrieveLengthAllPostingLists(terms);   // take the length of each posting list
+        IDFweight = calculateIDFWeight(lengthPostingList);          // calculate the IDF weight
+        // set the index block for each PL
+        blockIndex = new int[processedQuery.size()];
+        Arrays.fill(blockIndex, 1);                 // the first block (with index 0) has already been taken
+        // set the counter and max number of elem of the same block in the PQ -> used to manage the load of next PL block from disk
+        elmOfBlockDone = new int[processedQuery.size()];
+        Arrays.fill(elmOfBlockDone, 0);             // at the beginning the elem taken by PQ are equal to 0
+        totalElemOfBlok = new int[processedQuery.size()];
+        // the max number of a block (a block has len equal SKIP_POINTERS_THRESHOLD if is not the last block and less
+        // if is the last block but in this case there is no need to load the next block from memory
+        Arrays.fill(totalElemOfBlok, SKIP_POINTERS_THRESHOLD);
+
+        // 2) start DAAT
+        startTime = System.currentTimeMillis();           // start time of DAAT (comp + skipping)
+        previousDID = ordDIDPQ.peek().getDocID();
+        while (!ordDIDPQ.isEmpty())
+        {
+            currElem = ordDIDPQ.poll();             // get the current element
+            currentDID = currElem.getDocID();       // get current DID
+            currIndexPL = currElem.getIndexPL();    // get the current PL index
+
+            if (currentDID == previousDID)      // sum the current partial score with the previous
+            {
+                // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
+                if (scoringFunc)
+                    partialScore += ScoringBM25(currentDID, currElem.getTermFreq(), IDFweight[currIndexPL]);     // use BM25
+                else
+                    partialScore += ScoringTFIDF(currElem.getTermFreq(), IDFweight[currIndexPL]);               // use TFIDF
+            }
+            else            // other DID, the previous partial score is final, save it.
+            {
+                // save score
+                if ((partialScore != 0) && !resetScore)
+                {
+                    // insert without control into priority queue (is not full) or insert all results (orderAllHashMap = true)
+                    if ((docScoreCalc < numberOfResults) || orderAllHashMap)
+                    {
+                        resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
+                        docScoreCalc++;         // increment result in priority queue counter
+                    }
+                    else if (resPQ.peek().getScore() < partialScore)    // number of user-requested results achieved, check whether the current doc is within the best docs to return (score greater than the first item in the priority queue)
+                    {
+                        // substitution of the block
+                        //printDebug("Old block : DID = " + resPQ.peek().getDID()+ " score: " + resPQ.peek().getScore());
+                        resPQ.poll();       // remove the first element
+                        resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
+                        //printDebug("New block : DID = " + currentDID+ " score: " + partialScore);
+                    }
+                }
+                // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
+                if (scoringFunc)
+                    partialScore = ScoringBM25(currentDID, currElem.getTermFreq(), IDFweight[currIndexPL]);     // use BM25
+                else
+                    partialScore = ScoringTFIDF(currElem.getTermFreq(), IDFweight[currIndexPL]);               // use TFIDF
+
+                previousDID = currentDID;       // update previous DID
+            }
+
+            // update the counter -> when a counter is equal to maximum value of the block load the next block of the related PL
+            if (totalElemOfBlok[currIndexPL] == ++elmOfBlockDone[currIndexPL])  // all elem of a block have been taken
+            {
+                // load the new block and put elem into PQ
+                assert skipListArray != null;
+                retrieveCompBlockOfPL(processedQuery, skipListArray, blockIndex[currIndexPL], currIndexPL);
+                blockIndex[currIndexPL]++;          // increment the counter of block
+                elmOfBlockDone[currIndexPL] = 0;    // reset the counter of elem
+            }
+        }
+        // save the last partial score
+        if ((partialScore != 0) && !resetScore)
+        {
+            // insert without control into priority queue (is not full) or insert all results (orderAllHashMap = true)
+            if ((docScoreCalc < numberOfResults) || orderAllHashMap)
+            {
+                resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
+                docScoreCalc++;         // increment result in priority queue counter
+            }
+            else if (resPQ.peek().getScore() < partialScore)    // number of user-requested results achieved, check whether the current doc is within the best docs to return (score greater than the first item in the priority queue)
+            {
+                // substitution of the block
+                //printDebug("Old block : DID = " + resPQ.peek().getDID()+ " score: " + resPQ.peek().getScore());
+                resPQ.poll();       // remove the first element
+                resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
+                //printDebug("New block : DID = " + currentDID+ " score: " + partialScore);
+            }
+        }
+        endTime = System.currentTimeMillis();           // end time of DAAT (comp + skipping)
+        // shows DAAT (comp + skipping) execution time
+        printTime("*** DAAT (comp+skipping) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
     /**
@@ -770,7 +933,7 @@ public final class QueryProcessor
         double[] IDFweight;                 // array containing the IDF weight for each posting list
         int[] lengthPostingList;            // array containing the length of the posting lists
         int[] postingListsIndex;            // contain the current position index for the posting list of each term in the query
-        SkipList[] skipListArray;           // ++++++++++++++++++++
+        SkipList[] skipListArray;           // array of the Skip List reference related to the term of query
         Posting currentP;                   // support var
         int firstEssPostListIndex = 0;      // indicates the index of the first (current) essential posting list
         double threshold = 0;               // var that contain the current threshold for MaxScore (is the minimum score value to be in the current best result)
@@ -808,7 +971,7 @@ public final class QueryProcessor
         postingListsIndex = getPostingListsIndex(postingLists);                 // get the index initialized
         lengthPostingList = retrieveLengthAllPostingLists(orderedQueryTerm);    // take the length of each posting list
         IDFweight = calculateIDFWeight(lengthPostingList);                      // calculate the IDF weight
-        skipListArray = SetAllSkipList(orderedQueryTerm, postingLists);         // +++++++
+        skipListArray = SetAllSkipList(orderedQueryTerm, postingLists);         // create the skip List reference related to the term of query
         // control print
         //printDebug("orderedQueryTerm -> " + Arrays.toString(orderedQueryTerm));
         //printDebug("termUpperBoundList -> " + Arrays.toString(termUpperBoundList));
@@ -1000,6 +1163,57 @@ public final class QueryProcessor
     }
     ///* ---- NEW VERSION OF DAAT -- END ----
 
+    // -------------------------------------------- END - Execution Query alg ------------------------------------------
+
+    /**
+     * Function to calculate the number of the query terms that are not in the dictionary.
+     *
+     * @param processedQuery    array list for containing the query term
+     * @return      return the number of query terms that are in the dictionary.
+     *              (i.e. the number of query terms that have a posting list not null).
+     */
+    private static int numberOfQueryTermsInDictionary(ArrayList<String> processedQuery)
+    {
+        int counter = 0;    // counter of the query terms in the dictionary
+
+        for (String term : processedQuery)      // scan all query terms
+        {
+            // there is a posting list for the query term == the term is in the collection
+            if (dictionary.getTermToTermStat().containsKey(term))
+                counter++;
+        }
+
+        return counter;
+    }
+
+    /**
+     * function that given the posting lists of each term in a given query returns the number of posting lists that
+     * aren't empty
+     *
+     * @param postingLists  the posting lists of each term in the query
+     * @return the number of posting lists that aren't empty
+     */
+    private static int NumberOfPostingListNotEmpty (ArrayList<Posting>[] postingLists)
+    {
+        int postingListNotEmpty = 0;    // contains the number of posting lists related to the query terms that aren't empty
+
+        // control check for empty posting lists (the terms are not present in the document collection)
+        if (postingLists.length == 0)
+        {
+            printUI("The terms in query there aren't in collection.");
+            return 0;     // exit to function
+        }
+        // scan all posting lists
+        for (int i = 0; i < postingLists.length; i++)
+        {
+            if (postingLists[i] == null)    // term that there isn't in collection -> posting list == null
+                continue;                   // go to next posting list
+            postingListNotEmpty++;          // increment counter
+        }
+
+        return postingListNotEmpty;
+    }
+
     /**
      * function that given a term return the corresponding term upper bound
      *
@@ -1013,6 +1227,7 @@ public final class QueryProcessor
     {
         ArrayList<Posting>[] postingLists;  // contains all the posting lists for each term of the query
         ArrayList<String> processedQuery;   // array list for containing the query term
+        SkipList[] skipListArray;           // array of the Skip List reference related to the term of query
         double maxScore = 0;                // the var containing the max value for the score of a document for the term
         double partialScore = 0;            // var that contain partial score
         double IDFWeight = 0;               //
@@ -1020,7 +1235,13 @@ public final class QueryProcessor
         processedQuery = new ArrayList<>();
         processedQuery.add(term);           // insert the term
 
-        postingLists = retrieveAllPostListsFromQuery(processedQuery);   // take posting list of the term
+        if(Flags.considerSkippingBytes() && Flags.isCompressionEnabled())
+        {
+            skipListArray = skipListInitDAAT(processedQuery);
+            postingLists = retrieveAllUncompPL(processedQuery, skipListArray); // get the uncompress PL
+        }
+        else
+            postingLists = retrieveAllPostListsFromQuery(processedQuery);   // take posting list of the term
 
         // control check for term that is not in the dictionary
         if (postingLists[0] == null)
@@ -1198,49 +1419,13 @@ public final class QueryProcessor
         return scoreBM25;
     }
 
-    // -------- end: scoring function --------
+    // ------------------------ end: scoring function ------------------------
 
-    // -------- start: utilities function --------
-
-    /**
-     * function to elaborate all docs and related scores to obtain the ranked list of results
-     *
-     * @param numResults    number of result(DocID) to return to the user
-     * @return  an ordered ArrayList that represent the top numResults results for the query
-     */
-    private static ArrayList<Integer> getRankedResults(int numResults)
-    {
-        ArrayList<Integer> rankedResults = new ArrayList<>();   // array list to contain the top "numResults" docs
-        long startTime, endTime;            // variables to calculate the execution time
-
-        //control check
-        if (numResults <= 0)
-            return rankedResults;
-
-        startTime = System.currentTimeMillis();         // start time of hash map ordering
-
-        QueryProcessor.ResultBlock currentResPQ;        // var that contain the resultBlock extract from pq in the current iteration
-        ArrayList<Integer> results = new ArrayList<Integer>();       // Create an ArrayList object
-
-        while(!resPQ.isEmpty())                         // control if the priority queue for results is empty
-        {
-            //printDebug("Taken: " + resPQ.peek().getDID() + " with score: " + resPQ.peek().getScore());
-            currentResPQ = resPQ.poll();                            // take lowest element (score and DID)
-            results.add(currentResPQ.getDID());                     // add to the array list
-        }
-        // order the result from the best to the worst (reverse order of the priority queue)
-        rankedResults = new ArrayList<Integer>(results);     // Create an ArrayList object
-        Collections.reverse(rankedResults);
-        //printDebug("orderedResults " + rankedResults);
-
-        endTime = System.currentTimeMillis();           // end time of hash map ordering
-        printTime("*** Ranked results (results priority queue) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
-
-        return rankedResults;
-    }
+    // ------------------------ start: function to retrieve PL of the term in query ------------------------
 
     /**
-     * function to retrieve all the posting lists for each term of the query passed as parameter
+     * Function to retrieve all the posting lists for each term of the query passed as parameter.
+     * This function is used when compression and skipping are not enabled or only one of them is enabled.
      *
      * @param processedQuery    ArrayList of the processed terms of the query
      * @return  an array of posting lists (ArrayList of posting). the array has length equal to the number of terms,
@@ -1253,24 +1438,24 @@ public final class QueryProcessor
         int iterator = 0;               // iterator for saving posting lists term in correct position
 
         try(
-            // open complete files to read the postingList
-            RandomAccessFile docidFile = new RandomAccessFile(DOCID_FILE, "rw");
-            RandomAccessFile termfreqFile = new RandomAccessFile(TERMFREQ_FILE, "rw");
+                // open complete files to read the postingList
+                RandomAccessFile docidFile = new RandomAccessFile(DOCID_FILE, "rw");
+                RandomAccessFile termfreqFile = new RandomAccessFile(TERMFREQ_FILE, "rw");
 
-            // FileChannel
-            FileChannel docIdChannel = docidFile.getChannel();
-            FileChannel termFreqChannel = termfreqFile.getChannel()
+                // FileChannel
+                FileChannel docIdChannel = docidFile.getChannel();
+                FileChannel termFreqChannel = termfreqFile.getChannel()
         ) {
             // take posting list for each term in query
             for (String term : processedQuery)
             {
-                //printDebug("DAAT: retrieve posting list of  " + term);
-                DictionaryElem de = dictionary.getTermToTermStat().get(term);
-
                 // there is a posting list for the query term == the term is in the collection
                 if (dictionary.getTermToTermStat().containsKey(term))
                 {
-                    if(Flags.isCompressionEnabled())
+                    //printDebug("DAAT: retrieve posting list of  " + term);
+                    DictionaryElem de = dictionary.getTermToTermStat().get(term);
+
+                    if(Flags.isCompressionEnabled() && !Flags.considerSkippingBytes())  // if the compression is enabled and the skipping is not enabled
                         postingLists[iterator] = readCompressedPostingListFromDisk(de.getOffsetDocId(),de.getOffsetTermFreq(), de.getTermFreqSize(), de.getDocIdSize(), de.getDf(), docIdChannel, termFreqChannel); //read compressed posting list
                     else    // take the postingList of term
                         postingLists[iterator] = readPostingListFromDisk(de.getOffsetDocId(),de.getOffsetTermFreq(),de.getDf(),docIdChannel,termFreqChannel);
@@ -1286,30 +1471,6 @@ public final class QueryProcessor
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    /**
-     * function to retrieve length for each posting lists passed as parameter
-     *
-     * @param terms    array of the terms
-     * @return  an array of posting lists (ArrayList of posting). the array has length equal to the number of terms,
-     *          and the i-th position in the array contains the posting list of the i-th term in the processedQuery
-     */
-    private static int[] retrieveLengthAllPostingLists(String[] terms)
-    {
-        int[] lengthPostingList = new int[terms.length];
-
-        for (int i = 0; i < terms.length; i++)
-        {
-            assert terms[i] != null;
-            if (dictionary.getTermToTermStat().get(terms[i]) != null)
-                lengthPostingList[i] = dictionary.getTermToTermStat().get(terms[i]).getDf();
-            else
-                lengthPostingList[i] = 1;
-            //printDebug("The length for the posting list of the term: '" + terms[i] + "' is : " + lengthPostingList[i]);
-        }
-
-        return lengthPostingList;
     }
 
     /**
@@ -1395,6 +1556,229 @@ public final class QueryProcessor
     }
 
     /**
+     *
+     *
+     * @param processedQuery    ArrayList of the processed terms of the query
+     * @param slArr
+     * @return  an array of posting lists (ArrayList of posting). the array has length equal to the number of terms,
+     *          and the i-th position in the array contains the posting list of the i-th term in the processedQuery
+     */
+    private static void retrieveFirstCompBlockOfPLFromQuery(ArrayList<String> processedQuery, SkipList[] slArr)
+    {
+        byte[] tf;                      // array for the compressed TermFreq list
+        byte[] docids;                  // array for the compressed TermFreq list
+        int iterator = 0;               // iterator for saving posting lists term in correct position
+
+        try(
+                // open complete files to read the postingList
+                RandomAccessFile docidFile = new RandomAccessFile(DOCID_FILE, "rw");
+                RandomAccessFile termfreqFile = new RandomAccessFile(TERMFREQ_FILE, "rw");
+                // FileChannel
+                FileChannel docIdChannel = docidFile.getChannel();
+                FileChannel termFreqChannel = termfreqFile.getChannel()
+        ) {
+            // take posting list for each term in query
+            for (String term : processedQuery)
+            {
+                // there is a posting list for the query term == the term is in the collection
+                if (dictionary.getTermToTermStat().containsKey(term))
+                {
+                    //printDebug("DAAT: retrieve posting list of  " + term);
+                    DictionaryElem de = dictionary.getTermToTermStat().get(term);
+
+                    // get the compressed block
+                    tf = readCompTFBlockFromDisk(slArr[iterator], 0,de.getOffsetTermFreq(), de.getTermFreqSize(), de.getSkipArrLen(), termFreqChannel);
+                    docids = readCompDIDBlockFromDisk(slArr[iterator], 0, de.getOffsetDocId(), de.getDocIdSize(), de.getSkipArrLen(), docIdChannel);
+
+                    int numTFComp = min(SKIP_POINTERS_THRESHOLD, de.getDf());
+                    // decompress the block
+                    ArrayList<Integer> uncompressedTf = Unary.integersDecompression(tf, numTFComp);  // decompress term freq
+                    ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(docids,true);    // decompress DocID
+
+                    // add the block to PQ (ordDIDPQ)
+                    for (int i = 0; i < numTFComp; i++)
+                        ordDIDPQ.add(new QueryProcessor.orderedDIDBlock(uncompressedDocid.get(i),uncompressedTf.get(i),iterator));     // add to priority queue
+                }
+                else        // there isn't a posting list for the query term == the term isn't in the collection
+                {
+                    termNotInCollection.add(term);  // update array list of the term not in collection
+                }
+                iterator++;                 // update iterator
+            }
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     *
+     *
+     * @param processedQuery
+     * @param slArr
+     * @param blockIndex
+     * @param indexPL
+     */
+    private static void retrieveCompBlockOfPL(ArrayList<String> processedQuery, SkipList[] slArr, int blockIndex, int indexPL)
+    {
+        byte[] tf;                      // array for the compressed TermFreq list
+        byte[] docids;                  // array for the compressed TermFreq list
+
+        // control check
+        if ( (blockIndex >= slArr.length ) || (indexPL >= processedQuery.size()))
+            return;
+        try(
+                // open complete files to read the postingList
+                RandomAccessFile docidFile = new RandomAccessFile(DOCID_FILE, "rw");
+                RandomAccessFile termfreqFile = new RandomAccessFile(TERMFREQ_FILE, "rw");
+                // FileChannel
+                FileChannel docIdChannel = docidFile.getChannel();
+                FileChannel termFreqChannel = termfreqFile.getChannel()
+        ) {
+            String term = processedQuery.get(indexPL);
+            // there is a posting list for the query term == the term is in the collection
+            if (dictionary.getTermToTermStat().containsKey(term))
+            {
+                //printDebug("DAAT: retrieve posting list of  " + term);
+                DictionaryElem de = dictionary.getTermToTermStat().get(term);
+
+                // get the compressed block
+                tf = readCompTFBlockFromDisk(slArr[indexPL], blockIndex,de.getOffsetTermFreq(), de.getTermFreqSize(), de.getSkipArrLen(), termFreqChannel);
+                docids = readCompDIDBlockFromDisk(slArr[indexPL], blockIndex, de.getOffsetDocId(), de.getDocIdSize(), de.getSkipArrLen(), docIdChannel);
+
+                int numTFComp = min(SKIP_POINTERS_THRESHOLD, (de.getDf() - (SKIP_POINTERS_THRESHOLD * blockIndex)));
+                // decompress the block
+                assert tf != null;
+                assert docids != null;
+                ArrayList<Integer> uncompressedTf = Unary.integersDecompression(tf, numTFComp);  // decompress term freq
+                ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(docids,true);    // decompress DocID
+                printDebug("Request Block: " + blockIndex + " related to the term: " + term + " with skipArr len: " + de.getSkipArrLen());
+                printDebug("uncompressedTf len: " + uncompressedTf.size() + " uncompressedDocid len: " + uncompressedDocid.size());
+                // add the block to PQ (ordDIDPQ)
+                for (int i = 0; i < numTFComp; i++)
+                    ordDIDPQ.add(new QueryProcessor.orderedDIDBlock(uncompressedDocid.get(i),uncompressedTf.get(i),indexPL));     // add to priority queue
+
+            }
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Function to retrieve and uncompress all the posting lists for each term of the query passed as parameter.
+     * This function is used when compression and skipping are both enabled.
+     *
+     * @param processedQuery    ArrayList of the processed terms of the query
+     * @param slArr
+     * @return  an array of posting lists (ArrayList of posting). the array has length equal to the number of terms,
+     *          and the i-th position in the array contains the posting list of the i-th term in the processedQuery
+     */
+    private static ArrayList<Posting>[] retrieveAllUncompPL(ArrayList<String> processedQuery, SkipList[] slArr)
+    {
+        // array of arrayList (posting list) that contain all the posting lists for each term in the query
+        ArrayList<Posting>[] postingLists = new ArrayList[processedQuery.size()];
+        int iterator = 0;               // iterator for saving posting lists term in correct position
+
+        try(
+                // open complete files to read the postingList
+                RandomAccessFile docidFile = new RandomAccessFile(DOCID_FILE, "rw");
+                RandomAccessFile termfreqFile = new RandomAccessFile(TERMFREQ_FILE, "rw");
+                // FileChannel
+                FileChannel docIdChannel = docidFile.getChannel();
+                FileChannel termFreqChannel = termfreqFile.getChannel()
+        ) {
+            // take posting list for each term in query
+            for (String term : processedQuery)
+            {
+                // there is a posting list for the query term == the term is in the collection
+                if (dictionary.getTermToTermStat().containsKey(term))
+                {
+                    //printDebug("DAAT: retrieve posting list of  " + term);
+                    DictionaryElem de = dictionary.getTermToTermStat().get(term);
+                    // read adn uncompress the whole posting list related to term
+                    postingLists[iterator] = readAndUncompressCompressedAndSkippedPLFromDisk(slArr[iterator], de.getOffsetDocId(), de.getOffsetTermFreq(), de.getTermFreqSize(), de.getDocIdSize(), de.getSkipArrLen(), de.getDf(), docIdChannel, termFreqChannel);
+                }
+                else        // there isn't a posting list for the query term == the term isn't in the collection
+                {
+                    termNotInCollection.add(term);  // update array list of the term not in collection
+                }
+                iterator++;                 // update iterator
+            }
+            return postingLists;
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // ------------------------ end: function to retrieve PL of the term in query ------------------------
+
+    // ------------------------ start: utilities function ------------------------
+
+    /**
+     * function to elaborate all docs and related scores to obtain the ranked list of results
+     *
+     * @param numResults    number of result(DocID) to return to the user
+     * @return  an ordered ArrayList that represent the top numResults results for the query
+     */
+    private static ArrayList<Integer> getRankedResults(int numResults)
+    {
+        ArrayList<Integer> rankedResults = new ArrayList<>();   // array list to contain the top "numResults" docs
+        long startTime, endTime;            // variables to calculate the execution time
+
+        //control check
+        if (numResults <= 0)
+            return rankedResults;
+
+        startTime = System.currentTimeMillis();         // start time of hash map ordering
+
+        QueryProcessor.ResultBlock currentResPQ;        // var that contain the resultBlock extract from pq in the current iteration
+        ArrayList<Integer> results = new ArrayList<Integer>();       // Create an ArrayList object
+
+        while(!resPQ.isEmpty())                         // control if the priority queue for results is empty
+        {
+            //printDebug("Taken: " + resPQ.peek().getDID() + " with score: " + resPQ.peek().getScore());
+            currentResPQ = resPQ.poll();                            // take lowest element (score and DID)
+            results.add(currentResPQ.getDID());                     // add to the array list
+        }
+        // order the result from the best to the worst (reverse order of the priority queue)
+        rankedResults = new ArrayList<Integer>(results);     // Create an ArrayList object
+        Collections.reverse(rankedResults);
+        //printDebug("orderedResults " + rankedResults);
+
+        endTime = System.currentTimeMillis();           // end time of hash map ordering
+        printTime("*** Ranked results (results priority queue) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+        return rankedResults;
+    }
+
+
+    /**
+     * function to retrieve length for each posting lists passed as parameter
+     *
+     * @param terms    array of the terms
+     * @return  an array of posting lists (ArrayList of posting). the array has length equal to the number of terms,
+     *          and the i-th position in the array contains the posting list of the i-th term in the processedQuery
+     */
+    private static int[] retrieveLengthAllPostingLists(String[] terms)
+    {
+        int[] lengthPostingList = new int[terms.length];
+
+        for (int i = 0; i < terms.length; i++)
+        {
+            assert terms[i] != null;
+            if (dictionary.getTermToTermStat().get(terms[i]) != null)
+                lengthPostingList[i] = dictionary.getTermToTermStat().get(terms[i]).getDf();
+            else
+                lengthPostingList[i] = 1;
+            //printDebug("The length for the posting list of the term: '" + terms[i] + "' is : " + lengthPostingList[i]);
+        }
+
+        return lengthPostingList;
+    }
+
+    /**
      * function to update the essential posting lists by the threshold passed as parameter
      *
      * @param sumTUBList    array of double to contain the sum of the term upper bound of the previous position
@@ -1441,7 +1825,31 @@ public final class QueryProcessor
             //printDebug("SetAllSkipList -- SkipList related to the term: " + orderedQueryTerm[i] + " in position: " + i);
             tempDictElem = dictionary.getTermStat(orderedQueryTerm[i]); // get dictionary elem associated to term
             // create the skipList related to query's term
-            tempSkipListArray[i] = new SkipList(tempDictElem.getSkipOffset(), tempDictElem.getSkipArrLen(),postingLists[i]);
+            tempSkipListArray[i] = new SkipList(tempDictElem.getSkipOffset(), tempDictElem.getSkipArrLen(),postingLists[i], tempDictElem.getDf());
+        }
+
+        return tempSkipListArray;
+    }
+
+    private static SkipList[] skipListInitDAAT(ArrayList<String> processedQuery)
+    {
+        SkipList[] tempSkipListArray;       //
+        DictionaryElem tempDictElem;
+
+        if (processedQuery.size() == 0)   // control check
+            return null;
+
+        tempSkipListArray = new SkipList[processedQuery.size()];      // set array
+
+        for (int i = 0; i < processedQuery.size(); i++)       //
+        {
+            if (dictionary.getTermToTermStat().containsKey(processedQuery.get(i)))
+            {
+                //printDebug("SetAllSkipList -- SkipList related to the term: " + orderedQueryTerm[i] + " in position: " + i);
+                tempDictElem = dictionary.getTermStat(processedQuery.get(i)); // get dictionary elem associated to term
+                // create the skipList related to query's term
+                tempSkipListArray[i] = new SkipList(tempDictElem.getSkipOffset(), tempDictElem.getSkipArrLen(),null, tempDictElem.getDf());
+            }
         }
 
         return tempSkipListArray;
@@ -1643,21 +2051,19 @@ public final class QueryProcessor
     }
 
     /**
-     *
+     * Function for boolean search, used in max score without skipping.
      */
     private static int booleanSearch(List<Posting> tempList, int targetDID)
     {
         int startPos = 0;
         int endPos = tempList.size()-1;
         int currentPos = 0;
-
         /*
         if (targetDID == 3573563)   // interesse 3573563
         {
             printDebug("-------- IN booleanSearch -> target: " + targetDID + " and list length: " + (endPos+1));
             printDebug("-------- IN booleanSearch -> startDID: " + tempList.get(startPos) + " endDID: " + tempList.get(endPos));
         }//*/
-
         while (true)
         {
             if (startPos > endPos)
@@ -1687,7 +2093,7 @@ public final class QueryProcessor
     {
         if (rankedResults.size() != 0)      // there are results
         {
-            System.out.println(ANSI_CYAN + "Query results:" + ANSI_RESET);
+            printUI("Query results:");
             for (int i = 0; i < rankedResults.size(); i++)
                 printUI((i + 1) + " - " + rankedResults.get(i));
         }
@@ -1696,7 +2102,7 @@ public final class QueryProcessor
     }
 
     /**
-     * function to return the dictionary loaded in memory
+     * Function to return the dictionary loaded in memory
      */
     public static HashMap<String, DictionaryElem> getDictionary()
     {
@@ -1708,46 +2114,74 @@ public final class QueryProcessor
     // -------- start: utilities for priority queue --------
 
     /**
-     * class to define PostingBlock. The priority queue contains instances of PostingBlock
+     * Class to define orderedDIDBlock to insert in the priority queue.
+     * These blocks and the queue will be used when compression and skipping are both enabled.
+     * The compressed PLs will be decompressed block by block and the did and tf will be put in the priority queue and
+     * then taken in order during DAAT.
      */
-    private static class DIDBlock {
+    private static class orderedDIDBlock
+    {
         int DocID;                  // DocID
+        int termFreq;               // the term frequency related the PL (of index indexPL) and the DocID
+        int indexPL;                // the index of the term(PL) in the query
 
         // constructor with parameters
-        public DIDBlock(int DocID) {
+        public orderedDIDBlock(int DocID, int termFreq, int indexPL)
+        {
             this.DocID = DocID;
+            this.termFreq = termFreq;
+            this.indexPL = indexPL;
         }
 
-        public int getDID() {
+        public int getDocID() {
             return DocID;
+        }
+        public int getTermFreq() {
+            return termFreq;
+        }
+        public int getIndexPL() {
+            return indexPL;
         }
 
         @Override
-        public String toString() {
-            return "PB{" + "DocID = '" + DocID + '\'' + '}';
+        public String toString()
+        {
+            return "PB{" +
+                    "\nDocID = '" + DocID + "'" +
+                    ", term freq = '" + termFreq + "'" +
+                    ", indexPL = '" + indexPL + "' }";
         }
     }
     /**
-     * class to compare the block, allows the order of the priority queue
+     * Class to compare the block, allows the order of the priority queue.
      */
-    private static class CompareDIDBlock implements Comparator<QueryProcessor.DIDBlock> {
+    private static class CompareOrdDIDBlock implements Comparator<QueryProcessor.orderedDIDBlock>
+    {
         @Override
-        public int compare(QueryProcessor.DIDBlock pb1, QueryProcessor.DIDBlock pb2) {
-            // comparing terms
-            return Integer.compare(pb1.getDID(), pb2.getDID());
+        public int compare(QueryProcessor.orderedDIDBlock odb1, QueryProcessor.orderedDIDBlock odb2)
+        {
+            int scoreComparison = Double.compare(odb1.getDocID(), odb2.getDocID());     // comparing terms
+            // if the term upper bound are equal, compare by position
+            if (scoreComparison == 0) {
+                // return order by both term upper bound and position (the TUB of the two blocks is equal)
+                return Integer.compare(odb1.getIndexPL(), odb2.getIndexPL());
+            }
+            return scoreComparison;     // return order only by score (the score of the two blocks is different)
         }
     }
 
     /**
      * class to define termUpperBoundPostingList. The priority queue contains instances of termUpperBoundPostingList
-     * representing ...
+     * representing the TUB for the term of the query.
      */
-    private static class TermUpperBoundBlock {
-        int termPosition;          //
-        double termUpperBound;       //
+    private static class TermUpperBoundBlock
+    {
+        int termPosition;           // the position of the term in the query
+        double termUpperBound;      // the value of the TermUpperBound
 
         // constructor with parameters
-        public TermUpperBoundBlock(int termPosition, double termUpperBound) {
+        public TermUpperBoundBlock(int termPosition, double termUpperBound)
+        {
             this.termPosition = termPosition;
             this.termUpperBound = termUpperBound;
         }
@@ -1793,9 +2227,11 @@ public final class QueryProcessor
 
     // -------- start: utilities for priority queue for the results --------
     /**
-     * class to define ResultBlock. The priority queue contains instances of ResultBlock representing a result of the score calculation for the research
+     * class to define ResultBlock. The priority queue contains instances of ResultBlock representing a result of the
+     * score calculation for the research.
      */
-    private static class ResultBlock {
+    private static class ResultBlock
+    {
         int DocID;          // DocID
         double score;       // the score of the scoring function for the doc identified by DocID
 

@@ -50,31 +50,32 @@ public class SkipList
      * @param skipArrLen    len of the skip array (equal to the number of skipInfo block)
      * @param postList      whole posting list
      */
-    public SkipList(long skipOffset,int skipArrLen, ArrayList<Posting> postList)
+    public SkipList(long skipOffset,int skipArrLen, ArrayList<Posting> postList, int lenPL)
     {
         // set the indexes, they will be updated at each iteration next
         pointsIndex = 0;
         postListIndex = 0;
 
         currPostList = postList;                                        // get the whole posting list
-        skipInterval = (int) Math.ceil(Math.sqrt(currPostList.size())); // calculate the skip interval
+        skipInterval = SKIP_POINTERS_THRESHOLD;                         // calculate the skip interval
 
-        this.skipArrLen = skipArrLen;                                   // prendo skipArrLen e lo assegno alla var
+        this.skipArrLen = skipArrLen;                                   // take skipArrLen e lo assegno alla var
 
-        if (currPostList.size() >= SKIP_POINTERS_THRESHOLD)
-        {
+        if (lenPL > SKIP_POINTERS_THRESHOLD)
             points = getSkipArrayFromDisk(skipOffset, skipArrLen);      // get the array of skipInfo
-            skipElemIterator = points.iterator();                       // initialize the iterator
-            if (skipElemIterator.hasNext())                            // set the iterator
-                skipElemIterator.next();
-                //printDebug("Constructor first skipping block: " + skipElemIterator.next().getMaxDocId());                              // go in first position with iterator
-        }
         else
         {
             points = null;
             //printDebug("---- This posting list has size = " + currPostList.size() + " that is too small for activate the skipping (skipping threshold = " + SKIP_POINTERS_THRESHOLD);
         }
 
+        if ((currPostList!=null) && (currPostList.size() >= SKIP_POINTERS_THRESHOLD))
+        {
+            skipElemIterator = points.iterator();                       // initialize the iterator
+            if (skipElemIterator.hasNext())                             // set the iterator
+                skipElemIterator.next();
+                //printDebug("Constructor first skipping block: " + skipElemIterator.next().getMaxDocId());                              // go in first position with iterator
+        }
         //printDebug("-- SkipList constructor -- This skipList element:\n" + this);    // debug print
     }
 
@@ -91,6 +92,19 @@ public class SkipList
                 "\n - pointsIndex = " + pointsIndex +
                 "\n - postListIndex = " + postListIndex +
                 "\n}";
+    }
+
+    /**
+     *
+     * @param index
+     * @return
+     */
+    public SkipInfo getSkipBlockInfo(int index)
+    {
+        if ((points != null) && (index < points.size()))
+            return points.get(index);
+        else
+            return null;
     }
 
     /**
@@ -226,6 +240,8 @@ public class SkipList
         }
     }
 
+
+    // ------------------------------------------- start: test functions -----------------------------------------------
     /**
      *
      */

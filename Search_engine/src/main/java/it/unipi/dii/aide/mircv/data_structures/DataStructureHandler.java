@@ -414,8 +414,8 @@ public final class DataStructureHandler
      * @param termfreqChannel   file where read Term Frequency values
      * @return termfreq and docid compressed length
      */
-    public static ArrayList<Posting> readCompressedPostingListFromDisk(long offsetDocId, long offsetTermFreq, int termFreqSize, int docIdSize, int posting_size, FileChannel docidChannel, FileChannel termfreqChannel) {
-
+    public static ArrayList<Posting> readCompressedPostingListFromDisk(long offsetDocId, long offsetTermFreq, int termFreqSize, int docIdSize, int posting_size, FileChannel docidChannel, FileChannel termfreqChannel)
+    {
         ArrayList<Posting> uncompressed = new ArrayList<>();    // decompressed posting list
         byte[] docids = new byte[docIdSize];                    // array for the compressed DocID list
         byte[] tf = new byte[termFreqSize];                     // array for the compressed TermFreq list
@@ -444,4 +444,207 @@ public final class DataStructureHandler
         return null;
     }
 
+    /**
+     * Function to read and uncompress a whole posting list, compressed and divided in skipping block, stored into disk.
+     *
+     * @param sl                reference to the SkipList related to the PL
+     * @param offsetDocId       offset from where to start the read of the DocID values
+     * @param offsetTermFreq    offset from where to start the read of the Term Frequency values
+     * @param termFreqSize      size of the compressed Term Frequency values
+     * @param docIdSize         size of the compressed DocID values
+     * @param skipArrLen        the len of the skip info block array
+     * @param posting_size      posting list size
+     * @param docidChannel      file where read DocID values
+     * @param termfreqChannel   file where read Term Frequency values
+     * @return termfreq and docid compressed length
+     */
+    public static ArrayList<Posting> readAndUncompressCompressedAndSkippedPLFromDisk(SkipList sl, long offsetDocId, long offsetTermFreq, int termFreqSize, int docIdSize,int skipArrLen, int posting_size, FileChannel docidChannel, FileChannel termfreqChannel)
+    {
+        ArrayList<Posting> uncompressed = new ArrayList<>();    // decompressed posting list
+        SkipInfo currSkipInfo;                  //
+        byte[] docids;                          // array for the compressed DocID list
+        byte[] tf;                              // array for the compressed TermFreq list
+        int currOffsetDID = 0;  // the current offset (at each iteration) for the compressed DID
+        int currOffsetTF = 0;// the current offset (at each iteration) for the compressed TermFreq
+        int currDIDSize = 0;                    // the current size (at each iteration) for the compressed DID
+        int currTFSize = 0;                     // the current size (at each iteration) for the compressed TermFreq
+
+        //printDebug("---- readAndUncompressCompressedAndSkippedPLFromDisk ----");
+        //printDebug("DocID size: " + docIdSize + " termFreq size: " + termFreqSize);
+        //printDebug("Skip array len: " + skipArrLen + " PL len: " + posting_size);
+        //printDebug("SkipList: " + sl);
+        try {
+            MappedByteBuffer docidBuffer = docidChannel.map(FileChannel.MapMode.READ_ONLY, offsetDocId, docIdSize);
+            MappedByteBuffer termfreqBuffer = termfreqChannel.map(FileChannel.MapMode.READ_ONLY, offsetTermFreq, termFreqSize);
+
+            if (skipArrLen == 1)    // case of only one skipping block
+            {
+                docids = new byte[docIdSize];       // initialize the byte array for the compressed DID list
+                tf = new byte[termFreqSize];        // initialize the byte array for the compressed TF list
+
+                termfreqBuffer.get(tf, 0, termFreqSize);    // read term freq list
+                docidBuffer.get(docids, 0, docIdSize);     // read DocID list
+
+                ArrayList<Integer> uncompressedTf = Unary.integersDecompression(tf, posting_size);  // decompress term freq
+                ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(docids,true);    // decompress DocID
+                //printDebug("(0) Uncompressed tf (size " + uncompressedTf.size() + ") adn uncompressed DID (size " + uncompressedDocid.size() + "):");
+                for(int i = 0; i < posting_size; i++)
+                {
+                    //printDebug("docid: " + uncompressedDocid.get(i)  + " tf: " + uncompressedTf.get(i));
+                    uncompressed.add(new Posting(uncompressedDocid.get(i), uncompressedTf.get(i))); // add the posting to the posting list
+                }
+            }
+            else        // case of more than one skipping block
+            {
+                // read and uncompress all skipping block
+                for (int i = 0; i < skipArrLen; i++)
+                {
+                    currSkipInfo = sl.getSkipBlockInfo(i);  // get the skip info related to the i-th block
+                    // calculate the number of byte for each compressed list
+                    currDIDSize = (int) (currSkipInfo.getDocIdOffset() - currOffsetDID - offsetDocId);
+                    currTFSize = (int) (currSkipInfo.getFreqOffset() - currOffsetTF - offsetTermFreq);
+                    //printDebug("--SkipBlock " + i);
+                    //printDebug(" currDIDSize: " + currDIDSize + " -> DIDoffset: " + currSkipInfo.getDocIdOffset() + " currOffsetDID: " + currOffsetDID);
+                    //printDebug(" currTFSize: " + currTFSize + " -> TFoffset: " + currSkipInfo.getFreqOffset() + " currOffsetTF: " + currOffsetTF);
+                    // initialize the bytes array for the compressed list
+                    docids = new byte[currDIDSize];     // initialize the byte array for the compressed DID list
+                    tf = new byte[currTFSize];          // initialize the byte array for the compressed TF list
+                    // read the compressed block of the PL
+                    docidBuffer.get(docids, 0, currDIDSize);   // read DocID list
+                    termfreqBuffer.get(tf, 0, currTFSize);       // read term freq list
+
+                    // update current offset
+                    currOffsetDID += currDIDSize;
+                    currOffsetTF += currTFSize;
+
+                    // add the uncompressed PL block to the final uncompressed PL
+                    ArrayList<Integer> uncompressedTf;
+                    if ((i != (skipArrLen-1)) || (posting_size % SKIP_POINTERS_THRESHOLD == 0))        // last skipping block
+                        uncompressedTf = Unary.integersDecompression(tf, SKIP_POINTERS_THRESHOLD);  // decompress term freq
+                    else                            // is not the last skipping block
+                        uncompressedTf = Unary.integersDecompression(tf, (posting_size % SKIP_POINTERS_THRESHOLD));  // decompress term freq
+                    ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(docids,true);    // decompress DocID
+                    //printDebug("Uncompressed tf (size " + uncompressedTf.size() + ") adn uncompressed DID (size " + uncompressedDocid.size() + "):");
+                    for(int j = 0; j < uncompressedTf.size(); j++)
+                    {
+                        //printDebug("docid: " + uncompressedDocid.get(j)  + " tf: " + uncompressedTf.get(j));
+                        uncompressed.add(new Posting(uncompressedDocid.get(j), uncompressedTf.get(j))); // add the posting to the posting list
+                    }
+                }
+            }
+            //printDebug("termFreqSize(bytes): " + termFreqSize + " docIdSize: " + docIdSize + "\ntf len: " + tf.length + " docids len: " + docids.length);
+            return uncompressed;
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
+     *
+     *
+     * @param sl
+     * @param blockIndex        // indicates the index of the PL block to read
+     * @param offsetTermFreq
+     * @param termFreqSize
+     * @param skipArrLen
+     * @param termfreqChannel
+     * @return
+     */
+    public static byte[] readCompTFBlockFromDisk(SkipList sl, int blockIndex, long offsetTermFreq, int termFreqSize, int skipArrLen, FileChannel termfreqChannel)
+    {
+        SkipInfo currSkipInfo;              // SkipInfo related to current (at each iteration) block
+        byte[] tf;                          // array for the compressed TermFreq list
+        int startOffsetTF;                  // the current offset (at each iteration) for the compressed TermFreq
+        int sizeToReadTF = 0;               // the current size (at each iteration) for the compressed TermFreq
+
+        // control check of boundaries
+        if ( (blockIndex < 0) || (blockIndex >= skipArrLen))
+            return null;
+
+        // set currOffsetTF
+        if (blockIndex == 0)
+            startOffsetTF = (int) offsetTermFreq;
+        else
+            startOffsetTF = (int) sl.getSkipBlockInfo(blockIndex-1).getFreqOffset();
+
+        currSkipInfo = sl.getSkipBlockInfo(blockIndex);  // get the skip info related to the blockIndex-th block
+
+        // case of only one skipping block and want to read the first block
+        if (skipArrLen == 1)
+            sizeToReadTF = termFreqSize;
+        else        // case of more than one skipping block
+        {
+            // calculate the number of byte for each compressed list
+            sizeToReadTF = (int) (currSkipInfo.getFreqOffset() - startOffsetTF);
+        }
+        //printDebug("--Required block: " + blockIndex + " termFreqSize: " + termFreqSize);
+        //printDebug(" sizeToReadTF: " + sizeToReadTF + " -> TFoffset: " + currSkipInfo.getFreqOffset() + " startOffsetTF: " + startOffsetTF + " offsetTermFreq: " + offsetTermFreq);
+
+        try {
+            MappedByteBuffer termfreqBuffer = termfreqChannel.map(FileChannel.MapMode.READ_ONLY, startOffsetTF, sizeToReadTF);
+
+            tf = new byte[sizeToReadTF];        // initialize the byte array for the compressed TF list
+            termfreqBuffer.get(tf, 0, sizeToReadTF);       // read the TF compressed block of the PL
+            return tf;
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
+     *
+     * @param sl
+     * @param blockIndex
+     * @param offsetDocId
+     * @param docIdSize
+     * @param skipArrLen
+     * @param docidChannel
+     * @return
+     */
+    public static byte[] readCompDIDBlockFromDisk(SkipList sl, int blockIndex, long offsetDocId, int docIdSize,int skipArrLen, FileChannel docidChannel)
+    {
+        SkipInfo currSkipInfo;          // SkipInfo related to current (at each iteration) block
+        byte[] docids;                  // array for the compressed TermFreq list
+        int startOffsetDID;                  // the current offset (at each iteration) for the compressed TermFreq
+        int sizeToReadDID = 0;               // the current size (at each iteration) for the compressed TermFreq
+
+        // control check of boundaries
+        if ( (blockIndex < 0) || (blockIndex >= skipArrLen))
+            return null;
+
+        // set currOffsetTF
+        if (blockIndex == 0)
+            startOffsetDID = (int) offsetDocId;
+        else
+            startOffsetDID = (int) sl.getSkipBlockInfo(blockIndex-1).getDocIdOffset();
+
+        currSkipInfo = sl.getSkipBlockInfo(blockIndex);  // get the skip info related to the blockIndex-th block
+
+        // case of only one skipping block and want to read the first block
+        if (skipArrLen == 1)
+            sizeToReadDID = docIdSize;       // initialize the byte array for the compressed DID list
+        else        // case of more than one skipping block
+        {
+            // calculate the number of byte for each compressed list
+            sizeToReadDID = (int) (currSkipInfo.getDocIdOffset() - startOffsetDID);
+        }
+        //printDebug("--Required block: " + blockIndex + " docIdSize: " + docIdSize);
+        //printDebug(" sizeToReadDID: " + sizeToReadDID + " -> DIDoffset: " + currSkipInfo.getDocIdOffset() + " startOffsetDID: " + startOffsetDID + " offsetDocId: " + offsetDocId);
+
+        try {
+            MappedByteBuffer docidBuffer = docidChannel.map(FileChannel.MapMode.READ_ONLY, startOffsetDID, sizeToReadDID);
+
+            docids = new byte[sizeToReadDID];          // initialize the byte array for the compressed DID list
+            docidBuffer.get(docids, 0, sizeToReadDID);   // read the DID compressed block of the PL
+            return docids;
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 }
