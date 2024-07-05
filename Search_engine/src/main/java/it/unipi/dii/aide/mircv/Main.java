@@ -33,14 +33,15 @@ public class Main
             printUI(
                     "\n********** SEARCH ENGINE **********" +
                     "\n\tSelect an option:" +
-                    "\n\t  m -> try merge only" +
+                    "\n\t- Functionalities:" +
                     "\n\t  i -> build the index" +
-                    "\n\t  d -> offset debug" +
+                    "\n\t  q -> query mode" +
                     "\n\t  u -> calculate term upper bound" +
                     "\n\t  f -> see or change flags" +
+                    "\n\t- Statistics:" +
                     "\n\t  s -> see files size" +
                     "\n\t  c -> see collection statistics" +
-                    "\n\t  q -> query mode" +
+                    "\n\t- Test:" +
                     "\n\t  t -> query test mode" +
                     "\n\t  r -> compression test" +
                     "\n\t  x -> exit" +
@@ -50,24 +51,6 @@ public class Main
             // switch to run user's choice
             switch (mode)
             {
-                case "m":       // per debugging, prova solo il merge
-
-                    delete_mergedFiles();
-                    //setCompression(true);  // take user preferences on the compression
-
-                    DataStructureHandler.readBlockOffsetsFromDisk();
-
-                    setSws(getUserChoice(sc, "stopwords removal"));    // take user preferences on the removal of stopwords
-                    setCompression(getUserChoice(sc, "compression"));  // take user preferences on the compression
-                    setScoring(getUserChoice(sc, "scoring"));          // take user preferences on the scoring
-                    storeFlagsIntoDisk();      // store Flags
-
-                    startTime = System.currentTimeMillis();         // start time to merge blocks from disk
-                    IndexMerger.mergeBlocks();                      // merge
-                    endTime = System.currentTimeMillis();           // end time to merge blocks from disk
-                    printTime( "Merged in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
-
-                    continue;                                   // go next while cycle
                 case "r":       // execute compression and decompression test
 
                     compressionTest();
@@ -76,13 +59,6 @@ public class Main
                 case "i":       // calculate the indexing
 
                     makeIndexing(true, sc);             // make the inverted index
-
-                    continue;                           // go next while iteration
-                case "d":
-
-                    queryStartControl();
-                    String term = "0000";
-                    printDebug(QueryProcessor.dictionary.getTermStat(term).toString());
 
                     continue;                           // go next while iteration
                 case "u":       // load or calculate the Term Upper Bound
