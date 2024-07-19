@@ -15,17 +15,11 @@ import static it.unipi.dii.aide.mircv.utils.Constants.*;
 public final class Flags
 {
     private static int numberOfFlags = 5;       // indicates the number of flags (to be read or write into or from disk)
-    private static boolean sws_flag = false;            // true = stop words removal enabled, false = stop words removal disabled
+    private static boolean sws_flag = false;            // true = stop words removal and stemming enabled, false = stop words removal and stemming disabled
     private static boolean compression_flag = false;    // true = compression enabled, false = compression disabled
     private static boolean scoring_flag = false;        // true = scoring enable, false = scoring disable
     private static boolean skip_flag = false;           // true = skipping enable, false = skipping disable
-    private static boolean qdPruning_flag = false;      // // true = query executed with dynamic pruning algorithm (WAND), false = query executed with classic DAAT algorithm
-
-    /*
-    private static boolean isSPIMI = false;
-    private static boolean isMerge = false;
-    private static boolean isQuery = false;
-    */
+    private static boolean qdPruning_flag = false;      // true = query executed with dynamic pruning algorithm (Max Score), false = query executed with classic DAAT algorithm
 
     // -- start -- get method
     public static boolean isSwsEnabled() { return sws_flag; }
@@ -165,12 +159,4 @@ public final class Flags
 
         return docFlags.exists();
     }
-
-//    public static boolean isSPIMI() {
-//        return isSPIMI;
-//    }
-//
-//    public static void setIsSPIMI(boolean isSPIMI) {
-//        Flags.isSPIMI = isSPIMI;
-//    }
 }

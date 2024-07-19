@@ -40,8 +40,8 @@ public final class PartialIndexBuilder
         int minlenDoc = 100000;     // len of the shortest doc in the collection
         int maxLenDoc = 0;          // len of the longest doc in the collection
         int maxTermFreq = 0;        // max termFreq in the collection
-        int tempCurrTF = 0;         //
-        int malformedDocs = 0;      //
+        int tempCurrTF = 0;         // contains the TermFrq of the term in the current iteration
+        int malformedDocs = 0;      // the number of malformed doc in the collection
 
         printDebug("The memory available for each block is: " + memoryAvailable + " bites ( " + (double)((double)memoryAvailable/(double)1073741824) + " GB)");
 
@@ -68,6 +68,7 @@ public final class PartialIndexBuilder
 
                 ArrayList<String> preprocessed = TextProcessor.preprocessText(record); // Preprocessing of document text
                 String docno = preprocessed.remove(0);      // get the DocNO of the current document
+                //printDebug("DocNO: " + docno + " DID: " + docCounter);
 
                 // check if document is empty
                 if (preprocessed.isEmpty() || (preprocessed.size() == 1 && preprocessed.get(0).equals("")))

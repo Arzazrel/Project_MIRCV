@@ -581,7 +581,6 @@ public final class DataStructureHandler
         }
         //printDebug("--Required block: " + blockIndex + " termFreqSize: " + termFreqSize);
         //printDebug(" sizeToReadTF: " + sizeToReadTF + " -> TFoffset: " + currSkipInfo.getFreqOffset() + " startOffsetTF: " + startOffsetTF + " offsetTermFreq: " + offsetTermFreq);
-
         try {
             MappedByteBuffer termfreqBuffer = termfreqChannel.map(FileChannel.MapMode.READ_ONLY, startOffsetTF, sizeToReadTF);
 

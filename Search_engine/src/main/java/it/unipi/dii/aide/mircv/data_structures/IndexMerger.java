@@ -165,6 +165,8 @@ public final class IndexMerger
                         // check if the skipping flags is true and if the posting list length is greater than the minimum value for the skipping
                         if(Flags.considerSkippingBytes() && (lenPL > SKIP_POINTERS_THRESHOLD) )
                         {   // -- start - if 0.1.1
+                            //printDebug("For term '" + currentDE.getTerm() + "' the len of PL is: " + lenPL);
+                            //int sumSubPLLen = 0;
                             // number of postings in each skipping block, one skipping block every rad(postingListLength)
                             //int skipInterval = (int) Math.ceil(Math.sqrt(lenPL));
                             int skipInterval = SKIP_POINTERS_THRESHOLD;     // number of postings in each skipping block
@@ -182,6 +184,7 @@ public final class IndexMerger
                             {
                                 List<Posting> subPL = tempPL.subList(i, min(i + skipInterval, lenPL));  // take the sublist to put in this skipping block
                                 ArrayList<Posting> tempSubPL = new ArrayList<>(subPL);
+                                //sumSubPLLen += subPL.size();
 
                                 // -- part of statistics --
                                 currBlockDIDGap = (double) (subPL.get(subPL.size() - 1).getDocId() - subPL.get(0).getDocId()) / subPL.size();
@@ -228,6 +231,8 @@ public final class IndexMerger
 
                             // part of the collection statistics
                             avgBlockDIDGapInPL += currBlockListDIDGap / nSkip;
+
+                            //printDebug("The sum of the sublist: " + sumSubPLLen);
                         }   // -- end - if 0.1.1
                         else if(Flags.considerSkippingBytes())      // the posting list is too small only one block
                         {   // -- start - else if 0.1.1
@@ -245,6 +250,8 @@ public final class IndexMerger
                             sp.storeSkipInfoToDisk(outSkipChannel);     // store skip info in the file into disk
                             tempDE.setSkipArrLen(1);                    // save the number of skipping block
                             tempDE.setSkipOffset(outSkipChannel.size()-((long) SKIPPING_INFO_SIZE));    // save the offset of the first skipping box
+
+                            //sumSubPLLen += tempPL.size();
                         }   // -- end - else if 0.1.1
                         else                    // the skipping is not enabled
                         {   // -- end - else 0.1.1
@@ -259,6 +266,7 @@ public final class IndexMerger
                                 storePostingListIntoDisk(tempPL, outTermFreqChannel, outDocIdChannel);  // write InvertedIndexElem to disk
                         }   // -- end - else 0.1.1
 
+                        //printDebug("The sum of the len of the subLen is: " + sumSubPLLen);
                         tempDE.storeDictionaryElemIntoDisk(outDictionaryChannel);       // store dictionary
 
                         //set temp variables values
@@ -295,7 +303,8 @@ public final class IndexMerger
     /**
      * class to define TermBlock. The priority queue contains instances of TermBlock
      */
-    private static class TermBlock {
+    private static class TermBlock
+    {
         String term;    // string of the term related to TermBlock
         int block;      // reference to the id of the block in which are the data
 

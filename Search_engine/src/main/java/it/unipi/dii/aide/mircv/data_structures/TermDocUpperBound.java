@@ -11,6 +11,7 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 
 import static it.unipi.dii.aide.mircv.data_structures.DocumentElement.*;
@@ -65,6 +66,7 @@ public class TermDocUpperBound
         startTime = System.currentTimeMillis();            // start time to calculate all term upper bound
 
         termsList = new ArrayList<>(QueryProcessor.getDictionary().keySet());   // read all the term of the dictionary
+        Collections.sort(termsList);                        // order the list +++++++++++++++++
         scoringFunc = Flags.isScoringEnabled();             // take user's choice about using scoring function
 
         // scan all term in the dictionary
@@ -85,6 +87,7 @@ public class TermDocUpperBound
             }
         }
         endTime = System.currentTimeMillis();           // end time to calculate all term upper bound
+        printDebug("The size of dictionary is : " + QueryProcessor.getDictionary().size() + " and the len of arraylist of the term is: " + termsList.size());
         // shows term upper bound calculation time
         printTime("Calculated all term upper bound( " + termCount + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
@@ -242,6 +245,7 @@ public class TermDocUpperBound
         printLoad("Loading terms upper bound into disk...");
 
         termsList = new ArrayList<>(QueryProcessor.getDictionary().keySet());   // retrieve all the term of the dictionary
+        Collections.sort(termsList);                        // order the list +++++++++++++++++
         /*
         printDebug("In term upper bound table (before the read from file).");
         printDebug("Position 0 -> term: " + termsList.get(0) + " and TUB: " + termUpperBoundTable.get(termsList.get(0)));
