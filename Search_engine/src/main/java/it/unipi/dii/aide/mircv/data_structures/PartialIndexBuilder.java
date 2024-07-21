@@ -73,11 +73,11 @@ public final class PartialIndexBuilder
                 // check if document is empty
                 if (preprocessed.isEmpty() || (preprocessed.size() == 1 && preprocessed.get(0).equals("")))
                 {
-                    emptyDocs++;
-                    continue;              // skip to next while iteration (next document)
+                    emptyDocs++;        // update counter for empry documents
+                    continue;           // skip to next while iteration (next document)
                 }
 
-                // to collect collection statistics
+                // -- to collect collection statistics --
                 if (preprocessed.size() < minlenDoc)
                 {
                     minlenDoc = preprocessed.size();
@@ -86,6 +86,7 @@ public final class PartialIndexBuilder
                 {
                     maxLenDoc = preprocessed.size();
                 }
+                // -- to collect collection statistics --
 
                 DocumentElement de = new DocumentElement(docno, docCounter, preprocessed.size());   // create new Document element
                 documentTable.put(docCounter, de);      // add current Document into Document Table in memory
@@ -102,14 +103,15 @@ public final class PartialIndexBuilder
                         termCounter++;                          // update TermID counter
 
                     assert !term.equals("");
-                    DictionaryElem dictElem = dictionary.getOrCreateTerm(term,termCounter);     // Dictionary build
+                    DictionaryElem dictElem = dictionary.getOrCreateTerm(term);     // Dictionary build
 
-                    // check if the term is already find in this doc or it is the first time
+                    // check if the term is already find in this doc (return false) or it is the first time (return true)
                     if(addTerm(term, docCounter, 0))
+                    {
                         dictElem.addDf(1);  // update document frequency (number of docs in which there is the term)
+                        N_POSTINGS++;       // update number of partial postings to save in the file
+                    }
                     dictElem.addCf(1);  // update collection frequency (number of occurrences of the term in the collection)
-
-                    N_POSTINGS++;       // update number of partial postings to save in the file
 
                     tempCurrTF = invertedIndex.get(term).get(invertedIndex.get(term).size() - 1).getTermFreq();
                     if (tempCurrTF > maxTermFreq)
@@ -133,17 +135,16 @@ public final class PartialIndexBuilder
             printDebug("Malformed docs: " + malformedDocs);
             printDebug("The number of empty docs is: " + emptyDocs + " the shortest doc have len of: " + minlenDoc + " the longest doc have len of: " + maxLenDoc + " the max TermFreq is: " + maxTermFreq);
             // calculate and store collection statistics values
-            avgDocLen = (double) totDocLen / docCounter;    // set average doc len
-
-            CollectionStatistics.setNDocs(docCounter);          // set total number of Document in the collection
+            avgDocLen = (double) totDocLen / (docCounter - 1);    // set average doc len
+            // store
+            CollectionStatistics.setNDocs((docCounter - 1));    // set total number of Document in the collection
             CollectionStatistics.setTotDocLen(totDocLen);       // set the sum of the all document length in the collection
             CollectionStatistics.setAvgDocLen(avgDocLen);       // set the Doc average len
             CollectionStatistics.setEmptyDocs(emptyDocs);       // set the number of empty docs in the collection
             CollectionStatistics.setMinLenDoc(minlenDoc);       // set the len of the shortest doc in the collection
             CollectionStatistics.setMaxLenDoc(maxLenDoc);       // set the len of the longest doc in the collection
             CollectionStatistics.setMaxTermFreq(maxTermFreq);   // set the max termFreq in the collection
-            CollectionStatistics.storeCollectionStatsIntoDisk();    // store collection statistics into disk
-
+            CollectionStatistics.storeCollectionStatsIntoDisk();// store collection statistics into disk
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -154,7 +155,7 @@ public final class PartialIndexBuilder
      *
      * @param term  the term passed as parameter
      * @param docId the docID of the current document
-     * @param tf    the
+     * @param tf    indicate if is during index construction 8value = 0) or not (other value)
      * @return false if the term has been already encountered in the current document,
      *         true if the term has been encountered for the first time in the current document or if the term was for
      *              the first time encountered
@@ -176,24 +177,28 @@ public final class PartialIndexBuilder
             invertedIndex.get(term).add(new Posting(docId, termFreq));  // Add a new posting for the current doc
 
             // Print term frequency and term frequency in the current posting (only during index construction)
-            if (tf != 0)
-                printDebug("SPIMI(add term): term: " + term + "TF: " + tf + " TERMFREQ: " + termFreq);
+            if (tf == 0)
+                printDebug("SPIMI(add term | new term in DOC) -> term: " + term + " and DID: " + docId + " TF: " + tf + " TERMFREQ: " + termFreq + " TermFreq of the posting: " + invertedIndex.get(term).get(size - 1).getTermFreq());
 
             return true;    // it's a new doc for this term -> Increment df
         }
         else    // term
         {
-            invertedIndex.get(term).get(size - 1).addTermFreq(1); // Increment the term frequency for the current doc
+            invertedIndex.get(term).get(size - 1).addTermFreq(1); // Increment the term frequency for the current doc (in the posting of the posting list)
+
+            if (tf == 0)
+                printDebug("SPIMI(add term | already) -> term: " + term + " and DID: " + docId + " TF: " + tf + " TERMFREQ: " + termFreq + " TermFreq of the posting: " + invertedIndex.get(term).get(size - 1).getTermFreq());
             return false;   // this term has already been found in this doc -> no need to increment df
         }
     }
 
-    // method to free memory by deleting the information in document table, dictionary,and inverted index
+    /**
+     * Method to free memory by deleting the information in document table, dictionary,and inverted index.
+     */
     private static void freeMemory()
     {
         documentTable.clear();
         dictionary.getTermToTermStat().clear();
         invertedIndex.clear();
     }
-
 }
