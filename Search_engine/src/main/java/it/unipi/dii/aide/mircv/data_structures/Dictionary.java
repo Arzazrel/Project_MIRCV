@@ -33,7 +33,7 @@ public class Dictionary
      *
      * @param term          the term (string) searched or to be created
      */
-    public DictionaryElem getOrCreateTerm(String term, int termCounter)
+    public DictionaryElem getOrCreateTerm(String term)
     {
         return termToTermStat.computeIfAbsent(term, t -> new DictionaryElem(term));
     }
