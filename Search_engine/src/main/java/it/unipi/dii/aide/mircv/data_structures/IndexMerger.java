@@ -24,12 +24,10 @@ public final class IndexMerger
     // Priority queue which will contain the first term (in lexicographic order) of each block. Used for merge and to
     // take from all the blocks the terms in the right order.
     private static final PriorityQueue<TermBlock> pq = new PriorityQueue<>(dictionaryBlockOffsets.size() == 0 ? 1 : dictionaryBlockOffsets.size(), new CompareTerm());
-
     private IndexMerger() {
         throw new UnsupportedOperationException();
     }
-
-    static int i = 0;       // counter used only for control prints
+    //static int i = 0;       // counter used only for control prints
 
     /**
      *  function to merge the block of the inverted index
@@ -41,21 +39,20 @@ public final class IndexMerger
         MappedByteBuffer buffer;
         // array containing the current read pointer offset for each block
         ArrayList<Long> currentBlockOffset = new ArrayList<>(nrBlocks);
-        currentBlockOffset.addAll(dictionaryBlockOffsets);      // set the offset for each blocks, at the beginning are set to the start of block offset
+        currentBlockOffset.addAll(dictionaryBlockOffsets);      // set the offset for each block, at the beginning are set to the start of block offset
         // var to the collection statistics
         double avgDIDGapInPL = 0;           // the average gap between DID of the same posting list
         double minAvgDIDGapInPL = 1000;     // the min avg gap between DID of the same posting list
         double maxAvgDIDGapInPL = 0;        // the max avg gap between DID of the same posting list
-        double currDIDGap = 0;
+        double currDIDGap = 0;              //
         double avgBlockDIDGapInPL = 0;      // the average gap between DID of the same block
         double minBlockAvgDIDGapInPL = 1000;// the min avg gap between DID of the same block
         double maxBlockAvgDIDGapInPL = 0;   // the max avg gap between DID of the same block
-        double currBlockDIDGap = 0;
-        double currBlockListDIDGap = 0;
+        double currBlockDIDGap = 0;         //
+        double currBlockListDIDGap = 0;     //
 
         printLoad("Merging partial files...");                     // print of the merging start
         // var which indicates the steps of 'i' progression print during merge
-        //printDebug("Compression " + Flags.isCompressionEnabled());
 
         // open file and create channels for reading the partial dictionary and index file and write the complete index and dictionary file
         try (
@@ -94,7 +91,6 @@ public final class IndexMerger
             ArrayList<Posting> tempPL = new ArrayList<>();      // empty temporary PostingList, contains the accumulated data for each term
             DictionaryElem currentDE = new DictionaryElem();    // current DictionaryElem, contains the data taken from the queue in the current iteration
             ArrayList<Posting> currentPL;   // current PostingList, contains the data taken from the queue in the current iteration
-
             TermBlock currentTermBlock;     // var that contain the TermBlock extract from pq in the current iteration
             String term = "";   // var that contain the Term of the TermBlock extract from pq in the current iteration
             int block_id = -1;  // var that contain the blockID of the TermBlock extract from pq in the current iteration
@@ -108,7 +104,7 @@ public final class IndexMerger
                 block_id = currentTermBlock.getBlock();     // get the blockID
 
                 // If condition to verify if there are other elements -> SEE NOTE 2
-                if (currentBlockOffset.get(block_id) + getDictElemSize()  < (block_id == (currentBlockOffset.size()-1) ? dictChannel.size() : dictionaryBlockOffsets.get(block_id +1)))
+                if ( (currentBlockOffset.get(block_id) + getDictElemSize()) < (block_id == (currentBlockOffset.size()-1) ? dictChannel.size() : dictionaryBlockOffsets.get(block_id +1)))
                 {
                     buffer = dictChannel.map(FileChannel.MapMode.READ_ONLY, currentBlockOffset.get(block_id) + getDictElemSize(), TERM_DIM); // get first element of the block
                     String[] t = StandardCharsets.UTF_8.decode(buffer).toString().split("\0");      // get the term of element
@@ -122,12 +118,12 @@ public final class IndexMerger
 
                 if (tempDE.getTerm().equals(""))    // first iteration
                 {   // -- start - if 0
+                    //printDebug("Merge -> first iteration, tempDE term null");
                     //set temp variables values with value of the element taken in the current iteration
                     tempDE = currentDE;
                     tempDE.setOffsetTermFreq(outTermFreqChannel.size());
                     tempDE.setOffsetDocId(outDocIdChannel.size());
                     tempPL = currentPL;
-
                 }   // -- end - if 0
                 else                                // is not the first iteration
                 {   // -- start - else 0- isn't the first term --
@@ -276,12 +272,10 @@ public final class IndexMerger
                 }   // -- end - else 0- isn't the first term --
 
                 currentDE = new DictionaryElem();   // create new element of the dictionary
-                i++;
+                //i++;
                 // update the offset of next element to read from the block read in this iteration
                 currentBlockOffset.set(block_id, currentBlockOffset.get(block_id) + getDictElemSize());
             }   // -- end - while 0
-
-            printDebug("Merge ended, total number of iterations (i) is: " + i);
 
             CollectionStatistics.setAvgDIDGapInPL(avgDIDGapInPL / CollectionStatistics.getNDocs());
             CollectionStatistics.setMinAvgDIDGapInPL(minAvgDIDGapInPL);
@@ -293,8 +287,7 @@ public final class IndexMerger
                 CollectionStatistics.setMaxBlockAvgDIDGapInPL(maxBlockAvgDIDGapInPL);
             }
             CollectionStatistics.storeCollectionStatsIntoDisk();    // store
-//            delete_tempFiles();                                                                       !!!!!!!!!!!!!!!!
-
+            //delete_tempFiles();       // delete the partial file for save sapce into disk                                                                       !!!!!!!!!!!!!!!!
         } catch (IOException e) {
             e.printStackTrace();
         }

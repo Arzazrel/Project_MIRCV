@@ -113,6 +113,9 @@ public final class PartialIndexBuilder
                     }
                     dictElem.addCf(1);  // update collection frequency (number of occurrences of the term in the collection)
 
+                    //if (term.equals("giovanni"))
+                    //    printDebug("SPIMI(after add term) -> term: " + term + " DocFreq: " + dictElem.getDf() + " Collection Freq: " + dictElem.getCf());
+
                     tempCurrTF = invertedIndex.get(term).get(invertedIndex.get(term).size() - 1).getTermFreq();
                     if (tempCurrTF > maxTermFreq)
                         maxTermFreq = tempCurrTF;
@@ -122,6 +125,7 @@ public final class PartialIndexBuilder
                 if(Runtime.getRuntime().totalMemory() > memoryAvailable)
                 {
                     printDebug("********** Memory full **********");
+                    //printDebug("N_POSTINGS: " + N_POSTINGS);
                     storeIndexAndDictionaryIntoDisk();  //store index and dictionary to disk
                     storeDocumentTableIntoDisk();       // store document table one document at a time for each block
                     freeMemory();   // delete information in document table, dictionary,and inverted index
@@ -130,10 +134,20 @@ public final class PartialIndexBuilder
                     N_POSTINGS = 0;     // new partial index, reset number of postings in the block
                 }
             }   // -- end - while 0 - scan all docs --
-            DataStructureHandler.storeBlockOffsetsIntoDisk();   // store into file all the blocks offset
+            //printDebug(dictionary.getTermToTermStat().size() + " terms stored in block " + (dictionaryBlockOffsets.size()-1));
+            //printDebug("N_POSTINGS: " + N_POSTINGS);
+            //printDebug("Malformed docs: " + malformedDocs);
+            //printDebug("The number of empty docs is: " + emptyDocs + " the shortest doc have len of: " + minlenDoc + " the longest doc have len of: " + maxLenDoc + " the max TermFreq is: " + maxTermFreq);
 
-            printDebug("Malformed docs: " + malformedDocs);
-            printDebug("The number of empty docs is: " + emptyDocs + " the shortest doc have len of: " + minlenDoc + " the longest doc have len of: " + maxLenDoc + " the max TermFreq is: " + maxTermFreq);
+            // save the last block
+            ///*
+            storeIndexAndDictionaryIntoDisk();  //store index and dictionary to disk
+            storeDocumentTableIntoDisk();       // store document table one document at a time for each block
+            freeMemory();   // delete information in document table, dictionary,and inverted index
+            System.gc();    // effort JVM
+            //*/
+
+            DataStructureHandler.storeBlockOffsetsIntoDisk();   // store into file all the blocks offset
             // calculate and store collection statistics values
             avgDocLen = (double) totDocLen / (docCounter - 1);    // set average doc len
             // store
@@ -177,8 +191,9 @@ public final class PartialIndexBuilder
             invertedIndex.get(term).add(new Posting(docId, termFreq));  // Add a new posting for the current doc
 
             // Print term frequency and term frequency in the current posting (only during index construction)
-            if (tf == 0)
-                printDebug("SPIMI(add term | new term in DOC) -> term: " + term + " and DID: " + docId + " TF: " + tf + " TERMFREQ: " + termFreq + " TermFreq of the posting: " + invertedIndex.get(term).get(size - 1).getTermFreq());
+            //if (tf == 0)
+            //if ((tf == 0) && (term.equals("giovanni")))
+            //    printDebug("SPIMI(add term | new term in DOC) -> term: " + term + " and DID: " + docId + " TERMFREQ: " + termFreq + " TermFreq of the posting: " + invertedIndex.get(term).get(size).getTermFreq());
 
             return true;    // it's a new doc for this term -> Increment df
         }
@@ -186,8 +201,9 @@ public final class PartialIndexBuilder
         {
             invertedIndex.get(term).get(size - 1).addTermFreq(1); // Increment the term frequency for the current doc (in the posting of the posting list)
 
-            if (tf == 0)
-                printDebug("SPIMI(add term | already) -> term: " + term + " and DID: " + docId + " TF: " + tf + " TERMFREQ: " + termFreq + " TermFreq of the posting: " + invertedIndex.get(term).get(size - 1).getTermFreq());
+            //if (tf == 0)
+            //if ((tf == 0) && (term.equals("giovanni")))
+            //    printDebug("SPIMI(add term | already) -> term: " + term + " and DID: " + docId + " TERMFREQ: " + termFreq + " TermFreq of the posting: " + invertedIndex.get(term).get(size - 1).getTermFreq());
             return false;   // this term has already been found in this doc -> no need to increment df
         }
     }
