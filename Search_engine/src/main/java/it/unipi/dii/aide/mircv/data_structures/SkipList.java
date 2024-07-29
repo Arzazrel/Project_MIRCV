@@ -70,7 +70,7 @@ public class SkipList
         skipInterval = SKIP_POINTERS_THRESHOLD;                         // calculate the skip interval
         this.skipArrLen = skipArrLen;                                   // take skipArrLen
 
-        if (lenPL > SKIP_POINTERS_THRESHOLD)
+        if (Flags.considerSkippingBytes())
             points = getSkipArrayFromDisk(skipOffset, skipArrLen);      // get the array of skipInfo
         else
         {
