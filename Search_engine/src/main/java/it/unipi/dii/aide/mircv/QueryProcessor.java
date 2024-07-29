@@ -770,7 +770,6 @@ public final class QueryProcessor
         double[] IDFweight;                 // array containing the IDF weight for each posting list
         int[] lengthPostingList;            // array containing the length of the posting lists
         int[] postingListsIndex;            // contain the current position index for the posting list of each term in the query
-        SkipList[] skipListArray;           // ++++++++++++++++++++
         Posting currentP;                   // support var
         int firstEssPostListIndex = 0;      // indicates the index of the first (current) essential posting list
         double threshold = 0;               // var that contain the current threshold for MaxScore (is the minimum score value to be in the current best result)
@@ -807,7 +806,6 @@ public final class QueryProcessor
         postingListsIndex = getPostingListsIndex(postingLists);                 // get the index initialized
         lengthPostingList = retrieveLengthAllPostingLists(orderedQueryTerm);    // take the length of each posting list
         IDFweight = calculateIDFWeight(lengthPostingList);                      // calculate the IDF weight
-        skipListArray = SetAllSkipList(orderedQueryTerm, postingLists);         // +++++++
         // control print
         //printDebug("orderedQueryTerm -> " + Arrays.toString(orderedQueryTerm));
         //printDebug("termUpperBoundList -> " + Arrays.toString(termUpperBoundList));
@@ -1633,8 +1631,7 @@ public final class QueryProcessor
             if (computeStats)
                 CollectionStatistics.addTFOccToTermFreqTable(p.getTermFreq());
         }
-
-        printDebug("Term upper bound for term: " + term + " is: " + maxScore);  // control print
+        //printDebug("Term upper bound for term: " + term + " is: " + maxScore);  // control print
         return maxScore;        // return term upper bound
     }
 
@@ -2211,7 +2208,8 @@ public final class QueryProcessor
     private static ArrayList<Integer> getRankedResults(int numResults)
     {
         ArrayList<Integer> rankedResults = new ArrayList<>();   // array list to contain the top "numResults" docs
-        long startTime, endTime;            // variables to calculate the execution time
+        String currDocNO;           // indicates the DocNO of the current document in the result (top 'numResults' docs)
+        long startTime, endTime;    // variables to calculate the execution time
 
         if (numResults <= 0)        // control check
             return rankedResults;
@@ -2224,8 +2222,14 @@ public final class QueryProcessor
         while(!resPQ.isEmpty())                         // control if the priority queue for results is empty
         {
             //printDebug("Taken: " + resPQ.peek().getDID() + " with score: " + resPQ.peek().getScore());
-            currentResPQ = resPQ.poll();                            // take the lowest element (score and DID)
-            results.add(currentResPQ.getDID());                     // add to the array list
+            currentResPQ = resPQ.poll();                                    // take the lowest element (score and DID)
+            currDocNO = documentTable.get(currentResPQ.getDID()).getDocno();// take the DocNo related to the DID
+            try{
+                results.add(Integer.valueOf(currDocNO));                    // add to the array list
+            }
+            catch (NumberFormatException ex){
+                ex.printStackTrace();
+            }
         }
         // order the result from the best to the worst (reverse order of the priority queue)
         rankedResults = new ArrayList<Integer>(results);     // Create an ArrayList object
@@ -2548,25 +2552,6 @@ public final class QueryProcessor
     }
 
     /**
-     * Function to create an array for the updating of the posting lists index
-     *
-     * @param processedQuery  ArrayList of the processed terms of the query
-     * @return  an array of false value
-     */
-    private static boolean[] updatePostListIndexInit (ArrayList<String> processedQuery)
-    {
-        boolean[] updatePostListIndex = new boolean[processedQuery.size()];
-
-        // set the index to 0 for each posting lists of the term in the query
-        for (int i = 0; i < processedQuery.size(); i++)
-        {
-            updatePostListIndex[i] = false;
-        }
-
-        return updatePostListIndex;
-    }
-
-    /**
      * Function for boolean search, used in max score without skipping.
      */
     private static int booleanSearch(List<Posting> tempList, int targetDID)
@@ -2814,13 +2799,13 @@ public final class QueryProcessor
         int queryCount = 0;             // indicates how many queries have been made
         long startTime, endTime;        // variables to calculate the execution time
         long fasterQueryCon = 100000;   // indicates the execution time for the fastest query in the collection (conjunctive)
-        String quidFastCon = "";        // indicates the QUID of the fastest query in the collection (conjunctive)
+        int quidFastCon = 0;            // indicates the query counter of the fastest query in the collection (conjunctive)
         long slowerQueryCon = 0;        // indicates the execution time for the slowest query in the collection (conjunctive)
-        String quidSlowCon = "";        // indicates the QUID of the slowest query in the collection (conjunctive)
+        int quidSlowCon = 0;            // indicates the query counter of the slowest query in the collection (conjunctive)
         long fasterQueryDis = 100000;   // indicates the execution time for the fastest query in the collection (disjunctive)
-        String quidFastDis = "";        // indicates the QUID of the fastest query in the collection (disjunctive)
+        int quidFastDis = 0;            // indicates the query counter of the fastest query in the collection (disjunctive)
         long slowerQueryDis = 0;        // indicates the execution time for the slowest query in the collection (disjunctive)
-        String quidSlowDis = "";        // indicates the QUID of the slowest query in the collection (disjunctive)
+        int quidSlowDis = 0;            // indicates the query counter of the slowest query in the collection (disjunctive)
         long avgExTimeCon = 0;          // indicate the average execution time for the queries in the collection (conjunctive)
         long avgExTimeDis = 0;          // indicate the average execution time for the queries in the collection (disjunctive)
 
@@ -2842,6 +2827,14 @@ public final class QueryProcessor
                 TermDocUpperBound.calculateTermsUpperBound(false);   // calculate term upper bound for each term of dictionary
         }
 
+        /*
+        public final static String COLLECTION_PATH = RES_FOLDER + "collection.tar.gz";
+        File file = new File(COLLECTION_PATH);
+        try (
+            final TarArchiveInputStream tarArchiveInputStream = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(file)));
+        ) {
+         */
+
         printDebug(" Start query test...");         // control print
         File file = new File(QUERIES_COLLECTION_PATH); // file that contain the queries
         try (
@@ -2858,10 +2851,11 @@ public final class QueryProcessor
                     continue;       // empty string or composed by whitespace characters or malformed
                 }
                 String[] queryProc = record.split("\t", 2);  // preprocess the query to obtain the result DocNO
-                String quid = queryProc[0];      // get the DocNO of the best result for the query
+                String pid = queryProc[0];      // get the DocNO of the best result for the query
 
                 // print of the query and result obtained by search engine
-                printDebug("---- Query number: " + queryCount + " -------------------------------------------- QUID: " + quid + " ----");
+                printDebug("---- Query number: " + queryCount + " -------------------------------------------- PID: " + pid + " ----");
+                printDebug("The query is: " + queryProc[1]);
                 printDebug("---- disjunctive mode ----");
 
                 startTime = System.currentTimeMillis();         // start time of execute query
@@ -2875,12 +2869,12 @@ public final class QueryProcessor
                 if ((endTime - startTime) < fasterQueryDis)
                 {
                     fasterQueryDis = (endTime - startTime);     // update faster time
-                    quidFastDis = quid;                         // update quid
+                    quidFastDis = queryCount;                         // update quid
                 }
                 if ((endTime - startTime) > slowerQueryDis)
                 {
                     slowerQueryDis = (endTime - startTime);     // update slower time
-                    quidSlowDis = quid;                         //update quid
+                    quidSlowDis = queryCount;                         //update quid
                 }
                 avgExTimeDis += (endTime - startTime);          // update avg execution time
 
@@ -2897,12 +2891,12 @@ public final class QueryProcessor
                 if ((endTime - startTime) < fasterQueryCon)
                 {
                     fasterQueryCon = (endTime - startTime);     // update faster time
-                    quidFastCon = quid;                         // update quid
+                    quidFastCon = queryCount;                         // update quid
                 }
                 if ((endTime - startTime) > slowerQueryCon)
                 {
                     slowerQueryCon = (endTime - startTime);     // update slower time
-                    quidSlowCon = quid;                         // update quid
+                    quidSlowCon = queryCount;                         // update quid
                 }
                 avgExTimeCon += (endTime - startTime);          // update avg execution time
 
@@ -2910,11 +2904,11 @@ public final class QueryProcessor
             }
 
             // print queries collection statistics
-            printTime("The fastet query (conjunctive mode) executes in " + fasterQueryCon + " ms and its QUID is " + quidFastCon);
+            printTime("The fastest query (conjunctive mode) executes in " + fasterQueryCon + " ms and its QUID is " + quidFastCon);
             printTime("The slowest query (conjunctive mode) executes in " + slowerQueryCon + " ms and its QUID is " + quidSlowCon);
             printTime("The average queries execution time (conjunctive mode) is " + avgExTimeCon/numQueries + " ms");
 
-            printTime("\nThe fastet query (disjunctive mode) executes in " + fasterQueryDis + " ms and its QUID is " + quidFastDis);
+            printTime("\nThe fastest query (disjunctive mode) executes in " + fasterQueryDis + " ms and its QUID is " + quidFastDis);
             printTime("The slowest query (disjunctive mode) executes in " + slowerQueryDis + " ms and its QUID is " + quidSlowDis);
             printTime("The average queries execution time (disjunctive mode) is " + avgExTimeDis/numQueries + " ms");
 
