@@ -1,5 +1,6 @@
 package it.unipi.dii.aide.mircv.data_structures;
 
+import it.unipi.dii.aide.mircv.QueryProcessor;
 import it.unipi.dii.aide.mircv.utils.FileSystem;
 import it.unipi.dii.aide.mircv.utils.Logger;
 
@@ -40,7 +41,7 @@ public final class IndexMerger
         // array containing the current read pointer offset for each block
         ArrayList<Long> currentBlockOffset = new ArrayList<>(nrBlocks);
         currentBlockOffset.addAll(dictionaryBlockOffsets);      // set the offset for each block, at the beginning are set to the start of block offset
-        // var to the collection statistics
+        // var to the collection statistics related to DID gap
         double avgDIDGapInPL = 0;           // the average gap between DID of the same posting list
         double minAvgDIDGapInPL = 1000;     // the min avg gap between DID of the same posting list
         double maxAvgDIDGapInPL = 0;        // the max avg gap between DID of the same posting list
@@ -50,10 +51,15 @@ public final class IndexMerger
         double maxBlockAvgDIDGapInPL = 0;   // the max avg gap between DID of the same block
         double currBlockDIDGap = 0;         //
         double currBlockListDIDGap = 0;     //
+        // var for collection statistics related to PL len
+        int currPLLen = 0;                  // current posting list len (at each iteration)
+        int minPLLen = 10000000;            // contains the len of the shortest posting list of the collection
+        int maxPLLen = 0;                   // contains the len of the longest posting list of the collection
+        long sumPLLen = 0;                  // contains the sum of the len of the all posting lists in the collection
+        double avgPLLen = 0;                // contains the average len for the posting lists in the collection
+        long termCount = 0;                 // counter for the number of term
 
         printLoad("Merging partial files...");                     // print of the merging start
-        // var which indicates the steps of 'i' progression print during merge
-
         // open file and create channels for reading the partial dictionary and index file and write the complete index and dictionary file
         try (
                 // open partial files to read the partial dictionary and index
@@ -161,19 +167,9 @@ public final class IndexMerger
                         // check if the skipping flags is true and if the posting list length is greater than the minimum value for the skipping
                         if(Flags.considerSkippingBytes() && (lenPL > SKIP_POINTERS_THRESHOLD) )
                         {   // -- start - if 0.1.1
-                            //printDebug("For term '" + currentDE.getTerm() + "' the len of PL is: " + lenPL);
-                            //int sumSubPLLen = 0;
                             // number of postings in each skipping block, one skipping block every rad(postingListLength)
-                            //int skipInterval = (int) Math.ceil(Math.sqrt(lenPL));
                             int skipInterval = SKIP_POINTERS_THRESHOLD;     // number of postings in each skipping block
                             int nSkip = 0;                                  // counter for the skipping block
-
-                            /*// +++++++++++++++++++++++++++++++++++
-                            if (tempDE.getTerm().equals("how"))
-                            {
-                                printDebug("Index merger - skipping -> term 'how' postingListSize: " + lenPL + " skipInterval: " + skipInterval);
-                            }
-                            // +++++++++++++++++++++++++++++++++++ */
 
                             // scan the posting list for each skipping block
                             for(int i = 0; i < lenPL; i += skipInterval)
@@ -207,12 +203,6 @@ public final class IndexMerger
                                     storePostingListIntoDisk(tempSubPL, outTermFreqChannel, outDocIdChannel);  // write InvertedIndexElem to disk (the sub-posting list that represent the skipping block
                                     SkipInfo sp = new SkipInfo(subPL.get(subPL.size()-1).getDocId(), outDocIdChannel.size(), outTermFreqChannel.size());
                                     sp.storeSkipInfoToDisk(outSkipChannel);     // store skip info in the file into disk
-                                    /*// +++++++++++++++++++++++++++++++++++
-                                    if (tempDE.getTerm().equals("how") && (nSkip < 20))
-                                    {
-                                        printDebug("-- skip block: " + nSkip + " maxDID: " + subPL.get(subPL.size()-1).getDocId() + " e pos: " + i);
-                                    }
-                                    // +++++++++++++++++++++++++++++++++++*/
                                 }
                                 nSkip++;        // update the skipping block counter
                             }
@@ -227,8 +217,6 @@ public final class IndexMerger
 
                             // part of the collection statistics
                             avgBlockDIDGapInPL += currBlockListDIDGap / nSkip;
-
-                            //printDebug("The sum of the sublist: " + sumSubPLLen);
                         }   // -- end - if 0.1.1
                         else if(Flags.considerSkippingBytes())      // the posting list is too small only one block
                         {   // -- start - else if 0.1.1
@@ -246,8 +234,6 @@ public final class IndexMerger
                             sp.storeSkipInfoToDisk(outSkipChannel);     // store skip info in the file into disk
                             tempDE.setSkipArrLen(1);                    // save the number of skipping block
                             tempDE.setSkipOffset(outSkipChannel.size()-((long) SKIPPING_INFO_SIZE));    // save the offset of the first skipping box
-
-                            //sumSubPLLen += tempPL.size();
                         }   // -- end - else if 0.1.1
                         else                    // the skipping is not enabled
                         {   // -- end - else 0.1.1
@@ -264,7 +250,15 @@ public final class IndexMerger
 
                         //printDebug("The sum of the len of the subLen is: " + sumSubPLLen);
                         tempDE.storeDictionaryElemIntoDisk(outDictionaryChannel);       // store dictionary
-
+                        // -- start -- PL len statistics
+                        termCount++;                    // update counter
+                        currPLLen = tempDE.getDf();     // get posting list len of the current term
+                        sumPLLen += currPLLen;
+                        if (currPLLen > maxPLLen)
+                            maxPLLen = currPLLen;       // set max
+                        if (currPLLen < minPLLen)
+                            minPLLen = currPLLen;       // set min
+                        // -- end -- PL len statistics
                         //set temp variables values
                         tempDE = currentDE;
                         tempPL = currentPL;
@@ -272,11 +266,10 @@ public final class IndexMerger
                 }   // -- end - else 0- isn't the first term --
 
                 currentDE = new DictionaryElem();   // create new element of the dictionary
-                //i++;
                 // update the offset of next element to read from the block read in this iteration
                 currentBlockOffset.set(block_id, currentBlockOffset.get(block_id) + getDictElemSize());
             }   // -- end - while 0
-
+            // save stats related to DID gap
             CollectionStatistics.setAvgDIDGapInPL(avgDIDGapInPL / CollectionStatistics.getNDocs());
             CollectionStatistics.setMinAvgDIDGapInPL(minAvgDIDGapInPL);
             CollectionStatistics.setMaxAvgDIDGapInPL(maxAvgDIDGapInPL);
@@ -286,6 +279,13 @@ public final class IndexMerger
                 CollectionStatistics.setMinBlockAvgDIDGapInPL(minBlockAvgDIDGapInPL);
                 CollectionStatistics.setMaxBlockAvgDIDGapInPL(maxBlockAvgDIDGapInPL);
             }
+            // save stats related to PL len
+            avgPLLen = (double) sumPLLen / termCount;               // calculate avgPLLen
+            CollectionStatistics.setAvgPLLength(avgPLLen);          // set avgPLLen
+            CollectionStatistics.setMinPLLength(minPLLen);          // set minPLLen
+            CollectionStatistics.setMaxPLLength(maxPLLen);          // set maxPLLen
+            CollectionStatistics.computeTermFreqOccStatistics();    // calculate TF occurrence statistics
+            // store the stats into disk
             CollectionStatistics.storeCollectionStatsIntoDisk();    // store
             //delete_tempFiles();       // delete the partial file for save sapce into disk                                                                       !!!!!!!!!!!!!!!!
         } catch (IOException e) {

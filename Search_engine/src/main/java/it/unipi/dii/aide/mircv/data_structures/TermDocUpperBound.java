@@ -46,11 +46,6 @@ public class TermDocUpperBound
         long termCount = 0;             // counter for the number of term
         double currentTUB = 0;          // contain the Term Upper Bound for the current term
         boolean scoringFunc;            // user's choice about scoring function
-        int minPLLen = 10000000;        // contains the len of the shortest posting list of the collection
-        int maxPLLen = 0;               // contains the len of the longest posting list of the collection
-        long sumPLLen = 0;              // contains the sum of the len of the all posting lists in the collection
-        double avgPLLen = 0;            // contains the average len for the posting lists in the collection
-        int currPLLen = 0;              // current posting list len (at each iteration)
 
         // check if already exist the file
         if (termUpperBoundFileExist())
@@ -62,11 +57,11 @@ public class TermDocUpperBound
         if (!CollectionStatistics.getTermFreqTable().isEmpty() && computeStats)
             CollectionStatistics.getTermFreqTable().clear();    // free the hash table, will be fill
 
-        printDebug("Calculating terms upper bound..."); // control print
-        startTime = System.currentTimeMillis();            // start time to calculate all term upper bound
+        printLoad("Calculating terms upper bound...");   // control print
+        startTime = System.currentTimeMillis();             // start time to calculate all term upper bound
 
         termsList = new ArrayList<>(QueryProcessor.getDictionary().keySet());   // read all the term of the dictionary
-        Collections.sort(termsList);                        // order the list +++++++++++++++++
+        Collections.sort(termsList);                        // order the dictionary term list
         scoringFunc = Flags.isScoringEnabled();             // take user's choice about using scoring function
 
         // scan all term in the dictionary
@@ -75,28 +70,14 @@ public class TermDocUpperBound
             currentTUB = QueryProcessor.maxScoreTerm(term,scoringFunc,computeStats); // calculate the term upper bound for the current term
             termUpperBoundTable.put(term,currentTUB);           // add term upper bound in the hashmap
             termCount++;        // update counter
-
-            if (computeStats)       // compute the statistics related to the PostList len
-            {
-                currPLLen = QueryProcessor.getDictionary().get(term).getDf();   // get posting list len of the current term
-                sumPLLen += currPLLen;
-                if (currPLLen > maxPLLen)   // set max
-                    maxPLLen = currPLLen;
-                if (currPLLen < minPLLen)
-                    minPLLen = currPLLen;   // set min
-            }
         }
         endTime = System.currentTimeMillis();           // end time to calculate all term upper bound
-        printDebug("The size of dictionary is : " + QueryProcessor.getDictionary().size() + " and the len of arraylist of the term is: " + termsList.size());
+        //printDebug("The size of dictionary is : " + QueryProcessor.getDictionary().size() + " and the len of arraylist of the term is: " + termsList.size());
         // shows term upper bound calculation time
         printTime("Calculated all term upper bound( " + termCount + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
         if (computeStats)
         {
-            avgPLLen = (double) sumPLLen / termCount;           // calculate avgPLLen
-            CollectionStatistics.setAvgPLLength(avgPLLen);          // set avgPLLen
-            CollectionStatistics.setMinPLLength(minPLLen);          // set minPLLen
-            CollectionStatistics.setMaxPLLength(maxPLLen);          // set maxPLLen
             CollectionStatistics.computeTermFreqOccStatistics();    // calculate TF occurrence statistics
             CollectionStatistics.storeCollectionStatsIntoDisk();    // save collection statistics
         }

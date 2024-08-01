@@ -312,8 +312,15 @@ public class Main
         QueryProcessor.calcAndStoreTFWeight();                      // calculate and store the log for the TFWeight
         // calculate term upper bound if dynamic pruning algorithm is enabled
         if (!queryStartControl())
-            return;                           // error exit
+            return;                         // error exit
         TermDocUpperBound.calculateTermsUpperBound(true);   // calculate term upper bound for each term of dictionary
+
+        // check if delete or not the partial files
+        if (isDeletePartFileEnabled())
+        {
+            delete_tempFiles();             // delete the partial files of the indexing
+            printLoad("Partial file deleted.");
+        }
     }
 
     /**

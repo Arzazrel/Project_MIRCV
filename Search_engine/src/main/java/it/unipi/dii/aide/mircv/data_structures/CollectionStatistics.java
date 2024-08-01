@@ -204,8 +204,6 @@ public final class CollectionStatistics
     public static void computeTermFreqOccStatistics ()
     {
         PriorityQueue<CollectionStatistics.TermFreqOccBlock> resPQ = new PriorityQueue<>(new CollectionStatistics.CompareTFOTerm());
-        ArrayList<Long> ordTFOccList = new ArrayList<>();      // contain scores of all docs
-        ArrayList<Integer> ordTFList = new ArrayList<>();      // contain scores of all docs
         TermFreqOccBlock currBlock;
         long totFTOcc = 0;          // var to indicates the total number of term freq occurrences in the collection
 
@@ -219,7 +217,7 @@ public final class CollectionStatistics
             totFTOcc += entry.getValue();       // update total value
         }
 
-        // get the five most frequent values
+        // get the 'mostFreqPos' top most frequent values
         for (int i=0; i < mostFreqPos; i++)
         {
             if (resPQ.isEmpty())    // the priority queue is empty
