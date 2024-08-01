@@ -278,10 +278,9 @@ public class Main
      */
     private static void makeIndexing(boolean takeFlags, Scanner sc) throws IOException
     {
-        long startTime, endTime;                // variables to calculate the execution time
+        long startTime, endTime;        // variables to calculate the execution time
 
-        file_cleaner();             // delete all created files
-
+        file_cleaner();                 // delete all created files
         // take user choice for the flags
         if (takeFlags)
         {
@@ -291,7 +290,8 @@ public class Main
             setCompression(getUserChoice(sc, "compression"));  // take user preferences on the compression
             setScoring(getUserChoice(sc, "scoring"));          // take user preferences on the scoring
             setConsiderSkippingBytes(getUserChoice(sc, "skipping"));            // take user preferences on the scoring
-            setDynamicPruning(getUserChoice(sc, "dynamic pruning algorithm"));  // take user preferences on the scoring
+            setDynamicPruning(getUserChoice(sc, "dynamic pruning algorithm"));  // take user preferences for the dynamic pruning algorithm
+            setDeletePartFile(getUserChoice(sc, "delete partial file"));        // take user preferences for the delete partial file
 
             storeFlagsIntoDisk();       // store Flags
         }
@@ -308,15 +308,11 @@ public class Main
         endTime = System.currentTimeMillis();           // end time of merge blocks
         printTime("\nBlocks merged in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
-        //CollectionStatistics.printCollectionStatistics();           //
         DataStructureHandler.calcAndStoreDenPartBM25inDocTable();   // calculate the partial denominator BM25 for optimization
-        QueryProcessor.calcAndStoreTFWeight();
-
-        // calculate term upper bound and doc upper bound
-        //Flags.setConsiderSkippingBytes(true);
+        QueryProcessor.calcAndStoreTFWeight();                      // calculate and store the log for the TFWeight
+        // calculate term upper bound if dynamic pruning algorithm is enabled
         if (!queryStartControl())
             return;                           // error exit
-
         TermDocUpperBound.calculateTermsUpperBound(true);   // calculate term upper bound for each term of dictionary
     }
 
