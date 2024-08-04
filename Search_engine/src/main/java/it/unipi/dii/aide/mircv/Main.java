@@ -216,13 +216,13 @@ public class Main
                         }
                     } while (!(isConjunctive || isDisjunctive));  // continues until isConjunctive or isDisjunctive is set
 
-                    int validN = 0;     // 1 = positive number - 0 = negative number or not a number
+                    int validN = 0;     // indicates if the entered number is valid or not -> 1 = 10 or 20 - 0 = negative number or not a number or another number
                     // do while for choosing the number of results to return
                     do {
                         printUI("Type the number of results to retrieve (10 or 20)");
                         try {
                             numberOfResults = Integer.parseInt(sc.nextLine());    // take the int inserted by user
-                            validN = (numberOfResults > 0) ? 1 : 0;               // validity check of the int
+                            validN = ((numberOfResults == 10) || (numberOfResults == 20)) ? 1 : 0;  // validity check
                         } catch (NumberFormatException nfe) {
                             printError("Insert a valid positive number");
                         }

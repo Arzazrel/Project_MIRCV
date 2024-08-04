@@ -195,9 +195,6 @@ public final class DataStructureHandler
                 dictElem.setOffsetTermFreq(INDEX_OFFSET);               // set termFreq offset
                 dictElem.setOffsetDocId(INDEX_OFFSET);                  // set docID offset
 
-                //if(term.equals("0000"))
-                //    printDebug("term: 0000 " + dictionary.getTermToTermStat().get("0000") +  " block " + (dictionaryBlockOffsets.size()-1) + " size: " + posList.size());
-
                 // Create buffers for docid and termfreq
                 MappedByteBuffer buffer_docid = docidChannel.map(FileChannel.MapMode.READ_WRITE, docidChannel.size(), (long) posList.size() * INT_BYTES); // from 0 to number of postings * int dimension
                 MappedByteBuffer buffer_termfreq = termfreqChannel.map(FileChannel.MapMode.READ_WRITE, termfreqChannel.size(), (long) posList.size() * INT_BYTES); //from 0 to number of postings * int dimension
@@ -211,15 +208,12 @@ public final class DataStructureHandler
                     buffer_docid.putInt(posting.getDocId());         // write DocID
                     buffer_termfreq.putInt(posting.getTermFreq());   // write TermFrequency
 
-                    //if(term.equals("0000"))
-                    //    printDebug("docId " + posting.getDocId() +  " termfreq " + posting.getTermFreq());
                     INDEX_OFFSET += INT_BYTES;
                 }
 
                 dictElem.storeDictionaryElemIntoDisk(dictChannel);  // store dictionary entry to disk
             }
             printDebug(dictionary.getTermToTermStat().size() + " terms stored in block " + (dictionaryBlockOffsets.size()-1));
-
         } catch (IOException ioException) {
             ioException.printStackTrace();
         }

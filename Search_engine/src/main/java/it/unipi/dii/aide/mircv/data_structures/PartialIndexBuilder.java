@@ -68,7 +68,6 @@ public final class PartialIndexBuilder
 
                 ArrayList<String> preprocessed = TextProcessor.preprocessText(record); // Preprocessing of document text
                 String docno = preprocessed.remove(0);      // get the DocNO of the current document
-                //printDebug("DocNO: " + docno + " DID: " + docCounter);
 
                 // check if document is empty
                 if (preprocessed.isEmpty() || (preprocessed.size() == 1 && preprocessed.get(0).equals("")))
@@ -79,13 +78,9 @@ public final class PartialIndexBuilder
 
                 // -- to collect collection statistics --
                 if (preprocessed.size() < minlenDoc)
-                {
                     minlenDoc = preprocessed.size();
-                }
                 if (preprocessed.size() > maxLenDoc)
-                {
                     maxLenDoc = preprocessed.size();
-                }
                 // -- to collect collection statistics --
 
                 DocumentElement de = new DocumentElement(docno, docCounter, preprocessed.size());   // create new Document element
@@ -113,9 +108,6 @@ public final class PartialIndexBuilder
                     }
                     dictElem.addCf(1);  // update collection frequency (number of occurrences of the term in the collection)
 
-                    //if (term.equals("giovanni"))
-                    //    printDebug("SPIMI(after add term) -> term: " + term + " DocFreq: " + dictElem.getDf() + " Collection Freq: " + dictElem.getCf());
-
                     tempCurrTF = invertedIndex.get(term).get(invertedIndex.get(term).size() - 1).getTermFreq();
                     if (tempCurrTF > maxTermFreq)
                         maxTermFreq = tempCurrTF;
@@ -125,7 +117,6 @@ public final class PartialIndexBuilder
                 if(Runtime.getRuntime().totalMemory() > memoryAvailable)
                 {
                     printDebug("********** Memory full **********");
-                    //printDebug("N_POSTINGS: " + N_POSTINGS);
                     storeIndexAndDictionaryIntoDisk();  //store index and dictionary to disk
                     storeDocumentTableIntoDisk();       // store document table one document at a time for each block
                     freeMemory();   // delete information in document table, dictionary,and inverted index
@@ -134,18 +125,12 @@ public final class PartialIndexBuilder
                     N_POSTINGS = 0;     // new partial index, reset number of postings in the block
                 }
             }   // -- end - while 0 - scan all docs --
-            //printDebug(dictionary.getTermToTermStat().size() + " terms stored in block " + (dictionaryBlockOffsets.size()-1));
-            //printDebug("N_POSTINGS: " + N_POSTINGS);
-            //printDebug("Malformed docs: " + malformedDocs);
-            //printDebug("The number of empty docs is: " + emptyDocs + " the shortest doc have len of: " + minlenDoc + " the longest doc have len of: " + maxLenDoc + " the max TermFreq is: " + maxTermFreq);
 
             // save the last block
-            ///*
             storeIndexAndDictionaryIntoDisk();  //store index and dictionary to disk
             storeDocumentTableIntoDisk();       // store document table one document at a time for each block
             freeMemory();   // delete information in document table, dictionary,and inverted index
             System.gc();    // effort JVM
-            //*/
 
             DataStructureHandler.storeBlockOffsetsIntoDisk();   // store into file all the blocks offset
             // calculate and store collection statistics values
