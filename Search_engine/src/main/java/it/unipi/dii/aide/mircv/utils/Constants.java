@@ -22,8 +22,8 @@ public final class Constants {
     // -------------------------------- Constants for file paths -------------------------------------------
     // -- file in RES_FOLDER --
     public final static String COLLECTION_PATH = RES_FOLDER + "collection.tar.gz";
-    //public final static String QUERIES_COLLECTION_PATH = RES_FOLDER + "msmarco-test2020-queries.tsv.gz";  // file containing a series of queries and their best DocID result
-    public final static String QUERIES_COLLECTION_PATH = RES_FOLDER + "test_queries.txt";  // file containing a series of queries for testing
+    public final static String QUERIES_COLLECTION_PATH = RES_FOLDER + "msmarco-test2020-queries.tsv.gz";  // file containing a series of queries and their best DocID result
+    //public final static String QUERIES_COLLECTION_PATH = RES_FOLDER + "test_queries.txt";  // file containing a series of queries for testing
     public static final String FLAGS_FILE = RES_FOLDER + "flags"; // file in which flags are stored
     public static final String STATS_FILE = RES_FOLDER + "collectionStatistics"; // file in which collection statistics are stored
 

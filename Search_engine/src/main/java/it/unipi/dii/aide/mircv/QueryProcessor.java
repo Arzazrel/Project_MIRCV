@@ -3211,21 +3211,22 @@ public final class QueryProcessor
                 TermDocUpperBound.calculateTermsUpperBound(false);   // calculate term upper bound for each term of dictionary
         }
 
-        /*
-        public final static String COLLECTION_PATH = RES_FOLDER + "collection.tar.gz";
-        File file = new File(COLLECTION_PATH);
-        try (
-            final TarArchiveInputStream tarArchiveInputStream = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(file)));
-        ) {
-         */
-
         printDebug(" Start query test...");         // control print
+        File file = new File(QUERIES_COLLECTION_PATH);
+        try (
+                InputStream tarArchiveInputStream = new GzipCompressorInputStream(new FileInputStream(file));
+        ) {
+            BufferedReader buffer_collection;
+            buffer_collection = new BufferedReader(new InputStreamReader(tarArchiveInputStream, StandardCharsets.UTF_8));
+        /*
         File file = new File(QUERIES_COLLECTION_PATH); // file that contain the queries
         try (
                 FileReader fr = new FileReader(file);  //reads the file
         ) {
+
             BufferedReader buffer_collection;
             buffer_collection = new BufferedReader(fr);
+         */
             String record;          // string to contain the queries and their result
 
             // scan all queries in the collection
