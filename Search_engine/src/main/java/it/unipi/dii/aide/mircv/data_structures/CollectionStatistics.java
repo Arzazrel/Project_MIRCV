@@ -19,7 +19,7 @@ import static it.unipi.dii.aide.mircv.utils.Logger.collStats_logger;
 public final class CollectionStatistics
 {
     private static HashMap<Integer, Long> termFreqTable = new HashMap<>();   // hash table TermFreqValue to related occurrence
-    final static int mostFreqPos = 20;   // indicates how many term Freq gets
+    final static int mostFreqPos = 5;   // indicates how many term Freq gets
     public final static int COLLSTATS_SIZE = INT_BYTES * 7 + DOUBLE_BYTES * 11 + LONG_BYTES * mostFreqPos + DOUBLE_BYTES * mostFreqPos + INT_BYTES * mostFreqPos;   // Size in bytes
     private static int nDocs;           // number of documents in the collection
     private static double totDocLen;    // sum of the all document length in the collection
@@ -365,34 +365,34 @@ public final class CollectionStatistics
      */
     public static void printCollectionStatistics()
     {
-        printDebug("The values of the collection statistics are:");
-        printDebug("- number of document in the collection: " + nDocs);
-        printDebug("-- sum of the length of all document in the collection: " + totDocLen);
-        printDebug("-- average length of document in the collection: " + avgDocLen);
-        printDebug("-- number of empty document in the collection: " + emptyDocs);
-        printDebug("-- len of the shortest doc in the collection: " + minLenDoc);
-        printDebug("-- len of the longest doc in the collection: " + maxLenDoc);
-        printDebug("- BM25 parameter:");
-        printDebug("-- k parameter: " + k);
-        printDebug("-- b parameter: " + b);
-        printDebug("- Posting list parameter:");
-        printDebug("-- max posting list len: " + maxPLLength);
-        printDebug("-- min posting list len: " + minPLLength);
-        printDebug("-- avg posting list len: " + avgPLLength);
-        printDebug("- Term Frequency values parameter:");
-        printDebug("-- the max term frequency in the collection: " + maxTermFreq);
-        printDebug("-- Top " + mostFreqPos + " Term Frequency occurrence list (from the most common to the rarest):");
+        printUI("The values of the collection statistics are:");
+        printUI("- number of document in the collection: " + nDocs);
+        printUI("-- sum of the length of all document in the collection: " + totDocLen);
+        printUI("-- average length of document in the collection: " + avgDocLen);
+        printUI("-- number of empty document in the collection: " + emptyDocs);
+        printUI("-- len of the shortest doc in the collection: " + minLenDoc);
+        printUI("-- len of the longest doc in the collection: " + maxLenDoc);
+        printUI("- BM25 parameter:");
+        printUI("-- k parameter: " + k);
+        printUI("-- b parameter: " + b);
+        printUI("- Posting list parameter:");
+        printUI("-- max posting list len: " + maxPLLength);
+        printUI("-- min posting list len: " + minPLLength);
+        printUI("-- avg posting list len: " + avgPLLength);
+        printUI("- Term Frequency values parameter:");
+        printUI("-- the max term frequency in the collection: " + maxTermFreq);
+        printUI("-- Top " + mostFreqPos + " Term Frequency occurrence list (from the most common to the rarest):");
         for (int i=0; i < mostFreqPos; i++)
-            printDebug("---- pos " + (i+1) + " -> TermFreqValue: " + mostTF[i] + " , occurrence: " + mostTFOcc[i] + " (row value) , " + String.format("%.4f", mostTFPerc[i]) + " %");
-        printDebug("- Statistics of DocID gap in posting list:");
-        printDebug("-- Generic:");
-        printDebug("---- the average gap between DID of the same posting list: " + avgDIDGapInPL);
-        printDebug("---- the min avg gap between DID of the same posting list: " + minAvgDIDGapInPL);
-        printDebug("---- the max avg gap between DID of the same posting list: " + maxAvgDIDGapInPL);
-        printDebug("-- With partition in block of the posting lists (es. skipping or compression). Skipping enabled '" + Flags.considerSkippingBytes() + "' and compression enabled '" + Flags.isCompressionEnabled() + "' :");
-        printDebug("---- the average gap between DID of the same block: " + avgBlockDIDGapInPL);
-        printDebug("---- the min avg gap between DID of the same block: " + minBlockAvgDIDGapInPL);
-        printDebug("---- the max avg gap between DID of the same block: " + maxBlockAvgDIDGapInPL);
+            printUI("---- pos " + (i+1) + " -> TermFreqValue: " + mostTF[i] + " , occurrence: " + mostTFOcc[i] + " (row value) , " + String.format("%.4f", mostTFPerc[i]) + " %");
+        printUI("- Statistics of DocID gap in posting list:");
+        printUI("-- Generic:");
+        printUI("---- the average gap between DID of the same posting list: " + avgDIDGapInPL);
+        printUI("---- the min avg gap between DID of the same posting list: " + minAvgDIDGapInPL);
+        printUI("---- the max avg gap between DID of the same posting list: " + maxAvgDIDGapInPL);
+        printUI("-- With partition in block of the posting lists (es. skipping or compression). Skipping enabled '" + Flags.considerSkippingBytes() + "' and compression enabled '" + Flags.isCompressionEnabled() + "' :");
+        printUI("---- the average gap between DID of the same block: " + avgBlockDIDGapInPL);
+        printUI("---- the min avg gap between DID of the same block: " + minBlockAvgDIDGapInPL);
+        printUI("---- the max avg gap between DID of the same block: " + maxBlockAvgDIDGapInPL);
     }
 
     /**
@@ -447,7 +447,6 @@ public final class CollectionStatistics
                 // return order by both term upper bound and position (the TUB of the two blocks is equal)
                 return Integer.compare(tfb1.getTermFreqValue(), tfb2.getTermFreqValue());
             }
-
             return scoreComparison;     // return order only by score (the score of the two blocks is different)
         }
     }
