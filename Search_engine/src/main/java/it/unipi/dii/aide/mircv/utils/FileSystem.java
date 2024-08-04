@@ -155,23 +155,32 @@ public final class FileSystem {
         if(skip.exists())
             printSize(formatSize("skipInfo", skip.length()));
 
-        printUI("TUB files:");       // size of term upper bound file
+        printUI("TUB files:");                      // size of term upper bound file
         File termUB = new File(TERMUPPERBOUND_FILE);
         if(termUB.exists())
             printSize(formatSize("termsUpperBound", termUB.length()));
 
-        printUI("Generic files:");   // size of the other files (collection statistic and flags files)
+        File termFreqWeight = new File(TERMFREQWEIGHT_FILE);    // size of the precomputed termFreqWeight file
+        if(termUB.exists())
+            printSize(formatSize("termFreqWeight", termFreqWeight.length()));
+
+        printUI("Generic files:");      // size of the other files (collection statistic and flags files)
         File flags = new File(FLAGS_FILE);
         if(flags.exists())
             printSize(formatSize("flags", flags.length()));
 
-        File collectionStatistics = new File(STATS_FILE);
+        File collectionStatistics = new File(STATS_FILE);       // size of the collection statistics
         if(collectionStatistics.exists())
             printSize(formatSize("collectionStatistics", collectionStatistics.length()));
     }
 
-
-    // function to save docids or tf posting list into file (in order to compare before and after compression)
+    /**
+     * Function to save docids or tf posting list into file (in order to compare before and after compression)
+     *
+     * @param postings
+     * @param tempFileName
+     * @throws FileNotFoundException
+     */
     public static void saveDocsInFile(ArrayList<Integer> postings, String tempFileName) throws FileNotFoundException
     {
         // Create a file
