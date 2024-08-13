@@ -455,13 +455,13 @@ public final class DataStructureHandler
     public static ArrayList<Posting> readAndUncompressCompressedAndSkippedPLFromDisk(SkipList sl, long offsetDocId, long offsetTermFreq, int termFreqSize, int docIdSize,int skipArrLen, int posting_size, FileChannel docidChannel, FileChannel termfreqChannel)
     {
         ArrayList<Posting> uncompressed = new ArrayList<>();    // decompressed posting list
-        SkipInfo currSkipInfo;                  //
-        byte[] docids;                          // array for the compressed DocID list
-        byte[] tf;                              // array for the compressed TermFreq list
-        int currOffsetDID = 0;  // the current offset (at each iteration) for the compressed DID
-        int currOffsetTF = 0;// the current offset (at each iteration) for the compressed TermFreq
-        int currDIDSize = 0;                    // the current size (at each iteration) for the compressed DID
-        int currTFSize = 0;                     // the current size (at each iteration) for the compressed TermFreq
+        SkipInfo currSkipInfo;      // the instance of skipInfo related to the term
+        byte[] docids;              // array for the compressed DocID list
+        byte[] tf;                  // array for the compressed TermFreq list
+        int currOffsetDID = 0;      // the current offset (at each iteration) for the compressed DID
+        int currOffsetTF = 0;       // the current offset (at each iteration) for the compressed TermFreq
+        int currDIDSize = 0;        // the current size (at each iteration) for the compressed DID
+        int currTFSize = 0;         // the current size (at each iteration) for the compressed TermFreq
 
         //printDebug("---- readAndUncompressCompressedAndSkippedPLFromDisk ----");
         //printDebug("DocID size: " + docIdSize + " termFreq size: " + termFreqSize);
@@ -536,15 +536,15 @@ public final class DataStructureHandler
     }
 
     /**
+     * Function to read the uncompressed termFrequency of one block of the posting list indicates as parameter.
      *
-     *
-     * @param sl
-     * @param blockIndex        // indicates the index of the PL block to read
-     * @param offsetTermFreq
-     * @param termFreqSize
-     * @param skipArrLen
-     * @param termfreqChannel
-     * @return
+     * @param sl                SkipList instances related to the term of this posting list
+     * @param blockIndex        indicates the index of the PL block to read
+     * @param offsetTermFreq    offset to read the first termFrequency
+     * @param termFreqSize      the number of term frequency to read from disk (length of skip block or less if is the last block)
+     * @param skipArrLen        the length of the SkipInfo array (equal to the number of the skipping block in posting list)
+     * @param termfreqChannel   the channel from to read the termFrequency
+     * @return      a byte array containing the compressed representation for the term frequency (Unary code)
      */
     public static byte[] readCompTFBlockFromDisk(SkipList sl, int blockIndex, long offsetTermFreq, int termFreqSize, int skipArrLen, FileChannel termfreqChannel)
     {
@@ -589,14 +589,15 @@ public final class DataStructureHandler
     }
 
     /**
+     * Function to read the uncompressed DID of one block of the posting list indicates as parameter.
      *
-     * @param sl
-     * @param blockIndex
-     * @param offsetDocId
-     * @param docIdSize
-     * @param skipArrLen
-     * @param docidChannel
-     * @return
+     * @param sl            SkipList instances related to the term of this posting list
+     * @param blockIndex    indicates the index of the PL block to read
+     * @param offsetDocId   offset to read the first DID
+     * @param docIdSize     the number of DID to read from disk (length of skip block or less if is the last block)
+     * @param skipArrLen    the length of the SkipInfo array (equal to the number of the skipping block in posting list)
+     * @param docidChannel  the channel from to read the DID
+     * @return      a byte array containing the compressed representation for the DID (Variable-Byte code)
      */
     public static byte[] readCompDIDBlockFromDisk(SkipList sl, int blockIndex, long offsetDocId, int docIdSize,int skipArrLen, FileChannel docidChannel)
     {

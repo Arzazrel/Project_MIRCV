@@ -186,10 +186,6 @@ public final class QueryProcessor
         boolean dynamicPrun = Flags.isDynamicPruningEnabled();  // take user's choice about using dynamic pruning algorithm
         boolean compression = Flags.isCompressionEnabled();     // take user's choice about using compression
         boolean skipping = Flags.considerSkippingBytes();       // take user's choice about using skipping
-        //printDebug("User choice for scoring is: " + scoringFunc);
-        //printDebug("User choice for pruning algorithm: " + dynamicPrun);
-        //printDebug("User choice for compression: " + compression);
-        //printDebug("User choice for skipping: " + skipping);
 
         if (dynamicPrun)        // dynamic pruning 'true' -> use Max Score
         {
@@ -504,7 +500,7 @@ public final class QueryProcessor
         endTime = System.currentTimeMillis();           // end time of DAAT (comp + skipping)
         // shows DAAT (comp + skipping) execution time
         printTime("*** DAAT (comp+skipping) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
-        printDebug("The total iteration od DAAT alg. is: " + count);
+        //printDebug("The total iteration od DAAT alg. is: " + count);
     }
 
     /**
@@ -1306,18 +1302,18 @@ public final class QueryProcessor
         lengthPostingList = retrieveLengthAllPostingLists(orderedQueryTerm);    // take the length of each posting list
         IDFweight = calculateIDFWeight(lengthPostingList);                      // calculate the IDF weight
         // control print
-        /*
+        ///*
         printDebug("orderedQueryTerm -> " + Arrays.toString(orderedQueryTerm));
         printDebug("termUpperBoundList -> " + Arrays.toString(termUpperBoundList));
         printDebug("sumTUBList -> " + Arrays.toString(sumTUBList));
         printDebug("lengthPostingList -> " + Arrays.toString(lengthPostingList));
+        /*
         for (int i = 0; i < skipListArray.length; i++)
         {
             printDebug("Control print skipping list of term: " + orderedQueryTerm[i]);
-            skipListArray[i].testReadAllSkip();
+            //skipListArray[i].testReadAllSkip();       // ++++++++ usare solo con posting list non compressa
         }
-        */
-        //printDebug("START DAAT + MAXSCORE\n");
+        //*/
 
         startTime = System.currentTimeMillis();           // start time of DAAT + MAX SCORE (comp + skipping)
         /*
@@ -1829,6 +1825,7 @@ public final class QueryProcessor
                             }
                             else    // postListCurrDID < currentDID, search in the posting listw
                             {
+                                //printDebug("Use skipping");
                                 assert skipListArray != null;
                                 postingListsIndex[i] = skipListArray[i].nextGEQCompSkip(currentDID, postingListsIndex[i], i,orderedQueryTerm[i]);
                                 //printDebug("Uses skipping -> postingListSize: " + postingLists[i].size() + " search DID: " + currentDID + " and nextGEQ return position " + pos + " that have DID: " + (pos < postingLists[i].size() ? postingLists[i].get(pos).getDocId() : " out of bound"));
@@ -1900,7 +1897,7 @@ public final class QueryProcessor
                     threshold = resPQ.peek().getScore();    // update threshold
                     // calculate new essential posting lists and update firstEssPostListIndex
                     firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold);
-                    //printDebug("-- **** New threshold: " + threshold + " new first essential posting list: " + firstEssPostListIndex);
+                    printDebug("-- **** New threshold: " + threshold + " new first essential posting list: " + firstEssPostListIndex);
                 }
             }   // -- end - while 0: DID --
         //*/
@@ -2442,12 +2439,12 @@ public final class QueryProcessor
     }
 
     /**
+     * Function to retrieve one compressed block of a posting list and uncompress it.
      *
-     *
-     * @param term
-     * @param slArr
-     * @param blockIndex
-     * @param indexPL
+     * @param term          term related to the posting list
+     * @param slArr         the array of the SkipList of the query terms
+     * @param blockIndex    the position of the block to load from disk
+     * @param indexPL       the index of the posting list
      * @param maxScore      if 'true' is the case of max score enabled, if 'false' max score is not enabled use simple DAAT
      * @return              'true' if a block has been read, decompressed, and added, 'false' otherwhise
      */
@@ -2472,7 +2469,6 @@ public final class QueryProcessor
                 FileChannel docIdChannel = docidFile.getChannel();
                 FileChannel termFreqChannel = termfreqFile.getChannel()
         ) {
-
             // there is a posting list for the query term == the term is in the collection
             if (dictionary.getTermToTermStat().containsKey(term))
             {
@@ -2578,7 +2574,6 @@ public final class QueryProcessor
             throw new RuntimeException(e);
         }
     }
-
     // ------------------------ end: function to retrieve PL of the term in query ------------------------
 
     // ------------------------ start: utilities function ------------------------
@@ -2669,7 +2664,6 @@ public final class QueryProcessor
 
         return sumTUBList.length-1;
     }
-
 
     /**
      * Function to initialize the SkipList objects related to the query terms. Used in case of only skipping enabled.
@@ -3218,23 +3212,14 @@ public final class QueryProcessor
         ) {
             BufferedReader buffer_collection;
             buffer_collection = new BufferedReader(new InputStreamReader(tarArchiveInputStream, StandardCharsets.UTF_8));
-        /*
-        File file = new File(QUERIES_COLLECTION_PATH); // file that contain the queries
-        try (
-                FileReader fr = new FileReader(file);  //reads the file
-        ) {
-
-            BufferedReader buffer_collection;
-            buffer_collection = new BufferedReader(fr);
-         */
             String record;          // string to contain the queries and their result
 
             // scan all queries in the collection
-            while (((record = buffer_collection.readLine()) != null) && (queryCount < numQueries)) {
-
-                if (record.isBlank()) {
+            while (((record = buffer_collection.readLine()) != null) && (queryCount < numQueries))
+            {
+                if (record.isBlank())
                     continue;       // empty string or composed by whitespace characters or malformed
-                }
+
                 String[] queryProc = record.split("\t", 2);  // preprocess the query to obtain the result DocNO
                 String pid = queryProc[0];      // get the DocNO of the best result for the query
 

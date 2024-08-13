@@ -134,6 +134,10 @@ public final class Constants {
             System.out.println(ANSI_MAGENTA + s + ANSI_RESET);
     }
 
+    public static void printUIMag(String s){
+        System.out.println(ANSI_MAGENTA + s + ANSI_RESET);
+    }
+
     public static void printError(String s){
         System.out.println(ANSI_RED + s + ANSI_RESET);
     }
