@@ -1897,7 +1897,7 @@ public final class QueryProcessor
                     threshold = resPQ.peek().getScore();    // update threshold
                     // calculate new essential posting lists and update firstEssPostListIndex
                     firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold);
-                    printDebug("-- **** New threshold: " + threshold + " new first essential posting list: " + firstEssPostListIndex);
+                    //printDebug("-- **** New threshold: " + threshold + " new first essential posting list: " + firstEssPostListIndex);
                 }
             }   // -- end - while 0: DID --
         //*/
@@ -2937,12 +2937,7 @@ public final class QueryProcessor
         int startPos = 0;
         int endPos = tempList.size()-1;
         int currentPos = 0;
-        /*
-        if (targetDID == 3573563)   // interesse 3573563
-        {
-            printDebug("-------- IN booleanSearch -> target: " + targetDID + " and list length: " + (endPos+1));
-            printDebug("-------- IN booleanSearch -> startDID: " + tempList.get(startPos) + " endDID: " + tempList.get(endPos));
-        }//*/
+
         while (true)
         {
             if (startPos > endPos)
@@ -3145,7 +3140,8 @@ public final class QueryProcessor
      * DocIDs sorted in descending order. In this way in case of a tie, documents with the smallest DocID will be
      * considered better than those with the largest DocID.
      */
-    private static class CompareTerm implements Comparator<QueryProcessor.ResultBlock> {
+    private static class CompareTerm implements Comparator<QueryProcessor.ResultBlock>
+    {
         @Override
         public int compare(QueryProcessor.ResultBlock rpb1, QueryProcessor.ResultBlock rpb2) {
             // comparing terms
@@ -3169,29 +3165,29 @@ public final class QueryProcessor
      * and a series of statistics will be collected about them (total duration of the test, fastest and slowest
      * conjunctive query, fastest and slowest disjunctive query), which will be displayed at the end of the test.
      *
-     * @param numQueries the number of queries to be read from the file and executed
+     * @param numQueries    the number of queries to be read from the file and executed
+     * @param pathTest      string identified the path for the test queries
      */
-    public static void readQueryFromCollection(int numQueries)
+    public static void readQueryFromCollection(int numQueries, String pathTest)
     {
         ArrayList<Integer> rankedResults;   // ArrayList that contain the ranked results of query
         int queryCount = 0;             // indicates how many queries have been made
         long startTime, endTime;        // variables to calculate the execution time
         long fasterQueryCon = 100000;   // indicates the execution time for the fastest query in the collection (conjunctive)
-        int quidFastCon = 0;            // indicates the query counter of the fastest query in the collection (conjunctive)
+        String quidFastCon = "";        // indicates the query ID of the fastest query in the collection (conjunctive)
         long slowerQueryCon = 0;        // indicates the execution time for the slowest query in the collection (conjunctive)
-        int quidSlowCon = 0;            // indicates the query counter of the slowest query in the collection (conjunctive)
+        String quidSlowCon = "";        // indicates the query ID of the slowest query in the collection (conjunctive)
         long fasterQueryDis = 100000;   // indicates the execution time for the fastest query in the collection (disjunctive)
-        int quidFastDis = 0;            // indicates the query counter of the fastest query in the collection (disjunctive)
+        String quidFastDis = "";        // indicates the query ID of the fastest query in the collection (disjunctive)
         long slowerQueryDis = 0;        // indicates the execution time for the slowest query in the collection (disjunctive)
-        int quidSlowDis = 0;            // indicates the query counter of the slowest query in the collection (disjunctive)
+        String quidSlowDis = "";        // indicates the query ID of the slowest query in the collection (disjunctive)
         long avgExTimeCon = 0;          // indicate the average execution time for the queries in the collection (conjunctive)
         long avgExTimeDis = 0;          // indicate the average execution time for the queries in the collection (disjunctive)
 
         // control check for queries
         try {
-            if (!queryStartControl()) {
+            if (!queryStartControl())
                 return;                 // there aren't all files needed for execute a query, function it's terminated
-            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -3205,8 +3201,9 @@ public final class QueryProcessor
                 TermDocUpperBound.calculateTermsUpperBound(false);   // calculate term upper bound for each term of dictionary
         }
 
-        printDebug(" Start query test...");         // control print
-        File file = new File(QUERIES_COLLECTION_PATH);
+        printUIMag(" Start query test... from: " + pathTest);         // control print
+        printUIMag("--------------------------------------------------------------------------------");
+        File file = new File(pathTest);
         try (
                 InputStream tarArchiveInputStream = new GzipCompressorInputStream(new FileInputStream(file));
         ) {
@@ -3221,12 +3218,12 @@ public final class QueryProcessor
                     continue;       // empty string or composed by whitespace characters or malformed
 
                 String[] queryProc = record.split("\t", 2);  // preprocess the query to obtain the result DocNO
-                String pid = queryProc[0];      // get the DocNO of the best result for the query
+                String qid = queryProc[0];      // get the DocNO of the best result for the query
 
                 // print of the query and result obtained by search engine
-                printDebug("---- Query number: " + queryCount + " -------------------------------------------- PID: " + pid + " ----");
-                printDebug("The query is: " + queryProc[1]);
-                printDebug("---- disjunctive mode ----");
+                printUIMag("---- Query number: " + queryCount + " -------------------------------------------- QueryID: " + qid + " ----");
+                printUIMag("The query is: " + queryProc[1]);
+                printUIMag("---- disjunctive mode ----");
 
                 startTime = System.currentTimeMillis();         // start time of execute query
                 rankedResults = queryManager(queryProc[1],false,5);    // run the query in disjunctive mode
@@ -3239,34 +3236,34 @@ public final class QueryProcessor
                 if ((endTime - startTime) < fasterQueryDis)
                 {
                     fasterQueryDis = (endTime - startTime);     // update faster time
-                    quidFastDis = queryCount;                         // update quid
+                    quidFastDis = qid;                         // update quid
                 }
                 if ((endTime - startTime) > slowerQueryDis)
                 {
                     slowerQueryDis = (endTime - startTime);     // update slower time
-                    quidSlowDis = queryCount;                         //update quid
+                    quidSlowDis = qid;                         //update quid
                 }
                 avgExTimeDis += (endTime - startTime);          // update avg execution time
 
-                printDebug("---- conjunctive mode ----");
+                printUIMag("---- conjunctive mode ----");
                 startTime = System.currentTimeMillis();         // start time of execute query
                 rankedResults = queryManager(queryProc[1],true,5);    // run the query in conjunctive mode
                 printQueryResults(rankedResults);
                 endTime = System.currentTimeMillis();           // end time of execute query
                 // shows query execution time
                 printTime("\nQuery (conjunctive mode) executes in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
-                printDebug("--------------------------------------------------------------------------------");
+                printUIMag("--------------------------------------------------------------------------------");
 
                 // does queries collection statistics
                 if ((endTime - startTime) < fasterQueryCon)
                 {
                     fasterQueryCon = (endTime - startTime);     // update faster time
-                    quidFastCon = queryCount;                         // update quid
+                    quidFastCon = qid;                         // update quid
                 }
                 if ((endTime - startTime) > slowerQueryCon)
                 {
                     slowerQueryCon = (endTime - startTime);     // update slower time
-                    quidSlowCon = queryCount;                         // update quid
+                    quidSlowCon = qid;                         // update quid
                 }
                 avgExTimeCon += (endTime - startTime);          // update avg execution time
 
@@ -3274,6 +3271,8 @@ public final class QueryProcessor
             }
 
             // print queries collection statistics
+            printUIMag(" End query test... from: " + pathTest);         // control print
+            printUIMag("--------------------------------------------------------------------------------");
             printTime("The fastest query (conjunctive mode) executes in " + fasterQueryCon + " ms and its QUID is " + quidFastCon);
             printTime("The slowest query (conjunctive mode) executes in " + slowerQueryCon + " ms and its QUID is " + quidSlowCon);
             printTime("The average queries execution time (conjunctive mode) is " + avgExTimeCon/numQueries + " ms");
@@ -3281,9 +3280,7 @@ public final class QueryProcessor
             printTime("\nThe fastest query (disjunctive mode) executes in " + fasterQueryDis + " ms and its QUID is " + quidFastDis);
             printTime("The slowest query (disjunctive mode) executes in " + slowerQueryDis + " ms and its QUID is " + quidSlowDis);
             printTime("The average queries execution time (disjunctive mode) is " + avgExTimeDis/numQueries + " ms");
-
-            printDebug(" End query test...");         // control print
-            printDebug("--------------------------------------------------------------------------------");
+            printUIMag("--------------------------------------------------------------------------------");
         }
         catch (IOException e) {
             e.printStackTrace();

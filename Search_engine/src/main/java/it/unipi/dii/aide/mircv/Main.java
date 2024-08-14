@@ -256,8 +256,28 @@ public class Main
 
                 case "t":       // query test mode
 
-                    int validNum = 0;     // 1 = positive number - 0 = negative number or not a number
+                    int validNum = 0;           // 1 = valid number - 0 = not valid (negative number or not a number)
                     int numberOfQueries = 0;    // take the integer entered by users that indicate the number of queries to test
+                    int fileChoice = -1;        // take the user's choice for the test file
+
+                    // explanation print for the user
+                    printUI("In this test, a user-selected number of queries will be executed in which the times and results in both conjunctive and disjunctive cases will be displayed.");
+                    // choose the test file
+                    printUI("Choose from how many test fleets to take queries. Selecting:\n" +
+                            "- ‘0’ all available files will be used (the number of queries selected by the user from all files will be taken)\n" +
+                            "- 2019' the 2019 test file will be used\n" +
+                            "- 2020' will use the 2020 test file\n");
+                    // take the user choice for the test file
+                    do {
+                        try {
+                            fileChoice = Integer.parseInt(sc.nextLine());    // take the int inserted by user
+                            if ((fileChoice == 0) || (fileChoice == 2019) || (fileChoice == 2020))  // validity check
+                                validNum = 1;
+                        } catch (NumberFormatException nfe) {
+                            printError("Insert a valid positive number");
+                        }
+                    } while (validNum == 0);    // continues until a valid number is entered
+                    validNum = 0;               // reset
 
                     // do while for choosing the number of results to return
                     do {
@@ -270,8 +290,20 @@ public class Main
                         }
                     } while (validNum == 0);  // continues until a valid number is entered
 
-                    QueryProcessor.readQueryFromCollection(numberOfQueries);
-                    continue;
+                    switch (fileChoice)     // switch to run user's choice
+                    {
+                        case 0:         // take queries from all files
+                            QueryProcessor.readQueryFromCollection(numberOfQueries,TEST_QUERY_2019_PATH);   // take queries from first file
+                            QueryProcessor.readQueryFromCollection(numberOfQueries,TEST_QUERY_2020_PATH);   // take queries from first file
+                            break;
+                        case 2019:      // take queries from 2019 file
+                            QueryProcessor.readQueryFromCollection(numberOfQueries,TEST_QUERY_2019_PATH);   // take queries from first file
+                            break;
+                        case 2020:      // take queries from 2020 file
+                            QueryProcessor.readQueryFromCollection(numberOfQueries,TEST_QUERY_2020_PATH);   // take queries from first file
+                            break;
+                    }
+                    continue;                       // go next while iteration
 
                 default:
                     return;     // exit to switch, case not valid
@@ -285,7 +317,7 @@ public class Main
      * Function to making the inverted index (SPIMI, merge and calculate Term Upper Bound)
      *
      * @param takeFlags if true: have to set the flags | if false: have not to set the flags
-     * @param sc
+     * @param sc        scanner to get the choice of the user inserted via keyboard
      * @throws IOException
      */
     private static void makeIndexing(boolean takeFlags, Scanner sc) throws IOException
@@ -702,13 +734,13 @@ public class Main
                 int numTFComp = 0;
                 for(int i = 0; i < sList.getSkipArrLen(); i++)
                 {
-                    /*
+                    ///*
                     if (i != 0)
                     {
                         startTF = (int)sList.getSkipBlockInfo(i-1).getFreqOffset() - (int) de.getOffsetTermFreq();
                         startDID = (int)sList.getSkipBlockInfo(i-1).getDocIdOffset() - (int) de.getOffsetDocId();
                     }
-                     */
+                    //*/
                     //printUIMag("Iteration: " + i + " startTF: " + startTF + " startDID: " + startDID);
 
                     //numTFComp = min(SKIP_POINTERS_THRESHOLD, (de.getDf() - (SKIP_POINTERS_THRESHOLD * 0)));
@@ -783,10 +815,12 @@ public class Main
      * @param option options passed by parameter
      * @return true if the user chooses yes (enter Y), false if the user chooses no (enter N)
      */
-    private static boolean getUserChoice(Scanner sc, String option) {
-        while (true) {
-            printUI("\nType Y or N for " + option + " options");   // print of the option
-            String choice = sc.nextLine().toUpperCase();                    // take the user's choice
+    private static boolean getUserChoice(Scanner sc, String option)
+    {
+        while (true)
+        {
+            printUI("\nType Y or N for " + option + " options");    // print of the option
+            String choice = sc.nextLine().toUpperCase();               // take the user's choice
             // check the user's input
             if (choice.equals("Y")) {
                 return true;
