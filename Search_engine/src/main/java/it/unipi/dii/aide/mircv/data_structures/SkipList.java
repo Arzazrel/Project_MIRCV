@@ -79,7 +79,8 @@ public class SkipList
         }
 
         //if ((currPostList!=null) && (currPostList.size() >= SKIP_POINTERS_THRESHOLD))
-        if (currPostList != null)
+        //if (currPostList != null)
+        if (Flags.considerSkippingBytes())
         {
             skipElemIterator = points.iterator();                       // initialize the iterator
             if (skipElemIterator.hasNext())                             // set the iterator
@@ -156,6 +157,8 @@ public class SkipList
 
         return tempSkipList;
     }
+
+    public int getSkipArrLen() {  return this.skipArrLen;  }
 
     public void setCurrPostList(ArrayList<Posting> currPostList)
     {
@@ -291,8 +294,12 @@ public class SkipList
         if( (skipElemIterator == null) || (currPostList == null))   // no blocks or finished
             return postListIndex;
 
+        //printDebug("Cerco DID: " + docID + " e posizione corrente: " + currentPos);
         startPointsIndex = pointsIndex; // set the current pointsIndex before eventual skip
-        postListIndex = currentPos;     // set the current position in the current block of PL
+        if (currentPos != SKIP_POINTERS_THRESHOLD)
+            postListIndex = currentPos;     // set the current position in the current block of PL
+        else
+            postListIndex = 0;              // set the current position in the current block of PL
         currentSI = points.get(pointsIndex);        // initialize the current SkipInfo
         //printDebug("++ IN nextGEQ - 0 iteration -> search DID: " + docID + " skipArrayPosition: " + pointsIndex + " wit maxDID: " + currentSI.getMaxDocId());
         // use skipping to find the searched DocID
@@ -339,8 +346,8 @@ public class SkipList
         ) {
             DictionaryElem de = QueryProcessor.getDictionary().get(term);
             // get the compressed block
-            tf = readCompTFBlockFromDisk(this, 0,de.getOffsetTermFreq(), de.getTermFreqSize(), de.getSkipArrLen(), termFreqChannel);
-            docids = readCompDIDBlockFromDisk(this, 0, de.getOffsetDocId(), de.getDocIdSize(), de.getSkipArrLen(), docIdChannel);
+            tf = readCompTFBlockFromDisk(this, pointsIndex,de.getOffsetTermFreq(), de.getTermFreqSize(), de.getSkipArrLen(), termFreqChannel);
+            docids = readCompDIDBlockFromDisk(this, pointsIndex, de.getOffsetDocId(), de.getDocIdSize(), de.getSkipArrLen(), docIdChannel);
 
             int numTFComp = min(SKIP_POINTERS_THRESHOLD, (de.getDf() - (SKIP_POINTERS_THRESHOLD * pointsIndex)));
             if ( (tf == null) || (docids == null) )     // control check
@@ -348,8 +355,9 @@ public class SkipList
             // decompress the block
             ArrayList<Integer> uncompressedTf = Unary.integersDecompression(tf, numTFComp);  // decompress term freq
             ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(docids,true);    // decompress DocID
-            //printDebug("Request Block: " + blockIndex + " related to the term: " + term + " with skipArr len: " + de.getSkipArrLen());
+            //printDebug("readAndAddUncompBlockPL for term: " + "'" + term + "' -> Request Block:" + pointsIndex + " with skipArr len: " + de.getSkipArrLen());
             //printDebug("uncompressedTf len: " + uncompressedTf.size() + " uncompressedDocid len: " + uncompressedDocid.size());
+            //printDebug("First DID uncompressed is: " + uncompressedDocid.get(0));
             // add the block to the related PL
             currPostList.clear();
             for (int i = 0; i < numTFComp; i++)

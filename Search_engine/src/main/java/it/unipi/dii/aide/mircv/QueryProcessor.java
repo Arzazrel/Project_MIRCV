@@ -1302,11 +1302,12 @@ public final class QueryProcessor
         lengthPostingList = retrieveLengthAllPostingLists(orderedQueryTerm);    // take the length of each posting list
         IDFweight = calculateIDFWeight(lengthPostingList);                      // calculate the IDF weight
         // control print
-        ///*
+        /*
         printDebug("orderedQueryTerm -> " + Arrays.toString(orderedQueryTerm));
         printDebug("termUpperBoundList -> " + Arrays.toString(termUpperBoundList));
         printDebug("sumTUBList -> " + Arrays.toString(sumTUBList));
         printDebug("lengthPostingList -> " + Arrays.toString(lengthPostingList));
+        */
         /*
         for (int i = 0; i < skipListArray.length; i++)
         {
