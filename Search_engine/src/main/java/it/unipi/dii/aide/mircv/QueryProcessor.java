@@ -524,13 +524,13 @@ public final class QueryProcessor
                 if (totalElemOfBlok[currIndexPL] == ++elmOfBlockDone[currIndexPL])  // all elem of a block have been taken
                 {
                     // load the new block and put elem into PQ
-                    retrieveCompBlockOfPL(processedQuery.get(currIndexPL), skipListArray, blockIndex[currIndexPL], currIndexPL);
+                    retrieveCompBlockOfPL(newProcQuery.get(currIndexPL), skipListArray, blockIndex[currIndexPL], currIndexPL);
                     ++blockIndex[currIndexPL];          // increment the counter of block
                     elmOfBlockDone[currIndexPL] = 0;    // reset the counter of elem
                 }
             }   // -- end - while fot scan all block --
             // conjunctive and the current DID doesn't contain all the term in the query
-            if (countSameDID != processedQuery.size())
+            if (countSameDID != pLNotEmpty)
                 partialScore = 0;   // reset counter
 
             // save the last partial score
@@ -602,7 +602,7 @@ public final class QueryProcessor
                 if (totalElemOfBlok[currIndexPL] == ++elmOfBlockDone[currIndexPL])  // all elem of a block have been taken
                 {
                     // load the new block and put elem into PQ
-                    retrieveCompBlockOfPL(processedQuery.get(currIndexPL), skipListArray, blockIndex[currIndexPL], currIndexPL);
+                    retrieveCompBlockOfPL(newProcQuery.get(currIndexPL), skipListArray, blockIndex[currIndexPL], currIndexPL);
                     ++blockIndex[currIndexPL];          // increment the counter of block
                     elmOfBlockDone[currIndexPL] = 0;    // reset the counter of elem
                 }
@@ -625,7 +625,6 @@ public final class QueryProcessor
             }
         }   // -- end - else - disj --
         endTime = System.currentTimeMillis();           // end time of DAAT (comp + skipping)
-        // shows DAAT (comp + skipping) execution time
         printTime("*** DAAT (comp+skipping) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
@@ -713,6 +712,8 @@ public final class QueryProcessor
 
     /**
      * Function for apply the Document at a Time algorithm with WAND algorithm as dynamic pruning algorithm.
+     * Not used in this current version, but can be implemented instead of the MaxScore except in the case of
+     * compression and skipping both enabled.
      *
      * @param processedQuery    array list for containing the query term
      * @param scoringFunc       indicates the preference for scoring. if false use TFIDF, if true use BM25.
@@ -723,9 +724,10 @@ public final class QueryProcessor
     private static void DAATAlgWAND(ArrayList<String> processedQuery, boolean scoringFunc , boolean isConjunctive, int numberOfResults) throws FileNotFoundException
     {
         resPQ = new PriorityQueue<>(numberOfResults, new CompareTerm());    // length equal to the number of results to be returned to the user
-        String[] terms = new String[processedQuery.size()];                 // array containing the terms of the query
+        ArrayList<String> newProcQuery;     // new processed query after removing term not in the dictionary
         ArrayList<Posting>[] postingLists;  // contains all the posting lists for each term of the query
         ArrayList<Integer> ordListDID;      // ordered list of the DocID present in the all posting lists of the term present in the query
+        String[] terms;                     // array containing the terms of the query
         double[] IDFweight;                 // array containing the IDF weight for each posting list
         int[] lengthPostingList;            // array containing the length of the posting lists
         double[] termUpperBoundList;        // contains all the posting lists for each term of the query
@@ -740,24 +742,28 @@ public final class QueryProcessor
         int pLNotEmpty = 0;                 // contains the number of posting lists related to the query terms that aren't empty
         boolean calculateScore = true;      // indicate if of the current DID need to calculate the score or pass to the next
         boolean firstWAND = true;           // indicates if is the first iteration in WAND part of the algorithm
+        int procQLen = 0;                   // the number of term in the original preprocessed query (before removing term not in the dictionary)
         long startTime,endTime;             // variables to calculate the execution time
 
+        procQLen = processedQuery.size();               // take the size of the processed Query before term removing
+        newProcQuery = removeTermNotInDictFromQuery(processedQuery);    // remove term that are not in the dictionary
+        pLNotEmpty = newProcQuery.size();               // take the number of term that have Posting List
+        terms = new String[pLNotEmpty];                 // set the size
+
+        if((procQLen != pLNotEmpty) && (isConjunctive)) // there is at least one term not in dictionary, if conjunctive -> no results must be returned
+            return;         // exit
+
         startTime = System.currentTimeMillis();         // start time for retrieve all posting lists of the query
-        postingLists = retrieveAllPostListsFromQuery(processedQuery);   // take all posting lists of query terms
+        postingLists = retrieveAllPostListsFromQuery(newProcQuery);   // take all posting lists of query terms
         endTime = System.currentTimeMillis();           // end time for retrieve all posting lists of the query
-        // shows query execution time
         printTime("\n*** Retrieved all posting lists in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
-        pLNotEmpty = NumberOfPostingListNotEmpty(postingLists);     // take the number of list that are not empty
         // check the number of posting lists not empty and perform the best choice
         if (pLNotEmpty == 0)    // all terms in the query aren't in the dictionary or empty query
             return;     // exit
         else if (pLNotEmpty == 1)   // there is only 1 postingList (query with one term or query with more term but only one in dictionary)
         {
-            if ((postingLists.length != 1) && (isConjunctive))  // case of query conjunctive and more term but only one in dictionary
-                return;     // exit
-
-            //DAATOnePostingList(processedQuery, postingLists, scoringFunc, numberOfResults);   // execute DAAT algorithm
+            DAATOnePostingList(newProcQuery.get(0), postingLists[0], scoringFunc, numberOfResults);   // execute DAAT algorithm
             return;     // exit
         }
 
@@ -765,10 +771,10 @@ public final class QueryProcessor
         ordListDID = DIDOrderedListOfQuery(postingLists, isConjunctive);    // take ordered list of DocID
         postingListsIndex = getPostingListsIndex(postingLists);             // get the index initialized
         postingListsIndexWAND = getPostingListsIndex(postingLists);         // get the WAND index initialized
-        termUpperBoundList = getPostingListsTermUpperBound(processedQuery); // get the term upper bound for each term(postinglist)
+        termUpperBoundList = getPostingListsTermUpperBound(newProcQuery);   // get the term upper bound for each term(postinglist)
         // initialize array for improvement TFIDF and BM25 scoring
-        for (int i = 0; i < processedQuery.size(); i++)                     // get query terms
-            terms[i] = processedQuery.get(i);
+        for (int i = 0; i < pLNotEmpty; i++)                     // get query terms
+            terms[i] = newProcQuery.get(i);
         lengthPostingList = retrieveLengthAllPostingLists(terms);           // take the length of each posting list
         IDFweight = calculateIDFWeight(lengthPostingList);                  // calculate the IDF weight
 
