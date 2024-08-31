@@ -235,27 +235,24 @@ public class SkipList
     {
         int startPos = postListIndex;   // set the start position (the current position on the block to avoid the scan of all block is not needed)
         int endPos = maxPos;            // set the last position
-        int currentPos;
 
         while (true)
         {
             if (startPos > endPos)      // end of the research, the searched DID is not in the list
             {
-                //printDebug("++ in boolean search ++ did not found.");
-                //printDebug("++++ startPos: " + startPos + " adn DID: " + currPostList.get(startPos).getDocId());
-                //printDebug("++++ currentPos: " + currentPos + " adn DID: " + currPostList.get(currentPos).getDocId());
                 postListIndex = startPos;     // update index for the posting list
                 return startPos;  // not found (return the position with the first DocID greater than the searched one)
             }
 
-            currentPos = (startPos + endPos)/2;
+            int currentPos = (startPos + endPos)/2;
+            int currDID = currPostList.get(currentPos).getDocId();
 
-            if (currPostList.get(currentPos).getDocId() == targetDID)
+            if (currDID == targetDID)
             {
                 postListIndex = currentPos;     // update index for the posting list
                 return currentPos;              // search DocID found
             }
-            else if (currPostList.get(currentPos).getDocId() > targetDID)
+            else if (currDID > targetDID)
             {
                 endPos = currentPos - 1;
             }
@@ -318,7 +315,8 @@ public class SkipList
         if (startPointsIndex != pointsIndex)
             readAndAddUncompBlockPL(term, plIndex);
 
-        endBlockPos = min(skipInterval, ( totalPostListLen - (pointsIndex * skipInterval)));    // take the end position
+        //endBlockPos = min(skipInterval, (totalPostListLen - (pointsIndex * skipInterval)));    // take the end position
+        endBlockPos = min((skipInterval - 1) , ((totalPostListLen - (pointsIndex * skipInterval)) - 1));    // take the end position
         //printDebug("++ IN nextGEQ end iteration -> search: " + docID + " postlistIndex (startPos): " + postListIndex + " -> effective maxDID: " + currPostList.get(endBlockPos).getDocId());
         searchIndex = booleanSearch(docID, endBlockPos);    // search the index of the searched DocID
 
