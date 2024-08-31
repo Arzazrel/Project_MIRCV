@@ -121,10 +121,10 @@ public class DocumentElement
         if(charBuffer.toString().split("\0").length == 0)   // check that the docNo is not empty
             return;
 
-        docno =  charBuffer.toString().split("\0")[0];    //split using end string character
-        buffer.position(DOCNO_DIM);                             // skip docno
-        docid = buffer.getInt();                                // read the docID
-        doclength = buffer.getInt();                            // read the length of the document
-        denomPartBM25 = buffer.getDouble();                     // read the part of denominator of BM25
+        docno =  charBuffer.toString().split("\0")[0];      //split using end string character
+        buffer.position(DOCNO_DIM);                               // skip docno
+        docid = buffer.getInt();                                  // read the docID
+        doclength = buffer.getInt();                              // read the length of the document
+        denomPartBM25 = buffer.getDouble();                       // read the part of denominator of BM25
     }
 }

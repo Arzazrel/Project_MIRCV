@@ -9,10 +9,9 @@ import java.util.Date;
 import static it.unipi.dii.aide.mircv.utils.Constants.DEBUG_FOLDER;
 import static it.unipi.dii.aide.mircv.utils.Constants.printError;
 
-public final class Logger {
-
+public final class Logger
+{
     private static String logFileName;
-
     public static Logger dict_logger = new Logger("dict.txt");
     public static Logger docId_logger = new Logger("docid.txt");
     public static Logger termFreq_logger = new Logger("termFreq.txt");
@@ -35,7 +34,8 @@ public final class Logger {
         log("ERROR", message);
     }
 
-    private void log(String logLevel, String message) {
+    private void log(String logLevel, String message)
+    {
         String formattedLog = getFormattedLog(logLevel, message);
 
         try (PrintWriter writer = new PrintWriter(new FileWriter(logFileName, true))) {
@@ -45,7 +45,8 @@ public final class Logger {
         }
     }
 
-    private String getFormattedLog(String logLevel, String message) {
+    private String getFormattedLog(String logLevel, String message)
+    {
         Date now = new Date();
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         String formattedDate = dateFormat.format(now);

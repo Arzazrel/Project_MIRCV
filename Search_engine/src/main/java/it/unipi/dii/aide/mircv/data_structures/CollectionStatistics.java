@@ -1,7 +1,5 @@
 package it.unipi.dii.aide.mircv.data_structures;
 
-import it.unipi.dii.aide.mircv.QueryProcessor;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -11,7 +9,6 @@ import java.nio.channels.FileChannel;
 import java.util.*;
 
 import static it.unipi.dii.aide.mircv.utils.Constants.*;
-import static it.unipi.dii.aide.mircv.utils.Logger.collStats_logger;
 
 /**
  * class to contain the statistics of the collection
@@ -20,7 +17,7 @@ public final class CollectionStatistics
 {
     private static HashMap<Integer, Long> termFreqTable = new HashMap<>();   // hash table TermFreqValue to related occurrence
     final static int mostFreqPos = 5;   // indicates how many term Freq gets
-    public final static int COLLSTATS_SIZE = INT_BYTES * 7 + DOUBLE_BYTES * 11 + LONG_BYTES * mostFreqPos + DOUBLE_BYTES * mostFreqPos + INT_BYTES * mostFreqPos;   // Size in bytes
+    public final static int COLLSTATS_SIZE = INT_BYTES * 8 + DOUBLE_BYTES * 11 + LONG_BYTES * mostFreqPos + DOUBLE_BYTES * mostFreqPos + INT_BYTES * mostFreqPos;   // Size in bytes
     private static int nDocs;           // number of documents in the collection
     private static double totDocLen;    // sum of the all document length in the collection
 
@@ -29,6 +26,7 @@ public final class CollectionStatistics
     private static double k = 1.2;      // typical values between 1,2 and 2
     private static double b = 0.75;     // typical values around 0.75
     private static int emptyDocs = 0;   // number of empty docs in the collection
+    private static int malformedDocs = 0;   // number of malformed docs in the collection
     private static int minLenDoc = 0;   // len of the shortest doc in the collection
     private static int maxLenDoc = 0;   // len of the longest doc in the collection
     private static int maxTermFreq = 0; // max termFreq in the collection
@@ -99,6 +97,14 @@ public final class CollectionStatistics
 
     public static void setEmptyDocs(int emptyDocs) {
         CollectionStatistics.emptyDocs = emptyDocs;
+    }
+
+    public static int getMalformedDocs() {
+        return malformedDocs;
+    }
+
+    public static void setMalformedDocs(int malformedDocs) {
+        CollectionStatistics.malformedDocs = malformedDocs;
     }
 
     public static int getMinLenDoc() {
@@ -270,6 +276,7 @@ public final class CollectionStatistics
             double k = statsBuffer.getDouble();             // read k parameter
             double b = statsBuffer.getDouble();             // read b parameter
             int emptyDocs = statsBuffer.getInt();           // read number of empty docs in the collection
+            int malformedDocs = statsBuffer.getInt();       // read number of malformed docs in the collection
             int minLenDoc = statsBuffer.getInt();           // read len of the shortest doc in the collection
             int maxLenDoc = statsBuffer.getInt();           // read len of the longest doc in the collection
             int maxTermFreq = statsBuffer.getInt();         // read max termFreq in the collection
@@ -298,8 +305,10 @@ public final class CollectionStatistics
             setK(k);
             setB(b);
             setEmptyDocs(emptyDocs);
+            setMalformedDocs(malformedDocs);
             setMinLenDoc(minLenDoc);
             setMaxLenDoc(maxLenDoc);
+
             setMaxTermFreq(maxTermFreq);
             setMaxPLLength(maxPLLength);
             setMinPLLength(minPLLength);
@@ -334,6 +343,7 @@ public final class CollectionStatistics
             buffer.putDouble(k);            // write k parameter
             buffer.putDouble(b);            // write b parameter
             buffer.putInt(emptyDocs);       // write number of empty docs in the collection
+            buffer.putInt(malformedDocs);   // read number of malformed docs in the collection
             buffer.putInt(minLenDoc);       // write len of the shortest doc in the collection
             buffer.putInt(maxLenDoc);       // write len of the longest doc in the collection
             buffer.putInt(maxTermFreq);     // write max termFreq in the collection
@@ -370,6 +380,7 @@ public final class CollectionStatistics
         printUI("-- sum of the length of all document in the collection: " + totDocLen);
         printUI("-- average length of document in the collection: " + avgDocLen);
         printUI("-- number of empty document in the collection: " + emptyDocs);
+        printUI("-- number of malformed document in the collection: " + malformedDocs);
         printUI("-- len of the shortest doc in the collection: " + minLenDoc);
         printUI("-- len of the longest doc in the collection: " + maxLenDoc);
         printUI("- BM25 parameter:");
@@ -396,13 +407,12 @@ public final class CollectionStatistics
     }
 
     /**
-     * class to define termUpperBoundPostingList. The priority queue contains instances of termUpperBoundPostingList
-     * representing ...
+     * Class to define TermFreqOccBlock. Used in the priority queue to list the most common term frequencies.
      */
     private static class TermFreqOccBlock
     {
-        int termFreqValue;      //
-        long termFreqOcc;       //
+        int termFreqValue;      // the value of term frequency
+        long termFreqOcc;       // the occurrence related to the term frequency value (i.e. how many times this term freq value was found in the posting lists of the inverted index)
 
         // constructor with parameters
         public TermFreqOccBlock(int termFreqValue, long termFreqOcc)
@@ -430,24 +440,23 @@ public final class CollectionStatistics
     }
 
     /**
-     * Class to compare the block, allows the order of the priority queue
-     * The order is ascending order according to term upper bound. In case of equal term upper bound values will be made
-     * order according to query position of the term. Term upper bound and position are sorted in ascending order.
+     * Class to compare the block, allows the order of the priority queue.
+     * The order is ascending order according to occurrence. In case of equal occurrence values will be made order
+     * according to term frequency value (ascending order).
      */
     private static class CompareTFOTerm implements Comparator<CollectionStatistics.TermFreqOccBlock>
     {
         @Override
         public int compare(CollectionStatistics.TermFreqOccBlock tfb1, CollectionStatistics.TermFreqOccBlock tfb2)
         {
-            // comparing terms
+            // comparing terms by occurrence
             int scoreComparison = -Long.compare(tfb1.getTermFreqOcc(), tfb2.getTermFreqOcc());
             // if the term upper bound are equal, compare by position
-            if (scoreComparison == 0)
+            if (scoreComparison == 0)   // return order by both occurrence and termFreq (the occurrence of the two blocks is equal)
             {
-                // return order by both term upper bound and position (the TUB of the two blocks is equal)
                 return Integer.compare(tfb1.getTermFreqValue(), tfb2.getTermFreqValue());
             }
-            return scoreComparison;     // return order only by score (the score of the two blocks is different)
+            return scoreComparison; // return order only by occurrence (the occurrence of the two blocks is different)
         }
     }
 }

@@ -1,10 +1,5 @@
 package it.unipi.dii.aide.mircv.data_structures;
 
-import it.unipi.dii.aide.mircv.TextProcessor;
-import it.unipi.dii.aide.mircv.compression.Unary;
-import it.unipi.dii.aide.mircv.QueryProcessor;
-import it.unipi.dii.aide.mircv.compression.VariableBytes;
-
 import java.io.*;
 import java.nio.CharBuffer;
 import java.nio.MappedByteBuffer;
@@ -12,6 +7,9 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
+import it.unipi.dii.aide.mircv.compression.Unary;
+import it.unipi.dii.aide.mircv.QueryProcessor;
+import it.unipi.dii.aide.mircv.compression.VariableBytes;
 import static it.unipi.dii.aide.mircv.data_structures.DocumentElement.*;
 import static it.unipi.dii.aide.mircv.data_structures.PartialIndexBuilder.*;
 import static it.unipi.dii.aide.mircv.utils.Constants.*;
@@ -60,6 +58,10 @@ public final class DataStructureHandler
         }
     }
 
+    /**
+     * Function to calculate and save (in the docTable) the denominator of the BM25 scoring function, so this
+     * calculation is done offline, saving time during query execution.
+     */
     public static void calcAndStoreDenPartBM25inDocTable()
     {
         long startTime,endTime;             // variables to calculate the execution time
@@ -81,8 +83,6 @@ public final class DataStructureHandler
                 e.printStackTrace();
             }
         }
-        //printDebug("The docTable size before is: " + QueryProcessor.documentTable.size());
-        //printDebug("k: " + k + " b: " + b + " avgDocLen: " + avgDocLen);
 
         // if exist delete file
         File docTable = new File(DOCTABLE_FILE);        // documentTable.txt
@@ -106,15 +106,6 @@ public final class DataStructureHandler
                 denomPartBM25 = k * ((1 - b) + b * (de.getDoclength() / avgDocLen));
                 de.setDenomPartBM25(denomPartBM25);
 
-                /*
-                if ( (de.getDocid() == 6559899) || (de.getDocid() == 5803000) || (de.getDocid() == 967372))
-                {
-                    printDebug("the docLen read is: " + de.getDoclength() + " and the avgLen read is: " + avgDocLen + " k: " + k + " b: " + b);
-                    printDebug("The denominator calculated is: " + denomPartBM25);
-                    printDebug("The denominator get from docTable is: " + QueryProcessor.documentTable.get(de.getDocid()).getDenomPartBM25());
-                }
-                //*/
-
                 // store
                 CharBuffer charBuffer = CharBuffer.allocate(DOCNO_DIM);     //allocate bytes for docno
 
@@ -127,17 +118,13 @@ public final class DataStructureHandler
                 buffer.putInt(de.getDoclength());
                 buffer.putDouble(de.getDenomPartBM25());
 
-                //printDebug("The denominator stored is: " + de.getDenomPartBM25());
-
                 if(debug)
                     docTable_logger.logInfo(de.toString());
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-        //printDebug("The docTable size after is: " + QueryProcessor.documentTable.size());
         endTime = System.currentTimeMillis();           // end time for calculate
-
         printTime("\nCalculate and stored the denominator part for BM25 in Document Table in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
@@ -341,7 +328,7 @@ public final class DataStructureHandler
             {
                 int docid = docidBuffer.getInt();           // read the DocID
                 int termfreq = termfreqBuffer.getInt();     // read the TermFrequency
-                pl.add(new Posting(docid, termfreq)); // add the posting to the posting list
+                pl.add(new Posting(docid, termfreq));       // add the posting to the posting list
             }
             return pl;
         } catch (IOException e) {
@@ -421,13 +408,10 @@ public final class DataStructureHandler
             termfreqBuffer.get(tf, 0, termFreqSize);    // read term freq list
             docidBuffer.get(docids, 0, docIdSize );     // read DocID list
 
-            //printDebug("termFreqSize(bytes): " + termFreqSize + " docIdSize: " + docIdSize + "\ntf len: " + tf.length + " docids len: " + docids.length);
-
             ArrayList<Integer> uncompressedTf = Unary.integersDecompression(tf, posting_size);  // decompress term freq
             ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(docids,true);    // decompress DocID
             for(int i = 0; i < posting_size; i++)
             {
-                //System.out.println("docid: " + uncompressedDocid.get(i)  + " tf: " + uncompressedTf.get(i));
                 uncompressed.add(new Posting(uncompressedDocid.get(i), uncompressedTf.get(i))); // add the posting to the posting list
             }
             return uncompressed;
@@ -463,10 +447,6 @@ public final class DataStructureHandler
         int currDIDSize = 0;        // the current size (at each iteration) for the compressed DID
         int currTFSize = 0;         // the current size (at each iteration) for the compressed TermFreq
 
-        //printDebug("---- readAndUncompressCompressedAndSkippedPLFromDisk ----");
-        //printDebug("DocID size: " + docIdSize + " termFreq size: " + termFreqSize);
-        //printDebug("Skip array len: " + skipArrLen + " PL len: " + posting_size);
-        //printDebug("SkipList: " + sl);
         try {
             MappedByteBuffer docidBuffer = docidChannel.map(FileChannel.MapMode.READ_ONLY, offsetDocId, docIdSize);
             MappedByteBuffer termfreqBuffer = termfreqChannel.map(FileChannel.MapMode.READ_ONLY, offsetTermFreq, termFreqSize);
@@ -481,10 +461,9 @@ public final class DataStructureHandler
 
                 ArrayList<Integer> uncompressedTf = Unary.integersDecompression(tf, posting_size);  // decompress term freq
                 ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(docids,true);    // decompress DocID
-                //printDebug("(0) Uncompressed tf (size " + uncompressedTf.size() + ") adn uncompressed DID (size " + uncompressedDocid.size() + "):");
+
                 for(int i = 0; i < posting_size; i++)
                 {
-                    //printDebug("docid: " + uncompressedDocid.get(i)  + " tf: " + uncompressedTf.get(i));
                     uncompressed.add(new Posting(uncompressedDocid.get(i), uncompressedTf.get(i))); // add the posting to the posting list
                 }
             }
@@ -497,12 +476,11 @@ public final class DataStructureHandler
                     // calculate the number of byte for each compressed list
                     currDIDSize = (int) (currSkipInfo.getDocIdOffset() - currOffsetDID - offsetDocId);
                     currTFSize = (int) (currSkipInfo.getFreqOffset() - currOffsetTF - offsetTermFreq);
-                    //printDebug("--SkipBlock " + i);
-                    //printDebug(" currDIDSize: " + currDIDSize + " -> DIDoffset: " + currSkipInfo.getDocIdOffset() + " currOffsetDID: " + currOffsetDID);
-                    //printDebug(" currTFSize: " + currTFSize + " -> TFoffset: " + currSkipInfo.getFreqOffset() + " currOffsetTF: " + currOffsetTF);
+
                     // initialize the bytes array for the compressed list
                     docids = new byte[currDIDSize];     // initialize the byte array for the compressed DID list
                     tf = new byte[currTFSize];          // initialize the byte array for the compressed TF list
+
                     // read the compressed block of the PL
                     docidBuffer.get(docids, 0, currDIDSize);   // read DocID list
                     termfreqBuffer.get(tf, 0, currTFSize);       // read term freq list
@@ -518,17 +496,14 @@ public final class DataStructureHandler
                     else                            // is not the last skipping block
                         uncompressedTf = Unary.integersDecompression(tf, (posting_size % SKIP_POINTERS_THRESHOLD));  // decompress term freq
                     ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(docids,true);    // decompress DocID
-                    //printDebug("Uncompressed tf (size " + uncompressedTf.size() + ") adn uncompressed DID (size " + uncompressedDocid.size() + "):");
+
                     for(int j = 0; j < uncompressedTf.size(); j++)
                     {
-                        //printDebug("docid: " + uncompressedDocid.get(j)  + " tf: " + uncompressedTf.get(j));
                         uncompressed.add(new Posting(uncompressedDocid.get(j), uncompressedTf.get(j))); // add the posting to the posting list
                     }
                 }
             }
-            //printDebug("termFreqSize(bytes): " + termFreqSize + " docIdSize: " + docIdSize + "\ntf len: " + tf.length + " docids len: " + docids.length);
             return uncompressed;
-
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -573,8 +548,7 @@ public final class DataStructureHandler
             // calculate the number of byte for each compressed list
             sizeToReadTF = (int) (currSkipInfo.getFreqOffset() - startOffsetTF);
         }
-        //printDebug("--Required block: " + blockIndex + " termFreqSize: " + termFreqSize);
-        //printDebug(" sizeToReadTF: " + sizeToReadTF + " -> TFoffset: " + currSkipInfo.getFreqOffset() + " startOffsetTF: " + startOffsetTF + " offsetTermFreq: " + offsetTermFreq);
+
         try {
             MappedByteBuffer termfreqBuffer = termfreqChannel.map(FileChannel.MapMode.READ_ONLY, startOffsetTF, sizeToReadTF);
 
@@ -626,14 +600,12 @@ public final class DataStructureHandler
             // calculate the number of byte for each compressed list
             sizeToReadDID = (int) (currSkipInfo.getDocIdOffset() - startOffsetDID);
         }
-        //printDebug("--Required block: " + blockIndex + " docIdSize: " + docIdSize);
-        //printDebug(" sizeToReadDID: " + sizeToReadDID + " -> DIDoffset: " + currSkipInfo.getDocIdOffset() + " startOffsetDID: " + startOffsetDID + " offsetDocId: " + offsetDocId);
 
         try {
             MappedByteBuffer docidBuffer = docidChannel.map(FileChannel.MapMode.READ_ONLY, startOffsetDID, sizeToReadDID);
 
-            docids = new byte[sizeToReadDID];          // initialize the byte array for the compressed DID list
-            docidBuffer.get(docids, 0, sizeToReadDID);   // read the DID compressed block of the PL
+            docids = new byte[sizeToReadDID];                 // initialize the byte array for the compressed DID list
+            docidBuffer.get(docids, 0, sizeToReadDID);  // read the DID compressed block of the PL
             return docids;
 
         } catch (IOException e) {

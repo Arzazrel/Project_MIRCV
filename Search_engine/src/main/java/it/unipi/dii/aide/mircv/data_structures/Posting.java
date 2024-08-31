@@ -1,7 +1,7 @@
 package it.unipi.dii.aide.mircv.data_structures;
 
 /**
- * Class defining a posting (unit element of a psoting list).
+ * Class defining a posting (unit element of a posting list).
  */
 public class Posting
 {

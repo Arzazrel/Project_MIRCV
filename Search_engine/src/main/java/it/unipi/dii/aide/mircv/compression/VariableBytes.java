@@ -1,15 +1,11 @@
 package it.unipi.dii.aide.mircv.compression;
 
-import java.sql.Array;
 import java.util.ArrayList;
-
-import static it.unipi.dii.aide.mircv.utils.Constants.printDebug;
 
 /**
  * Class to the compression of positive integer using VariableBytes code.
  * VariableBytes code represents an integer x > 0 as VB(x) in a variable number of bytes. In each byte the first bit is
  * a control bit, set to '1' if is the last byte of the number or set '0' otherwise (there are other encode bytes)
- *
  *
  * Es. U(1) = 10000001 , U(5) = 10000101 , U(824) = 00000110 10111000
  * SEE NOTE 0 at the end of the class
@@ -123,11 +119,11 @@ public class VariableBytes
                 if (dGaps && !decompressedList.isEmpty())      // consider the gap between the raw integer
                     num += decompressedList.get((decompressedList.size() - 1));   // add the previous value
 
-                decompressedList.add(num);      // add the decompressed number
+                decompressedList.add(num);  // add the decompressed number
                 shift = 0;                  // reset shift value
                 num = 0;                    // reset value for decompressed integer
             }
-            currentIndex++;             // increment index for the list of compressed integer
+            currentIndex++;                 // increment index for the list of compressed integer
         }
 
         return decompressedList;
@@ -232,8 +228,7 @@ public class VariableBytes
         int previousDID = 0;    // value of previous DID
         byte currentByte;
 
-        //for all the bytes in docIDsToDecompress byte array
-        while (currentIndex < docIDsToDecompress.length)
+        while (currentIndex < docIDsToDecompress.length)        //for all the bytes in docIDsToDecompress byte array
         {
             currentByte = docIDsToDecompress[currentIndex];     // get the current byte to decompress
             currentValue = currentByte & valueMask;             // get last 7 bit from byte
@@ -245,10 +240,10 @@ public class VariableBytes
             if ((currentByte & (-128)) == -128)     // (and 10000000) most meaningful bit is '1', so it's the last byte
             {
                 counter++;                  // increment counter
-                if (counter == sizeBlock)                   // update the number for the difference
+                if (counter == sizeBlock)           // update the number for the difference
                 {
-                    previousDID = 0;                        // reset the previous
-                    counter = 0;                            // reset the counter
+                    previousDID = 0;                // reset the previous
+                    counter = 0;                    // reset the counter
                 }
                 num += previousDID;         // add the previous value
 
@@ -257,7 +252,7 @@ public class VariableBytes
                 shift = 0;                  // reset shift value
                 num = 0;                    // reset value for decompressed integer
             }
-            currentIndex++;             // increment index for the list of compressed integer
+            currentIndex++;                 // increment index for the list of compressed integer
         }
 
         return decompressedList;

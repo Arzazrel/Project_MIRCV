@@ -1,23 +1,21 @@
 package it.unipi.dii.aide.mircv.utils;
 
-import java.io.*;
-
-import it.unipi.dii.aide.mircv.data_structures.SkipInfo;
 import org.apache.commons.io.FileUtils;
-
+import java.io.*;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 
+import it.unipi.dii.aide.mircv.data_structures.SkipInfo;
 import static it.unipi.dii.aide.mircv.utils.Constants.*;
 
-
-public final class FileSystem {
-
+public final class FileSystem
+{
     private FileSystem() {
         throw new UnsupportedOperationException();
     }
 
     /**
-     * function to delete all the file except "stopwords.txt", "collection.tsv", and "msmarco-test2020-queries.tsv"
+     * Function to delete all the file except "stopwords.txt", "collection.tsv", and "msmarco-test2020-queries.tsv"
      * that are in resources.
      */
     public static void file_cleaner()
@@ -174,11 +172,12 @@ public final class FileSystem {
             printSize(formatSize("collectionStatistics", collectionStatistics.length()));
     }
 
+    // ------------------------------- start: method not used (for future implementation) ------------------------------
     /**
      * Function to save docids or tf posting list into file (in order to compare before and after compression)
      *
-     * @param postings
-     * @param tempFileName
+     * @param postings      array list of the DID
+     * @param tempFileName  name of the file
      * @throws FileNotFoundException
      */
     public static void saveDocsInFile(ArrayList<Integer> postings, String tempFileName) throws FileNotFoundException
@@ -197,6 +196,11 @@ public final class FileSystem {
         }
     }
 
+    /**
+     *
+     * @param si
+     * @param tempFileName
+     */
     public static void saveDocsInFileSkipInfo(SkipInfo si, String tempFileName)
     {
         // ----------- debug file ---------------
@@ -211,25 +215,33 @@ public final class FileSystem {
         }
     }
 
+    /**
+     *
+     * @param data
+     * @param fileName
+     */
+    public static void saveStructureToFile(ArrayList<String> data, String fileName)
+    {
+        try (FileWriter writer = new FileWriter(DEBUG_FOLDER + fileName, false))
+        {
+            for (String line : data) {
+                writer.write(line);
+                writer.write(System.lineSeparator());
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
-//    public static void saveStructureToFile(ArrayList<String> data, String fileName) {
-//        try (FileWriter writer = new FileWriter(DEBUG_FOLDER + fileName, false)) {
-//            for (String line : data) {
-//                writer.write(line);
-//                writer.write(System.lineSeparator());
-//            }
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }
-//
-//    public static void appendStringToFile(String data, String fileName) {
-//        try (FileWriter writer = new FileWriter(DEBUG_FOLDER + fileName, true)) {
-//            writer.write(data);
-//            writer.write(System.lineSeparator());
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }
-
+    public static void appendStringToFile(String data, String fileName)
+    {
+        try (FileWriter writer = new FileWriter(DEBUG_FOLDER + fileName, true))
+        {
+            writer.write(data);
+            writer.write(System.lineSeparator());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    // ------------------------------- end: method not used (for future implementation) ------------------------------
 }

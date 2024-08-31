@@ -1,21 +1,17 @@
 package it.unipi.dii.aide.mircv.data_structures;
 
-import it.unipi.dii.aide.mircv.QueryProcessor;
-import it.unipi.dii.aide.mircv.utils.FileSystem;
-import it.unipi.dii.aide.mircv.utils.Logger;
-
 import java.io.*;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
+import static java.lang.Math.min;
 import static it.unipi.dii.aide.mircv.data_structures.SkipInfo.*;
 import static it.unipi.dii.aide.mircv.data_structures.DataStructureHandler.*;
 import static it.unipi.dii.aide.mircv.data_structures.DictionaryElem.getDictElemSize;
 import static it.unipi.dii.aide.mircv.data_structures.PartialIndexBuilder.*;
 import static it.unipi.dii.aide.mircv.utils.Constants.*;
-import static java.lang.Math.min;
 
 /**
  * class to merge the InverteIndex
@@ -28,7 +24,6 @@ public final class IndexMerger
     private IndexMerger() {
         throw new UnsupportedOperationException();
     }
-    //static int i = 0;       // counter used only for control prints
 
     /**
      *  function to merge the block of the inverted index
@@ -98,7 +93,7 @@ public final class IndexMerger
             DictionaryElem currentDE = new DictionaryElem();    // current DictionaryElem, contains the data taken from the queue in the current iteration
             ArrayList<Posting> currentPL;   // current PostingList, contains the data taken from the queue in the current iteration
             TermBlock currentTermBlock;     // var that contain the TermBlock extract from pq in the current iteration
-            String term = "";   // var that contain the Term of the TermBlock extract from pq in the current iteration
+            //String term = "";   // var that contain the Term of the TermBlock extract from pq in the current iteration
             int block_id = -1;  // var that contain the blockID of the TermBlock extract from pq in the current iteration
 
             // Merging the posting list -> SEE NOTE 1
@@ -106,7 +101,7 @@ public final class IndexMerger
             {   // -- start - while 0
                 currentTermBlock = pq.poll();               // get lowest (first) term from priority queue
                 assert currentTermBlock != null;
-                term = currentTermBlock.getTerm();          // get the term
+                //term = currentTermBlock.getTerm();          // get the term
                 block_id = currentTermBlock.getBlock();     // get the blockID
 
                 // If condition to verify if there are other elements -> SEE NOTE 2
@@ -124,7 +119,6 @@ public final class IndexMerger
 
                 if (tempDE.getTerm().equals(""))    // first iteration
                 {   // -- start - if 0
-                    //printDebug("Merge -> first iteration, tempDE term null");
                     //set temp variables values with value of the element taken in the current iteration
                     tempDE = currentDE;
                     tempDE.setOffsetTermFreq(outTermFreqChannel.size());
@@ -248,8 +242,8 @@ public final class IndexMerger
                                 storePostingListIntoDisk(tempPL, outTermFreqChannel, outDocIdChannel);  // write InvertedIndexElem to disk
                         }   // -- end - else 0.1.1
 
-                        //printDebug("The sum of the len of the subLen is: " + sumSubPLLen);
                         tempDE.storeDictionaryElemIntoDisk(outDictionaryChannel);       // store dictionary
+
                         // -- start -- PL len statistics
                         termCount++;                    // update counter
                         currPLLen = tempDE.getDf();     // get posting list len of the current term
@@ -259,6 +253,7 @@ public final class IndexMerger
                         if (currPLLen < minPLLen)
                             minPLLen = currPLLen;       // set min
                         // -- end -- PL len statistics
+
                         //set temp variables values
                         tempDE = currentDE;
                         tempPL = currentPL;
@@ -287,14 +282,13 @@ public final class IndexMerger
             CollectionStatistics.computeTermFreqOccStatistics();    // calculate TF occurrence statistics
             // store the stats into disk
             CollectionStatistics.storeCollectionStatsIntoDisk();    // store
-            //delete_tempFiles();       // delete the partial file for save sapce into disk                                                                       !!!!!!!!!!!!!!!!
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     /**
-     * class to define TermBlock. The priority queue contains instances of TermBlock
+     * Class to define TermBlock. The priority queue contains instances of TermBlock.
      */
     private static class TermBlock
     {

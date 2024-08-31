@@ -125,7 +125,7 @@ public final class Constants {
     public static final String ANSI_YELLOW = "\u001B[93m";      // time print
     public static final String ANSI_RED = "\033[0;31m";         // error print
     public static final String ANSI_GREEN = "\u001B[32m";       // load print
-    public static final String ANSI_ORANGE = "\u001b[38;5;208m";  // file size print
+    public static final String ANSI_ORANGE = "\u001b[38;5;208m";// file size print
     public static final String ANSI_MAGENTA = "\u001b[35m";     // debug print
 
     // -- types print
@@ -163,8 +163,8 @@ public final class Constants {
     /**
      * Function to compare two array lists of integers.
      *
-     * @param al0   the first
-     * @param al1   the second
+     * @param al0   the first integer
+     * @param al1   the second integer
      * @return      if 'true' the array lists are the same, if 'false' the array lists aren't the same
      */
     public static boolean isTwoIntArrayListEqual(ArrayList<Integer> al0, ArrayList<Integer> al1)
@@ -186,11 +186,11 @@ public final class Constants {
     }
 
     /**
+     * Function to calculate the difference between two integers either as a raw value or as a percentage.
      *
-     *
-     * @param num0
-     * @param num1
-     * @return
+     * @param num0  the first integer
+     * @param num1  the second integer
+     * @return  a string containing both the raw and percentage difference.
      */
     public static String differenceBetweenTwoInt(int num0, int num1)
     {

@@ -19,11 +19,9 @@ public class DictionaryElem
     private int cf;             // collection frequency, number of occurrences of the term in the collection
     private long offsetTermFreq;// starting point of the posting list of the term in the term freq file (set in partial(SPIMI) and total index)
     private long offsetDocId;   // starting point of the posting list of the term in the docid file (set in partial(SPIMI) and total index)
-
     // compression
     private int docIdSize;      // dimension in byte of compressed DocID of the posting list
     private int termFreqSize;   // dimension in byte of compressed termFreq of the posting list
-
     // skipping
     private long skipOffset;    // offset of the skip element
     private int skipArrLen;     // len of the skip array (equal to the number of skipping block)
@@ -89,8 +87,6 @@ public class DictionaryElem
     public void setSkipOffset(long skipOffset) { this.skipOffset = skipOffset; }
 
     public void setSkipArrLen(int skipArrLen) { this.skipArrLen = skipArrLen; }
-
-    //public void setMaxTf(double maxTf) { this.maxTf = maxTf; }
 
     // -------- start set methods --------
 
@@ -225,15 +221,15 @@ public class DictionaryElem
             cf = buffer.getInt();               // read Cf
             offsetTermFreq = buffer.getLong();  // read offset Tf
             offsetDocId = buffer.getLong();     // read offset DID
-            if (Flags.isCompressionEnabled())       // if compression is enabled
+            if (Flags.isCompressionEnabled())   // if compression is enabled
             {
-                termFreqSize = buffer.getInt();         // read dimension in byte of compressed DocID of the PL
-                docIdSize = buffer.getInt();            // read dimension in byte of compressed termFreq of the PL
+                termFreqSize = buffer.getInt(); // read dimension in byte of compressed DocID of the PL
+                docIdSize = buffer.getInt();    // read dimension in byte of compressed termFreq of the PL
             }
-            if(Flags.considerSkippingBytes())       // if skipping is enabled
+            if(Flags.considerSkippingBytes())   // if skipping is enabled
             {
-                skipOffset = buffer.getLong();          // read offset of the skip element
-                skipArrLen = buffer.getInt();           // read len of the skip array (equal to the number of skipping block)
+                skipOffset = buffer.getLong();  // read offset of the skip element
+                skipArrLen = buffer.getInt();   // read len of the skip array (equal to the number of skipping block)
             }
         } catch (IOException e) {
             e.printStackTrace();

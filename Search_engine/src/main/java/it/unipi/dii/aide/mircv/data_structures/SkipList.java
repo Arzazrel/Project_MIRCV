@@ -315,7 +315,6 @@ public class SkipList
         if (startPointsIndex != pointsIndex)
             readAndAddUncompBlockPL(term, plIndex);
 
-        //endBlockPos = min(skipInterval, (totalPostListLen - (pointsIndex * skipInterval)));    // take the end position
         endBlockPos = min((skipInterval - 1) , ((totalPostListLen - (pointsIndex * skipInterval)) - 1));    // take the end position
         //printDebug("++ IN nextGEQ end iteration -> search: " + docID + " postlistIndex (startPos): " + postListIndex + " -> effective maxDID: " + currPostList.get(endBlockPos).getDocId());
         searchIndex = booleanSearch(docID, endBlockPos);    // search the index of the searched DocID

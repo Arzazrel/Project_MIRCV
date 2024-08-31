@@ -35,7 +35,6 @@ public class Unary
 
         for (int num : termFreqToCompress)      // scan all integer of the list
         {
-            //System.out.println("num: " + num);
             for (int j = 0; j < num - 1; j++)   // insert (num -1) '1' and then '0'
             {
                 //set correspondent bit to 1 using OR bit a bit and left shift. SEE NOTE 1
@@ -76,9 +75,9 @@ public class Unary
         int nIntegers = 0;          // number of integer decompressed
 
         // scan all compressed bytes of the list
-        // take the current byte of the list
         for (byte currentByteValue : compressedArray)
         {
+            // take the current byte of the list and decompress it
             while (true)
             {
                 // Read current bit
@@ -86,7 +85,7 @@ public class Unary
 
                 if (bit == 1)   // If bit is 1, increment current value
                 {
-                    currentValue++;     // increment the current value (the decompressed value will be = 1 + # of 1
+                    ++currentValue;     // increment the current value (the decompressed value will be = 1 + # of 1
                 } else            // If bit is 0, add current value to decompressed list (compression end of the current integer)
                 {
                     decompressedList.add(currentValue);     // add the decompressed integer value into list
@@ -97,9 +96,9 @@ public class Unary
                         return decompressedList;        // end of the decompression
                 }
 
-                currentBit--;           // update the position of bit to read
+                --currentBit;           // update the position of bit to read
 
-                if (currentBit < 0)     // check if all byte read
+                if (currentBit < 0)     // check if all bits of the byte have been read
                 {
                     currentBit = 7;     // reset the position to read (first bit of the next byte)
                     break;              // go to the next byte to read
@@ -141,7 +140,6 @@ public class Unary
     {
         for (byte b : byteArray)
             System.out.print(String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0') + " ");
-            //System.out.print(String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0') + " ");
         System.out.println(" ");
     }
 
@@ -158,7 +156,6 @@ public class Unary
     }
 
     // ---- end: utilities functions ----
-
 }
 
 /*

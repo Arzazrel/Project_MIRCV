@@ -94,8 +94,7 @@ public class Dictionary
         ) {
             long len = channel.size();          // size of the dictionary saved into disk
 
-            // scan all Dictionary Element saved into disk
-            while(position < len)
+            while(position < len)       // scan all Dictionary Element saved into disk
             {
                 buffer = channel.map(FileChannel.MapMode.READ_ONLY, position, getDictElemSize());// read one DictionaryElem
                 position += getDictElemSize();                      // update read position
@@ -116,16 +115,15 @@ public class Dictionary
                 dictElem.setCf(buffer.getInt());                // read and set Cf
                 dictElem.setOffsetTermFreq(buffer.getLong());   // read and set offset Tf
                 dictElem.setOffsetDocId(buffer.getLong());      // read and set offset DID
-                if(Flags.isCompressionEnabled())    // check if the compression flag is enabled
+                if(Flags.isCompressionEnabled())        // check if the compression flag is enabled
                 {
-                    dictElem.setTermFreqSize(buffer.getInt());  //
-                    dictElem.setDocIdSize(buffer.getInt());     //
+                    dictElem.setTermFreqSize(buffer.getInt());  // read dimension in byte of compressed DocID of the PL
+                    dictElem.setDocIdSize(buffer.getInt());     // read dimension in byte of compressed termFreq of the PL
                 }
-                ///*    // new version
-                if(Flags.considerSkippingBytes())           // if skipping is enabled
+                if(Flags.considerSkippingBytes())       // if skipping is enabled
                 {
-                    dictElem.setSkipOffset(buffer.getLong());       //
-                    dictElem.setSkipArrLen(buffer.getInt());        //
+                    dictElem.setSkipOffset(buffer.getLong());   // read offset of the skip element
+                    dictElem.setSkipArrLen(buffer.getInt());    // read len of the skip array (equal to the number of skipping block)
                 }
 
                 termToTermStat.put(term, dictElem);             // add DictionaryElem into memory

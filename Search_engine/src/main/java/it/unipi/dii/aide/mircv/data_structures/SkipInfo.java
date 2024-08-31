@@ -97,10 +97,10 @@ public class SkipInfo
 
         skipFileChannel.position(start);                    // set the position for the read start
 
-        while (skipPointsBuffer.hasRemaining())
+        while (skipPointsBuffer.hasRemaining())             // read from the file (skipFile)
             skipFileChannel.read(skipPointsBuffer);
 
-        skipPointsBuffer.rewind();
+        skipPointsBuffer.rewind();                          // reset to 0 the current position of the buffer
 
         this.setMaxDocId(skipPointsBuffer.getInt());        // read MaxDocID
         this.setDocIdOffset(skipPointsBuffer.getLong());    // read docID offset

@@ -1,23 +1,15 @@
 package it.unipi.dii.aide.mircv.data_structures;
 
-import it.unipi.dii.aide.mircv.compression.Unary;
-import it.unipi.dii.aide.mircv.QueryProcessor;
-import it.unipi.dii.aide.mircv.compression.VariableBytes;
 import org.apache.commons.io.FileUtils;
-
 import java.io.*;
-import java.nio.CharBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 
-import static it.unipi.dii.aide.mircv.data_structures.DocumentElement.*;
-import static it.unipi.dii.aide.mircv.data_structures.PartialIndexBuilder.*;
+import it.unipi.dii.aide.mircv.QueryProcessor;
 import static it.unipi.dii.aide.mircv.utils.Constants.*;
-import static it.unipi.dii.aide.mircv.utils.Logger.*;
 
 /**
  * This class perform the calculating of term upper bound.
@@ -72,8 +64,6 @@ public class TermDocUpperBound
             termCount++;        // update counter
         }
         endTime = System.currentTimeMillis();           // end time to calculate all term upper bound
-        //printDebug("The size of dictionary is : " + QueryProcessor.getDictionary().size() + " and the len of arraylist of the term is: " + termsList.size());
-        // shows term upper bound calculation time
         printTime("Calculated all term upper bound( " + termCount + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
         if (computeStats)
@@ -85,12 +75,11 @@ public class TermDocUpperBound
         startTime = System.currentTimeMillis();         // start time to store all term upper bound
         storeTermUpperBoundTableIntoDisk();     // save the hashmap into disk
         endTime = System.currentTimeMillis();           // end time to store all term upper bound
-        // shows term upper bound storing time
         printTime("Stored all term upper bound( " + termCount + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
     /**
-     * calculate the document upper bound for each document in the document table
+     * Calculate the document upper bound for each document in the document table. (for future implementation)
      */
     public static void calculateDocsUpperBound()
     {
@@ -124,7 +113,9 @@ public class TermDocUpperBound
         return docUpperBoundTable.isEmpty();
     }
 
-    // method to free memory by deleting the information in termUpperBoundTable and docUpperBoundTable
+    /**
+     * Method to free memory by deleting the information in termUpperBoundTable and docUpperBoundTable
+     */
     private static void freeMemory()
     {
         termUpperBoundTable.clear();
@@ -132,7 +123,7 @@ public class TermDocUpperBound
     }
 
     /**
-     * method to check if termUpperBoundFile exist or not
+     * Method to check if termUpperBoundFile exist or not
      *
      * @return  true if the file exist
      *          false if the file not exist
@@ -144,7 +135,7 @@ public class TermDocUpperBound
     }
 
     /**
-     * method to delete termUpperBoundFile (if exist)
+     * Method to delete termUpperBoundFile (if exist)
      */
     private static void deleteTermUpperBoundFile()
     {
@@ -163,7 +154,7 @@ public class TermDocUpperBound
     }
 
     /**
-     * method to obtain the termUpperBound from termUpperBoundTable of a term passed as parameter
+     * Method to obtain the termUpperBound from termUpperBoundTable of a term passed as parameter
      *
      * @param term          the term
      * @return the term upper bound for the term passed as parameter
@@ -186,7 +177,7 @@ public class TermDocUpperBound
     // ---------------- start: read/write into disk functions ----------------
 
     /**
-     * function to store the whole termUpperBoundTable into disk
+     * Function to store the whole termUpperBoundTable into disk
      */
     static void storeTermUpperBoundTableIntoDisk()
     {
@@ -210,11 +201,10 @@ public class TermDocUpperBound
         } catch (IOException e) {
             e.printStackTrace();
         }
-        //printDebug("Print the hashtable fot the TUB " + termUpperBoundTable);
     }
 
     /**
-     * function to read the whole termUpperBoundTable into disk
+     * Function to read the whole termUpperBoundTable into disk
      */
     public static void readTermUpperBoundTableFromDisk()
     {
@@ -226,16 +216,8 @@ public class TermDocUpperBound
         printLoad("Loading terms upper bound into disk...");
 
         termsList = new ArrayList<>(QueryProcessor.getDictionary().keySet());   // retrieve all the term of the dictionary
-        Collections.sort(termsList);                        // order the list +++++++++++++++++
-        /*
-        printDebug("In term upper bound table (before the read from file).");
-        printDebug("Position 0 -> term: " + termsList.get(0) + " and TUB: " + termUpperBoundTable.get(termsList.get(0)));
-        printDebug("Position 1 -> term: " + termsList.get(1) + " and TUB: " + termUpperBoundTable.get(termsList.get(1)));
-        printDebug("Position " + (termsList.size()-3) + " -> term: " + termsList.get(termsList.size()-3) + " and TUB: " + termUpperBoundTable.get(termsList.get(termsList.size()-3)));
-        printDebug("Position " + (termsList.size()-2) + " -> term: " + termsList.get(termsList.size()-2) + " and TUB: " + termUpperBoundTable.get(termsList.get(termsList.size()-2)));
-        printDebug("Position " + (termsList.size()-1) + " -> term: " + termsList.get(termsList.size()-1) + " and TUB: " + termUpperBoundTable.get(termsList.get(termsList.size()-1)));
-        //*/
-        termUpperBoundTable.clear();        // free the hash map table
+        Collections.sort(termsList);    // order the list
+        termUpperBoundTable.clear();    // free the hash map table
 
         startTime = System.currentTimeMillis();         // start time to store all term upper bound
         try (
@@ -260,16 +242,7 @@ public class TermDocUpperBound
         {
             e.printStackTrace();
         }
-        /*
-        printDebug("In term upper bound table (after the read from file).");
-        printDebug("Position 0 -> term: " + termsList.get(0) + " and TUB: " + termUpperBoundTable.get(termsList.get(0)));
-        printDebug("Position 1 -> term: " + termsList.get(1) + " and TUB: " + termUpperBoundTable.get(termsList.get(1)));
-        printDebug("Position " + (termsList.size()-3) + " -> term: " + termsList.get(termsList.size()-3) + " and TUB: " + termUpperBoundTable.get(termsList.get(termsList.size()-3)));
-        printDebug("Position " + (termsList.size()-2) + " -> term: " + termsList.get(termsList.size()-2) + " and TUB: " + termUpperBoundTable.get(termsList.get(termsList.size()-2)));
-        printDebug("Position " + (termsList.size()-1) + " -> term: " + termsList.get(termsList.size()-1) + " and TUB: " + termUpperBoundTable.get(termsList.get(termsList.size()-1)));
-        //*/
         endTime = System.currentTimeMillis();           // end time to store all term upper bound
-        // shows term upper bound storing time
         printTime("*** Read all term upper bound( " + termsList.size() + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
     // ---------------- end: read/write into disk functions ----------------

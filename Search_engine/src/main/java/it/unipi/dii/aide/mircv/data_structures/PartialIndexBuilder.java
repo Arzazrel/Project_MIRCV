@@ -140,6 +140,7 @@ public final class PartialIndexBuilder
             CollectionStatistics.setTotDocLen(totDocLen);       // set the sum of the all document length in the collection
             CollectionStatistics.setAvgDocLen(avgDocLen);       // set the Doc average len
             CollectionStatistics.setEmptyDocs(emptyDocs);       // set the number of empty docs in the collection
+            CollectionStatistics.setMalformedDocs(malformedDocs);// set the number of malformed docs in the collection
             CollectionStatistics.setMinLenDoc(minlenDoc);       // set the len of the shortest doc in the collection
             CollectionStatistics.setMaxLenDoc(maxLenDoc);       // set the len of the longest doc in the collection
             CollectionStatistics.setMaxTermFreq(maxTermFreq);   // set the max termFreq in the collection
