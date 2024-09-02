@@ -82,7 +82,7 @@ public class Main
                     printFlagsUI();         // print the flags values with explanation for user
 
                     // prints for user
-                    printUI("\nChanging the value of the flags may cause to redo some operations ( such as rebuilding the inverted index, recalculating the Term Upper Bounds and etc...)");
+                    printUIMag("\nChanging the value of the flags may cause to redo some operations ( such as rebuilding the inverted index, recalculating the Term Upper Bounds and etc...)");
                     printUI("\nDo you want change the flags value?");
                     boolean yes = false;        // true = user want change any values
                     boolean no = false;         // true = user don't want change any values
@@ -258,10 +258,11 @@ public class Main
 
                     int validNum = 0;           // 1 = valid number - 0 = not valid (negative number or not a number)
                     int numberOfQueries = 0;    // take the integer entered by users that indicate the number of queries to test
+                    int numberTest = 0;         // take the integer entered by users that indicate the number of test to do
                     int fileChoice = -1;        // take the user's choice for the test file
 
                     // explanation print for the user
-                    printUI("In this test, a user-selected number of queries will be executed in which the times and results in both conjunctive and disjunctive cases will be displayed.");
+                    printUIMag("In this test, a user-selected number of queries will be executed a specified number of times in which the times and results in both conjunctive and disjunctive cases will be displayed.");
                     // choose the test file
                     printUI("Choose from how many test fleets to take queries. Selecting:\n" +
                             "- ‘0’ all available files will be used (the number of queries selected by the user from all files will be taken)\n" +
@@ -279,9 +280,9 @@ public class Main
                     } while (validNum == 0);    // continues until a valid number is entered
                     validNum = 0;               // reset
 
-                    // do while for choosing the number of results to return
+                    // do while for choosing the number of queries to execute
                     do {
-                        printUI("Type the number of queries to test (must be a positive number)");
+                        printUI("Type the number of queries to test (must be a positive number).");
                         try {
                             numberOfQueries = Integer.parseInt(sc.nextLine());    // take the int inserted by user
                             validNum = (numberOfQueries > 0) ? 1 : 0;               // validity check of the int
@@ -290,17 +291,28 @@ public class Main
                         }
                     } while (validNum == 0);  // continues until a valid number is entered
 
+                    // do while for choosing the number of queries to execute
+                    do {
+                        printUI("Type how many times you want to repeat the test (must be a positive number).");
+                        try {
+                            numberTest = Integer.parseInt(sc.nextLine());    // take the int inserted by user
+                            validNum = (numberTest > 0) ? 1 : 0;               // validity check of the int
+                        } catch (NumberFormatException nfe) {
+                            printError("Insert a valid positive number");
+                        }
+                    } while (validNum == 0);  // continues until a valid number is entered
+
                     switch (fileChoice)     // switch to run user's choice
                     {
                         case 0:         // take queries from all files
-                            QueryProcessor.readQueryFromCollection(numberOfQueries,TEST_QUERY_2019_PATH);   // take queries from first file
-                            QueryProcessor.readQueryFromCollection(numberOfQueries,TEST_QUERY_2020_PATH);   // take queries from first file
+                            QueryProcessor.readQueryFromCollection(numberOfQueries,TEST_QUERY_2019_PATH, numberTest);   // take queries from first file
+                            QueryProcessor.readQueryFromCollection(numberOfQueries,TEST_QUERY_2020_PATH, numberTest);   // take queries from first file
                             break;
                         case 2019:      // take queries from 2019 file
-                            QueryProcessor.readQueryFromCollection(numberOfQueries,TEST_QUERY_2019_PATH);   // take queries from first file
+                            QueryProcessor.readQueryFromCollection(numberOfQueries,TEST_QUERY_2019_PATH, numberTest);   // take queries from first file
                             break;
                         case 2020:      // take queries from 2020 file
-                            QueryProcessor.readQueryFromCollection(numberOfQueries,TEST_QUERY_2020_PATH);   // take queries from first file
+                            QueryProcessor.readQueryFromCollection(numberOfQueries,TEST_QUERY_2020_PATH, numberTest);   // take queries from first file
                             break;
                     }
                     continue;                       // go next while iteration

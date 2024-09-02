@@ -93,7 +93,6 @@ public final class IndexMerger
             DictionaryElem currentDE = new DictionaryElem();    // current DictionaryElem, contains the data taken from the queue in the current iteration
             ArrayList<Posting> currentPL;   // current PostingList, contains the data taken from the queue in the current iteration
             TermBlock currentTermBlock;     // var that contain the TermBlock extract from pq in the current iteration
-            //String term = "";   // var that contain the Term of the TermBlock extract from pq in the current iteration
             int block_id = -1;  // var that contain the blockID of the TermBlock extract from pq in the current iteration
 
             // Merging the posting list -> SEE NOTE 1
@@ -101,7 +100,6 @@ public final class IndexMerger
             {   // -- start - while 0
                 currentTermBlock = pq.poll();               // get lowest (first) term from priority queue
                 assert currentTermBlock != null;
-                //term = currentTermBlock.getTerm();          // get the term
                 block_id = currentTermBlock.getBlock();     // get the blockID
 
                 // If condition to verify if there are other elements -> SEE NOTE 2

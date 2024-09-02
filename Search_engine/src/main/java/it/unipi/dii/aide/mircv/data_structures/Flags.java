@@ -144,13 +144,13 @@ public final class Flags
         printUI("6) delete partial file -> if is 'true': the partial file will be deleted after complete the inverted index.");
         printUI("                       -> if is 'false': the partial file will not be deleted after complete the inverted index.");
 
-        printUI("\nThe user's choices for the flags are:");                         // control print for the user
-        printUI("- is stopwords removal enabled : " + isSwsEnabled());              // print choice for stopwords removal
-        printUI("- is compression enabled       : " + isCompressionEnabled());      // print choice for compression
-        printUI("- is scoring BM25 enabled      : " + isScoringEnabled());          // print choice for BM25 scoring function
-        printUI("- is skipping enabled          : " + considerSkippingBytes());     // print choice for skipping
-        printUI("- is dynamic pruning enabled   : " + isDynamicPruningEnabled());   // print choice for dynamic pruning algorithm
-        printUI("- delete partial file enabled  : " + isDeletePartFileEnabled());   // print choice for delete partial file
+        printUIMag("\nThe user's choices for the flags are:");                         // control print for the user
+        printUIMag("- is stopwords removal enabled : " + isSwsEnabled());              // print choice for stopwords removal
+        printUIMag("- is compression enabled       : " + isCompressionEnabled());      // print choice for compression
+        printUIMag("- is scoring BM25 enabled      : " + isScoringEnabled());          // print choice for BM25 scoring function
+        printUIMag("- is skipping enabled          : " + considerSkippingBytes());     // print choice for skipping
+        printUIMag("- is dynamic pruning enabled   : " + isDynamicPruningEnabled());   // print choice for dynamic pruning algorithm
+        printUIMag("- delete partial file enabled  : " + isDeletePartFileEnabled());   // print choice for delete partial file
     }
 
     /**
