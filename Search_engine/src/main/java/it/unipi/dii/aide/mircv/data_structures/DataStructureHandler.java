@@ -72,6 +72,14 @@ public final class DataStructureHandler
 
         printLoad("\nCalculate and storing the denominator part for BM25 in Document Table into disk...");
 
+        // control check: there is a division for avgDocLen -> it must be != 0. If avgDocLen = 0 -> also all docLen = 0
+        //                  -> the whole documents in the collection are empty
+        if (avgDocLen == 0)
+        {
+            printError("Error: the denominator for BM25 cannot be calculated and the same function cannot be used for scoring because the collection consists of documents that are all empty.");
+            return;                 // exit to the function
+        }
+
         // if docTable is not in memory load it
         if(QueryProcessor.documentTable.isEmpty())
         {
@@ -105,7 +113,6 @@ public final class DataStructureHandler
                 // calculate -> k * ((1 - b) + b * (docLen / avgDocLen))
                 denomPartBM25 = k * ((1 - b) + b * (de.getDoclength() / avgDocLen));
                 de.setDenomPartBM25(denomPartBM25);
-
                 // store
                 CharBuffer charBuffer = CharBuffer.allocate(DOCNO_DIM);     //allocate bytes for docno
 
