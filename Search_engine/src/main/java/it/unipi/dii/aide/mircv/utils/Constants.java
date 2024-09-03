@@ -86,6 +86,20 @@ public final class Constants {
     }
 
     /**
+     * Function to format the execution time in the specified format.
+     *
+     * @return      a formatted string that show the execution time.
+     */
+    public static String formatTime(long time)
+    {
+        long seconds = (time / 1000) % 60;
+        long minutes = (time / 1000 / 60) % 60;
+        long hours = (time / 1000 / 3600);
+
+        return String.format("%02d:%02d:%02d", hours, minutes, seconds);
+    }
+
+    /**
      * Function to show the size of a file in the specified format.
      *
      * @param nameFile  file name

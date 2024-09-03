@@ -5,6 +5,7 @@ import it.unipi.dii.aide.mircv.compression.VariableBytes;
 import it.unipi.dii.aide.mircv.data_structures.*;
 import it.unipi.dii.aide.mircv.utils.FileSystem;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
@@ -13,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Scanner;
 
+import static it.unipi.dii.aide.mircv.QueryProcessor.queryManager;
 import static it.unipi.dii.aide.mircv.QueryProcessor.queryStartControl;
 import static it.unipi.dii.aide.mircv.data_structures.CollectionStatistics.readCollectionStatsFromDisk;
 import static it.unipi.dii.aide.mircv.data_structures.DataStructureHandler.*;
@@ -46,6 +48,7 @@ public class Main
                     "\n\t- Test:" +
                     "\n\t  t -> query test mode" +
                     "\n\t  r -> compression test" +
+                    "\n\t  d -> data reading test" +
                     "\n\t  x -> exit" +
                     "\n***********************************\n");
             String mode = sc.nextLine();        // take user's choice
@@ -56,6 +59,11 @@ public class Main
                 case "r":       // execute compression and decompression test
 
                     compressionTest(sc);
+
+                    continue;
+                case "d":       // execute data reading test
+
+                    dataReadingTest(sc);   // data read test , data reading test
 
                     continue;
                 case "i":       // calculate the indexing
@@ -291,7 +299,7 @@ public class Main
                         }
                     } while (validNum == 0);  // continues until a valid number is entered
 
-                    // do while for choosing the number of queries to execute
+                    // do while for choosing the number of test to execute
                     do {
                         printUI("Type how many times you want to repeat the test (must be a positive number).");
                         try {
@@ -386,16 +394,117 @@ public class Main
      */
     private static void calculateTUBs() throws IOException
     {
-        //Flags.setConsiderSkippingBytes(true);
         if (!queryStartControl())
             return;                           // error exit
 
-        DataStructureHandler.calcAndStoreDenPartBM25inDocTable();
+        if (isScoringEnabled())     // use BM25
+            DataStructureHandler.calcAndStoreDenPartBM25inDocTable();   // calculate denominator part of BM25
 
         TermDocUpperBound.calculateTermsUpperBound(false);   // calculate term upper bound for each term of dictionary
-        //TermDocUpperBound.readTermUpperBoundTableFromDisk();
+        //TermDocUpperBound.calculateDocsUpperBound();    // calculate doc upper bound for each doc of docTable (future implementation)
+    }
 
-        TermDocUpperBound.calculateDocsUpperBound();    // calculate doc upper bound for each doc of docTable
+    /**
+     *  Function to read the data structures on the disk a number of times decided by the user and show the average
+     *  read time and how much data was read.
+     *
+     * @param sc    scanner to get the choice of the user inserted via keyboard
+     */
+    private static void dataReadingTest(Scanner sc)
+    {
+        long startTimeTest, endTimeTest;    // variables to calculate the execution time of all test
+        long startTime,endTime;             // variables to calculate the execution time
+        int validNum = 0;                   // 1 = valid number - 0 = not valid (negative number or not a number)
+        int numberTest = 0;                 // take the integer entered by users that indicate the number of test to do
+        long execTime = 0;                  // the time to load the document table at current iteration
+        long avgTime = 0;                   // the average time to load the document table
+        long fastestExec = 1000000000;      // indicates the execution time for the fastest test
+        long slowestExec = 0;               // indicates the execution time for the slowest test
+
+        printUIMag("This function once chosen the data structure to be read and how many times to do it will read the data from disk and put it\n"
+                     +"in memory for the specified number of times and then display the average read time.");
+
+        // do while for choosing the number of test to execute
+        do {
+            printUI("Type how many times you want to repeat the test (must be a positive number).");
+            try {
+                numberTest = Integer.parseInt(sc.nextLine());    // take the int inserted by user
+                validNum = (numberTest > 0) ? 1 : 0;               // validity check of the int
+            } catch (NumberFormatException nfe) {
+                printError("Insert a valid positive number");
+            }
+        } while (validNum == 0);  // continues until a valid number is entered
+
+        printUI("To choose the data to be read, enter the letter corresponding to the desired data, the data-letter pairs are shown below.");
+        printUI("Select an option:" +
+                    "\n\t  t -> Document table." +
+                    "\n\t  d -> Dictionary." +
+                    "\n\t  p -> a posting list relating to a term to be entered.");
+
+        while(true)
+        {   // -- START - while for data selection --
+            String mode = sc.nextLine();        // take user's choice
+
+            switch (mode)   // switch to run user's choice
+            {
+                case "t":       // Document Table reading test
+                    File docTable = new File(DOCTABLE_FILE);        // documentTable.txt
+                    if(docTable.exists())
+                        printSize(formatSize("documentTable", docTable.length()));
+
+                    startTimeTest = System.currentTimeMillis();         // start time of all test
+                    for (int i = 0; i < numberTest; i++)    // test for
+                    {
+                        printUIMag("-- Start test number : " + i + " ---------------------------------------------");
+                        if(!QueryProcessor.documentTable.isEmpty())
+                            QueryProcessor.documentTable.clear();       // clear the document table
+
+                        // load document table from disk
+                        startTime = System.currentTimeMillis();
+                        try {
+                            DataStructureHandler.readDocumentTableFromDisk(false);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                        endTime = System.currentTimeMillis();
+                        execTime = (endTime - startTime);       // calculate iteration time
+                        printTime("Test executes in " + execTime + " ms (" + formatTime(startTime, endTime) + ")");
+                        printUIMag("--------------------------------------------------------------------------------");
+                        if (execTime < fastestExec)
+                            fastestExec = execTime;             // update fastest execution time
+                        if (execTime > slowestExec)
+                            slowestExec = execTime;             // update slowest execution time
+                        avgTime += execTime;                    // update average time
+                    }
+                    endTimeTest = System.currentTimeMillis();         // start time of all test
+
+                    printUIMag("End test executed: " + numberTest + " times");
+                    printTime("All test executed in: "  + (endTimeTest - startTimeTest) + " ms (" + formatTime(startTimeTest, endTimeTest) + ")");
+                    printUIMag("--------------------------------------------------------------------------------");
+                    printTime("The fastest iteration test executed in " + fastestExec + " ms (" + formatTime(fastestExec) + ")");
+                    printTime("The slowest iteration test executed in " + slowestExec + " ms (" + formatTime(slowestExec) + ")");
+                    printTime("The average iteration test executed in " + avgTime /numberTest + " ms (" + formatTime((avgTime/numberTest)) + ")");
+                    printUIMag("--------------------------------------------------------------------------------");
+
+                    return;     // exit
+                case "d":       // Dictionary treading est
+                    File dict = new File(DICTIONARY_FILE);          // dictionary.txt"
+                    if(dict.exists())
+                        printSize(formatSize("dictionary", dict.length()));
+
+                    for (int i = 0; i < numberTest; i++)    // test for
+                    {
+
+                    }
+
+                    return;     // exit
+                case "p":       // posting list reading test
+
+                    return;     // exit
+                default:
+                    printError("Please, enter a valid letter for the choice of options.");
+            }
+        }   // -- END - while for data selection --
     }
 
     /**
@@ -426,7 +535,7 @@ public class Main
      */
     private static void compressionTest(Scanner sc)
     {
-        printDebug("1)Simple compression test, use a simple and short list: ");
+        printUIMag("1)Simple compression test, use a simple and short list: ");
         ArrayList<Integer> myNumbers = new ArrayList<Integer>();
         String chosenTerm = "";     // the term whose posting list will be used for second tests
         int listLen = 10;
@@ -436,14 +545,14 @@ public class Main
         for (int i = 0; i < listLen; i++)   // insert in myNumber the number form 1 to listLen
             myNumbers.add(i+1);
 
-        printDebug("-- Unary code test -> the test list is: " + myNumbers);
+        printUIMag("-- Unary code test -> the test list is: " + myNumbers);
         // compression
         byte[] compressedResult = Unary.integersCompression(myNumbers);     // compress to Unary
-        printDebug("Unary compression -- the list passed len: " + myNumbers.size() + " int with size: " + (myNumbers.size()*4) + " Bytes -> after compression the size is: " + compressedResult.length + " Bytes.");
+        printUIMag("Unary compression -- the list passed len: " + myNumbers.size() + " int with size: " + (myNumbers.size()*4) + " Bytes -> after compression the size is: " + compressedResult.length + " Bytes.");
         Unary.printCompressedList(compressedResult);
         // decompression
         myNumbers = Unary.integersDecompression(compressedResult, listLen);
-        printDebug("Unary Decompression -- the compressed list len: " + listLen + " int with size: " + compressedResult.length + " Bytes -> after decompression the size is: " + (myNumbers.size()*4) + " Bytes.");
+        printUIMag("Unary Decompression -- the compressed list len: " + listLen + " int with size: " + compressedResult.length + " Bytes -> after decompression the size is: " + (myNumbers.size()*4) + " Bytes.");
         Unary.printDecompressedList(myNumbers);    // decompress from Unary
 
         // -- Variable Bytes test
@@ -453,26 +562,26 @@ public class Main
         for (int i = 80000; i < 80000 + listLen; i++)
             myNumbers.add(i);
         myNumbers.add(214577);
-        printDebug("\n-- Variable Bytes code test -> the test list is: " + myNumbers);
+        printUIMag("\n-- Variable Bytes code test -> the test list is: " + myNumbers);
         // compression DGaps = false
         compressedResult = VariableBytes.integersCompression(myNumbers,false);  // compress to Variable Bytes
-        printDebug("VarBytes Compression -- Dgaps: " + false + " the list passed len: " + myNumbers.size() + " int with size: " + (myNumbers.size()*4) + " Bytes -> after compression the size is: " + compressedResult.length + " Bytes.");
+        printUIMag("VarBytes Compression -- Dgaps: " + false + " the list passed len: " + myNumbers.size() + " int with size: " + (myNumbers.size()*4) + " Bytes -> after compression the size is: " + compressedResult.length + " Bytes.");
         VariableBytes.printCompressedList(compressedResult);
         // decompression DGaps = false
         myNumbers = VariableBytes.integersDecompression(compressedResult,false);
-        printDebug("VarBytes Decompression -- Dgaps: " + false + " the compressed list with size: " + compressedResult.length + " Bytes -> after decompression the size is: " + (myNumbers.size()*4) + " Bytes.");
+        printUIMag("VarBytes Decompression -- Dgaps: " + false + " the compressed list with size: " + compressedResult.length + " Bytes -> after decompression the size is: " + (myNumbers.size()*4) + " Bytes.");
         VariableBytes.printDecompressedList(myNumbers);                                // decompress from Variable Bytes
         // compression DGaps = true
         compressedResult = VariableBytes.integersCompression(myNumbers,true);   // compress to Variable Bytes
-        printDebug("VarBytes Compression -- Dgaps: " + false + " the list passed len: " + myNumbers.size() + " int with size: " + (myNumbers.size()*4) + " Bytes -> after compression the size is: " + compressedResult.length + " Bytes.");
+        printUIMag("VarBytes Compression -- Dgaps: " + false + " the list passed len: " + myNumbers.size() + " int with size: " + (myNumbers.size()*4) + " Bytes -> after compression the size is: " + compressedResult.length + " Bytes.");
         VariableBytes.printCompressedList(compressedResult);
         // decompression DGaps = false
         myNumbers = VariableBytes.integersDecompression(compressedResult,false);
-        printDebug("VarBytes Decompression -- Dgaps: " + false + " the compressed list with size: " + compressedResult.length + " Bytes -> after decompression the size is: " + (myNumbers.size()*4) + " Bytes.");
+        printUIMag("VarBytes Decompression -- Dgaps: " + false + " the compressed list with size: " + compressedResult.length + " Bytes -> after decompression the size is: " + (myNumbers.size()*4) + " Bytes.");
         VariableBytes.printDecompressedList(myNumbers);            // decompress from Variable Bytes
         // decompression DGaps = true
         myNumbers = VariableBytes.integersDecompression(compressedResult,true);
-        printDebug("VarBytes Decompression -- Dgaps: " + true + " the compressed list with size: " + compressedResult.length + " Bytes -> after decompression the size is: " + (myNumbers.size()*4) + " Bytes.");
+        printUIMag("VarBytes Decompression -- Dgaps: " + true + " the compressed list with size: " + compressedResult.length + " Bytes -> after decompression the size is: " + (myNumbers.size()*4) + " Bytes.");
         VariableBytes.printDecompressedList(myNumbers);             // decompress from Variable Bytes
         // 2° - test
 
