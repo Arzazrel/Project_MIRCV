@@ -5,6 +5,7 @@ import java.nio.CharBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 import static it.unipi.dii.aide.mircv.utils.Constants.*;
 
@@ -66,6 +67,36 @@ public class DocumentElement
         this.denomPartBM25 = 0;
     }
 
+    @Override
+    public String toString()
+    {
+        return "DocumentElement\n{" +
+                "\n - docno = " + docno +
+                "\n - docid = " + docid +
+                "\n - doclength = " + doclength +
+                "\n - denomPartBM25 = " + denomPartBM25 +
+                "\n}";
+    }
+
+    // Override of the equals method to compare two instances of DocumentElement
+    @Override
+    public boolean equals(Object obj)
+    {
+        if (this == obj)    // check if they are the same object
+            return true;
+
+        if (obj == null || getClass() != obj.getClass())    // obj is null or not a Person
+            return false;
+
+        DocumentElement obj2 = (DocumentElement) obj;
+        return ( docno.equals(obj2.docno) && (docid == obj2.docid) && (doclength == obj2.doclength) && (denomPartBM25 == obj2.denomPartBM25) );
+    }
+
+    // Override of the hashCode method
+    @Override
+    public int hashCode() {
+        return Objects.hash(docno, docid, doclength, denomPartBM25);    // create hash code
+    }
 
     // ---- start method get and set ----
 
@@ -127,4 +158,34 @@ public class DocumentElement
         doclength = buffer.getInt();                              // read the length of the document
         denomPartBM25 = buffer.getDouble();                       // read the part of denominator of BM25
     }
+
+    /**
+     * Function to read one Document Element from disk and set the values read into the variables of this instance.
+     * Version with MappedByteBuffer not for each document element, version much faster version than the one with the
+     * buffer for each element.
+     *
+     * @param start     offset of the document reading from document file
+     * @param buffer    indicate the buffer (MappedByteBuffer) from which to read
+     */
+    public void readDocumentElementFromDisk(int start, MappedByteBuffer buffer)
+    {
+        buffer.position(start);
+
+        // check if there is not enough data in the buffer to read a complete DocumentElement
+        if (buffer.remaining() < DOCELEM_SIZE)
+            return;
+
+        // Decoding the characters for the docno
+        byte[] docnoBytes = new byte[DOCNO_DIM];
+        buffer.get(docnoBytes);                     // read the docno
+        String docnoStr = new String(docnoBytes, StandardCharsets.UTF_8).trim();
+        if (docnoStr.isEmpty())                     // control check for docno
+            return;
+
+        this.docno = docnoStr;                      // take the docno
+        this.docid = buffer.getInt();               // read the docID
+        this.doclength = buffer.getInt();           // read the length of the document
+        this.denomPartBM25 = buffer.getDouble();    // read the part of denominator of BM25
+    }
+
 }

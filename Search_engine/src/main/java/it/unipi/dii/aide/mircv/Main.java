@@ -12,6 +12,7 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Scanner;
 
 import static it.unipi.dii.aide.mircv.QueryProcessor.queryManager;
@@ -451,6 +452,11 @@ public class Main
                     File docTable = new File(DOCTABLE_FILE);        // documentTable.txt
                     if(docTable.exists())
                         printSize(formatSize("documentTable", docTable.length()));
+                    else
+                    {
+                        printError("Document table is not present on the disk, read test cannot be performed.");
+                        return;
+                    }
 
                     startTimeTest = System.currentTimeMillis();         // start time of all test
                     for (int i = 0; i < numberTest; i++)    // test for

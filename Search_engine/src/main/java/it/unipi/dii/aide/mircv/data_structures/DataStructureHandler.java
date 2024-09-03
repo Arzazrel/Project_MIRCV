@@ -7,6 +7,7 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
+import it.unipi.dii.aide.mircv.Main;
 import it.unipi.dii.aide.mircv.compression.Unary;
 import it.unipi.dii.aide.mircv.QueryProcessor;
 import it.unipi.dii.aide.mircv.compression.VariableBytes;
@@ -249,12 +250,15 @@ public final class DataStructureHandler
 
     // -------- start: functions to read from disk --------
 
+
     /**
-     * Function to read all document table from disk and put it in memory (HashMap documentTable).
+     * Function to read all document table from disk and put it in memory (HashMap documentTable). This function uses
+     * and maps a little buffer for each document element (slow reading).
      *
      * @param indexBuilding if true indexing is in progress | if false indexing isn't in progress
      * @throws IOException
      */
+    /*
     public static void readDocumentTableFromDisk(boolean indexBuilding) throws IOException
     {
         printLoad("Loading document table from disk...");
@@ -264,6 +268,7 @@ public final class DataStructureHandler
              FileChannel channel = docTableRaf.getChannel()
         ) {
             DocumentElement de = new DocumentElement();
+            int byteLetti = 0;
 
             // for to read all DocumentElement stored into disk
             for (int i = 0; i < channel.size(); i += DOCELEM_SIZE)
@@ -273,7 +278,60 @@ public final class DataStructureHandler
                     PartialIndexBuilder.documentTable.put(de.getDocid(), new DocumentElement(de.getDocno(), de.getDocid(), de.getDoclength()));
                 else
                     QueryProcessor.documentTable.put(de.getDocid(), new DocumentElement(de.getDocno(), de.getDocid(), de.getDoclength(), de.getDenomPartBM25()));
+
+                byteLetti = i;
             }
+            printDebug("Ho letto: " + (byteLetti + DOCELEM_SIZE) + " B. Elementi della DocTable in memoria: " + QueryProcessor.documentTable.size());
+        }
+    }
+     */
+
+    /**
+     * Function to read all document table from disk and put it in memory (HashMap documentTable). This function uses
+     * and maps a big buffer not a little buffer for each document element, in this way the reading is faster.
+     *
+     * @param indexBuilding if true indexing is in progress | if false indexing isn't in progress
+     * @throws IOException
+     */
+    public static void readDocumentTableFromDisk(boolean indexBuilding) throws IOException
+    {
+        printLoad("Loading document table from disk...");
+        // Define maximum chunk size (default = 80% of the total memory available)
+        final long CHUNK_SIZE = (long) (Runtime.getRuntime().maxMemory() * MEMORY_THRESHOLD);
+        long docTableSize = 0;      // the size of the DocumentTable
+        long position = 0;          // current position
+
+        try (
+                RandomAccessFile docTableRaf = new RandomAccessFile(DOCTABLE_FILE, "r");
+                FileChannel channel = docTableRaf.getChannel()
+        ) {
+            docTableSize = channel.size();
+
+            DocumentElement de = new DocumentElement();
+
+            while (position < docTableSize)             // while to read all DocumentElement stored into disk
+            {
+                long remaining = docTableSize - position;           // how much is left to read
+                long chunkSize = Math.min(remaining, CHUNK_SIZE);   // get the dimension for the current chunk to read
+                // map the current chunk in memory
+                MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, position, chunkSize);
+
+                // Read all DocumentElements in the current chunk
+                for (int offset = 0; offset < chunkSize; offset += DOCELEM_SIZE)
+                {
+                    if (buffer.remaining() < DOCELEM_SIZE)  // Output if there are not enough bytes for another element
+                        break;
+
+                    de.readDocumentElementFromDisk(offset, buffer);     // read the current doc elem
+
+                    if (indexBuilding)
+                        PartialIndexBuilder.documentTable.put(de.getDocid(), new DocumentElement(de.getDocno(), de.getDocid(), de.getDoclength()));
+                    else
+                        QueryProcessor.documentTable.put(de.getDocid(), new DocumentElement(de.getDocno(), de.getDocid(), de.getDoclength(), de.getDenomPartBM25()));
+                }
+                position += chunkSize;      // update the position (the byte read)
+            }
+            //printDebug("Ho letto: " + position + " B. Elementi della DocTable in memoria: " + QueryProcessor.documentTable.size());
         }
     }
 
