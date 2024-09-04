@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static it.unipi.dii.aide.mircv.data_structures.DictionaryElem.getDictElemSize;
+import static it.unipi.dii.aide.mircv.data_structures.DocumentElement.DOCELEM_SIZE;
 import static it.unipi.dii.aide.mircv.utils.Constants.*;
 /**
  * Dictionary class
@@ -81,59 +82,69 @@ public class Dictionary
     }
 
     /**
-     * Function to read whole Dictionary from disk
+     *  Function to read whole Dictionary from disk.
      */
     public void readDictionaryFromDisk()
     {
-        long position = 0;          // indicate the position where read at each iteration
-        MappedByteBuffer buffer;    // get first term of the block
+        // Define maximum chunk size (default = 80% of the total memory available)
+        final long CHUNK_SIZE = (long) (Runtime.getRuntime().maxMemory() * MEMORY_THRESHOLD);
+        int dictElemSize = getDictElemSize();   // size of each element of the dictionary
+        long dictSize = 0;          // the size of the DocumentTable
+        long position = 0;          // current position
+        MappedByteBuffer buffer;    // the buffer for the reading
 
-        printLoad("Loading dictionary from disk...");       // control print
+        printLoad("Loading dictionary from disk..."); // control print
         try (
                 FileChannel channel = new RandomAccessFile(DICTIONARY_FILE, "rw").getChannel()
         ) {
-            long len = channel.size();          // size of the dictionary saved into disk
+            dictSize = channel.size();                          // size of the dictionary saved into disk
 
-            while(position < len)       // scan all Dictionary Element saved into disk
+            while (position < dictSize)
             {
-                buffer = channel.map(FileChannel.MapMode.READ_ONLY, position, getDictElemSize());// read one DictionaryElem
-                position += getDictElemSize();                      // update read position
+                long remaining = dictSize - position;               // how much is left to read
+                long chunkSize = Math.min(remaining, CHUNK_SIZE);   // get the dimension for the current chunk to read
+                // map the current chunk in memory
+                buffer = channel.map(FileChannel.MapMode.READ_ONLY, position, chunkSize);
 
-                DictionaryElem dictElem = new DictionaryElem();     // create new DictionaryElem
-
-                CharBuffer.allocate(TERM_DIM);              //allocate a charbuffer of the dimension reserved to docno
-                CharBuffer charBuffer = StandardCharsets.UTF_8.decode(buffer);
-
-                if(charBuffer.toString().split("\0").length == 0)       // control check of the term size
-                    continue;
-
-                String term = charBuffer.toString().split("\0")[0];     // split using end string character
-
-                dictElem.setTerm(term);                         // read term
-                buffer.position(TERM_DIM);                      // skip docno
-                dictElem.setDf(buffer.getInt());                // read and set Df
-                dictElem.setCf(buffer.getInt());                // read and set Cf
-                dictElem.setOffsetTermFreq(buffer.getLong());   // read and set offset Tf
-                dictElem.setOffsetDocId(buffer.getLong());      // read and set offset DID
-                if(Flags.isCompressionEnabled())        // check if the compression flag is enabled
+                int offset = 0;             // reset the offset for the current chunk
+                while (offset < chunkSize)
                 {
-                    dictElem.setTermFreqSize(buffer.getInt());  // read dimension in byte of compressed DocID of the PL
-                    dictElem.setDocIdSize(buffer.getInt());     // read dimension in byte of compressed termFreq of the PL
-                }
-                if(Flags.considerSkippingBytes())       // if skipping is enabled
-                {
-                    dictElem.setSkipOffset(buffer.getLong());   // read offset of the skip element
-                    dictElem.setSkipArrLen(buffer.getInt());    // read len of the skip array (equal to the number of skipping block)
-                }
+                    if (buffer.remaining() < dictElemSize)
+                        break;              // exit if there are not enough bytes for another element
 
-                termToTermStat.put(term, dictElem);             // add DictionaryElem into memory
+                    DictionaryElem dictElem = new DictionaryElem();
+                    // Decoding the characters for the term
+                    byte[] termBytes = new byte[TERM_DIM];
+                    buffer.get(termBytes);                          // read the term
+                    String term = new String(termBytes, StandardCharsets.UTF_8).trim();
+                    if (term.isEmpty())                             // control check for term
+                        break;
+
+                    dictElem.setTerm(term);                         // read term
+                    dictElem.setDf(buffer.getInt());                // read and set Df
+                    dictElem.setCf(buffer.getInt());                // read and set Cf
+                    dictElem.setOffsetTermFreq(buffer.getLong());   // read and set offset Tf
+                    dictElem.setOffsetDocId(buffer.getLong());      // read and set offset DID
+                    if(Flags.isCompressionEnabled())        // check if the compression flag is enabled
+                    {
+                        dictElem.setTermFreqSize(buffer.getInt());  // read dimension in byte of compressed DocID of the PL
+                        dictElem.setDocIdSize(buffer.getInt());     // read dimension in byte of compressed termFreq of the PL
+                    }
+                    if(Flags.considerSkippingBytes())       // if skipping is enabled
+                    {
+                        dictElem.setSkipOffset(buffer.getLong());   // read offset of the skip element
+                        dictElem.setSkipArrLen(buffer.getInt());    // read len of the skip array (equal to the number of skipping block)
+                    }
+
+                    termToTermStat.put(term, dictElem);             // add DictionaryElem into memory
+                    offset += dictElemSize;                         // update offset
+                }
+                position += offset;                 // update the position (the byte read)
             }
-
-            printLoad("vocabulary size: " + termToTermStat.size());
+            //printLoad("Vocabulary size: " + termToTermStat.size());
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-
 }
 
