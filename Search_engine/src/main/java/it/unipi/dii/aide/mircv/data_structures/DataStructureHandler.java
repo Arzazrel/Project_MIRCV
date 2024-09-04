@@ -295,18 +295,17 @@ public final class DataStructureHandler
      */
     public static void readDocumentTableFromDisk(boolean indexBuilding) throws IOException
     {
-        printLoad("Loading document table from disk...");
         // Define maximum chunk size (default = 80% of the total memory available)
         final long CHUNK_SIZE = (long) (Runtime.getRuntime().maxMemory() * MEMORY_THRESHOLD);
         long docTableSize = 0;      // the size of the DocumentTable
         long position = 0;          // current position
 
+        printLoad("Loading document table from disk...");
         try (
                 RandomAccessFile docTableRaf = new RandomAccessFile(DOCTABLE_FILE, "r");
                 FileChannel channel = docTableRaf.getChannel()
         ) {
-            docTableSize = channel.size();
-
+            docTableSize = channel.size();              // take the size of the file to read
             DocumentElement de = new DocumentElement();
 
             while (position < docTableSize)             // while to read all DocumentElement stored into disk
@@ -317,10 +316,11 @@ public final class DataStructureHandler
                 MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, position, chunkSize);
 
                 // Read all DocumentElements in the current chunk
-                for (int offset = 0; offset < chunkSize; offset += DOCELEM_SIZE)
+                int offset = 0;             // reset the offset for the current chunk
+                while (offset < chunkSize)
                 {
-                    if (buffer.remaining() < DOCELEM_SIZE)  // Output if there are not enough bytes for another element
-                        break;
+                    if (buffer.remaining() < DOCELEM_SIZE)
+                        break;          // exit if there are not enough bytes for another element
 
                     de.readDocumentElementFromDisk(offset, buffer);     // read the current doc elem
 
@@ -328,10 +328,10 @@ public final class DataStructureHandler
                         PartialIndexBuilder.documentTable.put(de.getDocid(), new DocumentElement(de.getDocno(), de.getDocid(), de.getDoclength()));
                     else
                         QueryProcessor.documentTable.put(de.getDocid(), new DocumentElement(de.getDocno(), de.getDocid(), de.getDoclength(), de.getDenomPartBM25()));
+                    offset += DOCELEM_SIZE;                         // update offset
                 }
-                position += chunkSize;      // update the position (the byte read)
+                position += offset;                 // update the position (the byte read)
             }
-            //printDebug("Ho letto: " + position + " B. Elementi della DocTable in memoria: " + QueryProcessor.documentTable.size());
         }
     }
 
@@ -380,9 +380,10 @@ public final class DataStructureHandler
      * @param termfreqChannel   file where read Term Frequency values
      * @return the posting lists read from disk
      */
-    public static ArrayList<Posting> readPostingListFromDisk(long offsetDocId, long offsetTermFreq, int posting_size, FileChannel docidChannel, FileChannel termfreqChannel) {
-
+    public static ArrayList<Posting> readPostingListFromDisk(long offsetDocId, long offsetTermFreq, int posting_size, FileChannel docidChannel, FileChannel termfreqChannel)
+    {
         ArrayList<Posting> pl = new ArrayList<>();
+        //ArrayList<Posting> pl = new ArrayList<>(posting_size);
 
         try {
             MappedByteBuffer docidBuffer = docidChannel.map(FileChannel.MapMode.READ_ONLY, offsetDocId, (long) posting_size * Integer.BYTES);
