@@ -2428,9 +2428,9 @@ public final class QueryProcessor
         if (termFreq == 0)              // da togliere (controllare prestazione con e senza) +++++++++++++++++++++++++++++++++++++
             return (double) 0;
 
-        //double docLen = documentTable.get(DocID).getDoclength();
-        //denominator = k * ((1 - b) + b * (docLen / avgDocLen)) + termFreq;   // calculate denominator
-        denominator = documentTable.get(DocID).getDenomPartBM25() + termFreq;   // take part of denominator from memory
+        double docLen = documentTable.get(DocID).getDoclength();
+        denominator = k * ((1 - b) + b * (docLen / avgDocLen)) + termFreq;   // calculate denominator
+        //denominator = documentTable.get(DocID).getDenomPartBM25() + termFreq;   // take part of denominator from memory
         scoreBM25 = (termFreq / denominator) * IDFweight;      // calculate TFIDF weight from Tf and IDF weight values
         //printDebug("ScoringBM25 - docLen = " + docLen + " denominator = " + denominator + " IDFweight = " + IDFweight + " scoreBM25 = " + scoreBM25);
         return scoreBM25;
@@ -2940,12 +2940,13 @@ public final class QueryProcessor
 
         for (int i = 0; i < postingLists.length; i++)       // scan all query terms
         {
+            /*
             if (postingLists[i] == null)    // control check
             {
                 //printDebug("SetAllSkipList -- term: " + orderedQueryTerm[i] + " not in collection.");
                 tempSkipListArray[i] = null;
                 continue;
-            }
+            }*/
             //printDebug("SetAllSkipList -- SkipList related to the term: " + orderedQueryTerm[i] + " in position: " + i);
             tempDictElem = dictionary.getTermStat(orderedQueryTerm[i]); // get dictionary elem associated to term
             // create the skipList related to query's term
@@ -3453,6 +3454,7 @@ public final class QueryProcessor
         ArrayList<Integer> rankedResults;   // ArrayList that contain the ranked results of query
         int queryCount = 0;             // indicates how many queries have been made
         long startTime, endTime;        // variables to calculate the execution time
+        long startTimeTest, endTimeTest;// variables to calculate the execution time of all test
         long fasterQueryCon = 100000;   // indicates the execution time for the fastest query in the collection (conjunctive)
         String quidFastCon = "";        // indicates the query ID of the fastest query in the collection (conjunctive)
         long slowerQueryCon = 0;        // indicates the execution time for the slowest query in the collection (conjunctive)
@@ -3485,6 +3487,7 @@ public final class QueryProcessor
         String record;          // string to contain the queries and their result
 
         printUIMag("--------------------------------------------------------------------------------");
+        startTimeTest = System.currentTimeMillis();         // start time of all test
         for (int i = 0; i < numTest; i++)
         {   // -- START - for - number of test -
             try
@@ -3555,9 +3558,10 @@ public final class QueryProcessor
                 e.printStackTrace();
             }
         }   // -- END - for - number of test -
-
+        endTimeTest = System.currentTimeMillis();         // start time of all test
         // print queries collection statistics
         printUIMag(" End query test... Executed: " + numTest + " times, from: " + pathTest);         // control print
+        printTime(" All test executed in: "  + (endTimeTest - startTimeTest) + " ms (" + formatTime(startTimeTest, endTimeTest) + ")");
         printUIMag("--------------------------------------------------------------------------------");
         printTime("The fastest query (conjunctive mode) executes in " + fasterQueryCon + " ms and its QUID is " + quidFastCon);
         printTime("The slowest query (conjunctive mode) executes in " + slowerQueryCon + " ms and its QUID is " + quidSlowCon);

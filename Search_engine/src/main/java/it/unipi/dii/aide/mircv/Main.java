@@ -422,6 +422,15 @@ public class Main
         long fastestExec = 1000000000;      // indicates the execution time for the fastest test
         long slowestExec = 0;               // indicates the execution time for the slowest test
 
+        // -- control for file into disk
+        if (!FileSystem.areThereAllMergedFiles() || !Flags.isThereFlagsFile() || !CollectionStatistics.isThereStatsFile())
+        {
+            printError("Error: missing required files.");
+            return;
+        }
+        readFlagsFromDisk();                                    // read flags from disk
+        readCollectionStatsFromDisk();                          // read collection statistics from disk
+
         printUIMag("This function once chosen the data structure to be read and how many times to do it will read the data from disk and put it\n"
                      +"in memory for the specified number of times and then display the average read time.");
 
@@ -440,7 +449,12 @@ public class Main
         printUI("Select an option:" +
                     "\n\t  t -> Document table." +
                     "\n\t  d -> Dictionary." +
-                    "\n\t  p -> a posting list relating to a term to be entered.");
+                    "\n\t  p -> A posting list relating to a query to be entered." +
+                    "\n\t  s -> A Skip List relating to a term to be entered.");
+
+        String chosenTerm = "";                 // the term whose posting list will be used for second tests
+        ArrayList<String> procChosenTerm;       // array list for containing the processed query term
+        ArrayList<Posting> postingList;         // array list for the posting list of the term
 
         while(true)
         {   // -- START - while for data selection --
@@ -558,13 +572,10 @@ public class Main
                     if (!QueryProcessor.dictionary.dictionaryIsSet())
                         QueryProcessor.dictionary.readDictionaryFromDisk();
 
-                    String chosenTerm = "";     // the term whose posting list will be used for second tests
                     printUI("Please enter the query whose posting lists will be used for testing.");
                     chosenTerm = sc.nextLine().toUpperCase();   // take the user's choice
                     // preprocess of the entered term
-                    ArrayList<String> procChosenTerm;           // array list for containing the processed query term
                     ArrayList<String> queryTerm = new ArrayList<>();    // array list for containing the query term after removing term not in dictionary
-                    ArrayList<Posting> postingList;             // array list for the posting list of the term
 
                     try {
                         procChosenTerm = TextProcessor.preprocessText(chosenTerm); // Preprocessing of document text
@@ -583,22 +594,20 @@ public class Main
                         return;
                     }
 
-                    startTimeTest = System.currentTimeMillis();         // start time of all test
-                    for (int i = 0; i < numberTest; i++)    // test for
-                    {   // -- START - for - test --
-                        printUIMag("-- Start test number : " + i + " ---------------------------------------------");
+                    try(
+                            // open complete files to read the postingList
+                            RandomAccessFile docidFile = new RandomAccessFile(DOCID_FILE, "rw");
+                            RandomAccessFile termfreqFile = new RandomAccessFile(TERMFREQ_FILE, "rw");
+                            // FileChannel
+                            FileChannel docIdChannel = docidFile.getChannel();
+                            FileChannel termFreqChannel = termfreqFile.getChannel()
+                    ) {
+                        startTimeTest = System.currentTimeMillis();         // start time of all test
+                        for (int i = 0; i < numberTest; i++)    // test for
+                        {   // -- START - for - test --
+                            printUIMag("-- Start test number : " + i + " ---------------------------------------------");
 
-                        // get the posting list of the term passed as parameter
-                        try(
-                                // open complete files to read the postingList
-                                RandomAccessFile docidFile = new RandomAccessFile(DOCID_FILE, "rw");
-                                RandomAccessFile termfreqFile = new RandomAccessFile(TERMFREQ_FILE, "rw");
-
-                                // FileChannel
-                                FileChannel docIdChannel = docidFile.getChannel();
-                                FileChannel termFreqChannel = termfreqFile.getChannel()
-                        ) {
-
+                            // get the posting list of the term passed as parameter
                             startTime = System.currentTimeMillis();
                             for (int j = 0; j < queryTerm.size(); j++)
                             {
@@ -606,11 +615,80 @@ public class Main
                                 postingList = readPostingListFromDisk(de.getOffsetDocId(),de.getOffsetTermFreq(),de.getDf(),docIdChannel,termFreqChannel);
                             }
                             endTime = System.currentTimeMillis();
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
+
+                            execTime = (endTime - startTime);       // calculate iteration time
+                            printTime("Posting lists loaded in " + execTime + " ms (" + formatTime(startTime, endTime) + ")");
+                            printUIMag("--------------------------------------------------------------------------------");
+                            if (execTime < fastestExec)
+                                fastestExec = execTime;             // update fastest execution time
+                            if (execTime > slowestExec)
+                                slowestExec = execTime;             // update slowest execution time
+                            avgTime += execTime;                    // update average time
+                        }   // -- END - for - test --
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    endTimeTest = System.currentTimeMillis();         // start time of all test
+
+                    printUIMag("End test executed: " + numberTest + " times");
+                    printTime("All test executed in: "  + (endTimeTest - startTimeTest) + " ms (" + formatTime(startTimeTest, endTimeTest) + ")");
+                    printUIMag("--------------------------------------------------------------------------------");
+                    printTime("The fastest iteration test executed in " + fastestExec + " ms (" + formatTime(fastestExec) + ")");
+                    printTime("The slowest iteration test executed in " + slowestExec + " ms (" + formatTime(slowestExec) + ")");
+                    printTime("The average iteration test executed in " + (avgTime/numberTest) + " ms (" + formatTime((avgTime/numberTest)) + ")");
+                    printUIMag("--------------------------------------------------------------------------------");
+                    return;     // exit
+                case "s":       // posting list reading test
+                    File skip = new File(SKIP_FILE);                // skipInfo
+                    if(skip.exists())
+                        printSize(formatSize("skipInfo", skip.length()));
+                    else
+                    {
+                        printError("SkipInfo file is not present on the disk, read test cannot be performed.");
+                        return;
+                    }
+
+                    // -- control for structures in memory - if not load them from disk
+                    if (!QueryProcessor.dictionary.dictionaryIsSet())
+                        QueryProcessor.dictionary.readDictionaryFromDisk();
+
+                    printUI("Please enter the query whose posting lists will be used for testing.");
+                    chosenTerm = sc.nextLine().toUpperCase();   // take the user's choice
+                    // preprocess of the entered term
+                    try {
+                        procChosenTerm = TextProcessor.preprocessText(chosenTerm); // Preprocessing of document text
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    if (procChosenTerm.isEmpty())
+                    {
+                        printError("The query entered is empty.");
+                        return;
+                    }
+                    String term = procChosenTerm.get(0);
+                    if (!QueryProcessor.dictionary.getTermToTermStat().containsKey(term))
+                    {
+                        printError("The entered term is not in the dictionary.");
+                        return;
+                    }
+
+                    SkipList tempSkipList;          // temp SkipList
+                    DictionaryElem tempDictElem;    // temp dictionary elem
+
+                    startTimeTest = System.currentTimeMillis();         // start time of all test
+                    for (int i = 0; i < numberTest; i++)    // test for
+                    {   // -- START - for - test --
+                        printUIMag("-- Start test number : " + i + " ---------------------------------------------");
+
+                        // get the posting list of the term passed as parameter
+                        startTime = System.currentTimeMillis();
+                        tempDictElem = QueryProcessor.dictionary.getTermStat(term); // get dictionary elem associated to term
+                        // create the skipList related to query's term
+                        tempSkipList = new SkipList(tempDictElem.getSkipOffset(), tempDictElem.getSkipArrLen(),null, tempDictElem.getDf());
+                        endTime = System.currentTimeMillis();
+                        
                         execTime = (endTime - startTime);       // calculate iteration time
-                        printTime("Posting lists loaded in " + execTime + " ms (" + formatTime(startTime, endTime) + ")");
+                        printTime("Skip List loaded in " + execTime + " ms (" + formatTime(startTime, endTime) + ")");
                         printUIMag("--------------------------------------------------------------------------------");
                         if (execTime < fastestExec)
                             fastestExec = execTime;             // update fastest execution time
@@ -627,6 +705,7 @@ public class Main
                     printTime("The slowest iteration test executed in " + slowestExec + " ms (" + formatTime(slowestExec) + ")");
                     printTime("The average iteration test executed in " + (avgTime/numberTest) + " ms (" + formatTime((avgTime/numberTest)) + ")");
                     printUIMag("--------------------------------------------------------------------------------");
+
                     return;     // exit
                 default:
                     printError("Please, enter a valid letter for the choice of options.");
