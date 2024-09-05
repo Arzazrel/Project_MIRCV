@@ -17,9 +17,9 @@ public final class CollectionStatistics
 {
     private static HashMap<Integer, Long> termFreqTable = new HashMap<>();   // hash table TermFreqValue to related occurrence
     final static int mostFreqPos = 5;   // indicates how many term Freq gets
-    public final static int COLLSTATS_SIZE = INT_BYTES * 8 + DOUBLE_BYTES * 11 + LONG_BYTES * mostFreqPos + DOUBLE_BYTES * mostFreqPos + INT_BYTES * mostFreqPos;   // Size in bytes
+    public final static int COLLSTATS_SIZE = INT_BYTES * 8 + LONG_BYTES + DOUBLE_BYTES * 10 + LONG_BYTES * mostFreqPos + DOUBLE_BYTES * mostFreqPos + INT_BYTES * mostFreqPos;   // Size in bytes
     private static int nDocs;           // number of documents in the collection
-    private static double totDocLen;    // sum of the all document length in the collection
+    private static long totDocLen;      // sum of the all document length in the collection
 
     // variable to BM25
     private static double avgDocLen;    // average document length (used in BM25 scoring function)
@@ -59,11 +59,11 @@ public final class CollectionStatistics
         CollectionStatistics.nDocs = nDocs;
     }
 
-    public static double getTotDocLen() {
+    public static long getTotDocLen() {
         return totDocLen;
     }
 
-    public static void setTotDocLen(double totDocLen) {
+    public static void setTotDocLen(long totDocLen) {
         CollectionStatistics.totDocLen = totDocLen;
     }
 
@@ -271,7 +271,7 @@ public final class CollectionStatistics
 
             // Get collection statistic values from buffer
             int nDocs = statsBuffer.getInt();               // read number of documents in the collection
-            double totDocLen = statsBuffer.getDouble();     // read sum of the all document length in the collection
+            long totDocLen = statsBuffer.getLong();         // read sum of the all document length in the collection
             double avgDocLen = statsBuffer.getDouble();     // read average document length
             double k = statsBuffer.getDouble();             // read k parameter
             double b = statsBuffer.getDouble();             // read b parameter
@@ -338,7 +338,7 @@ public final class CollectionStatistics
             MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, COLLSTATS_SIZE); // integer size * number of int to store (1) + double size * number of double to store (1)
 
             buffer.putInt(nDocs);           // write total number of document in collection
-            buffer.putDouble(totDocLen);    // write sum of the all document length in the collection
+            buffer.putLong(totDocLen);      // write sum of the all document length in the collection
             buffer.putDouble(avgDocLen);    // write average document length
             buffer.putDouble(k);            // write k parameter
             buffer.putDouble(b);            // write b parameter
@@ -375,35 +375,35 @@ public final class CollectionStatistics
      */
     public static void printCollectionStatistics()
     {
-        printUI("The values of the collection statistics are:");
-        printUI("- number of document in the collection: " + nDocs);
-        printUI("-- sum of the length of all document in the collection: " + totDocLen);
-        printUI("-- average length of document in the collection: " + avgDocLen);
-        printUI("-- number of empty document in the collection: " + emptyDocs);
-        printUI("-- number of malformed document in the collection: " + malformedDocs);
-        printUI("-- len of the shortest doc in the collection: " + minLenDoc);
-        printUI("-- len of the longest doc in the collection: " + maxLenDoc);
-        printUI("- BM25 parameter:");
-        printUI("-- k parameter: " + k);
-        printUI("-- b parameter: " + b);
-        printUI("- Posting list parameter:");
-        printUI("-- max posting list len: " + maxPLLength);
-        printUI("-- min posting list len: " + minPLLength);
-        printUI("-- avg posting list len: " + avgPLLength);
-        printUI("- Term Frequency values parameter:");
-        printUI("-- the max term frequency in the collection: " + maxTermFreq);
-        printUI("-- Top " + mostFreqPos + " Term Frequency occurrence list (from the most common to the rarest):");
+        printUIMag("The values of the collection statistics are:");
+        printUIMag("- number of document in the collection: " + nDocs);
+        printUIMag("-- sum of the length of all document in the collection: " + totDocLen);
+        printUIMag("-- average length of document in the collection: " + avgDocLen);
+        printUIMag("-- number of empty document in the collection: " + emptyDocs);
+        printUIMag("-- number of malformed document in the collection: " + malformedDocs);
+        printUIMag("-- len of the shortest doc in the collection: " + minLenDoc);
+        printUIMag("-- len of the longest doc in the collection: " + maxLenDoc);
+        printUIMag("- BM25 parameter:");
+        printUIMag("-- k parameter: " + k);
+        printUIMag("-- b parameter: " + b);
+        printUIMag("- Posting list parameter:");
+        printUIMag("-- max posting list len: " + maxPLLength);
+        printUIMag("-- min posting list len: " + minPLLength);
+        printUIMag("-- avg posting list len: " + avgPLLength);
+        printUIMag("- Term Frequency values parameter:");
+        printUIMag("-- the max term frequency in the collection: " + maxTermFreq);
+        printUIMag("-- Top " + mostFreqPos + " Term Frequency occurrence list (from the most common to the rarest):");
         for (int i=0; i < mostFreqPos; i++)
-            printUI("---- pos " + (i+1) + " -> TermFreqValue: " + mostTF[i] + " , occurrence: " + mostTFOcc[i] + " (row value) , " + String.format("%.4f", mostTFPerc[i]) + " %");
-        printUI("- Statistics of DocID gap in posting list:");
-        printUI("-- Generic:");
-        printUI("---- the average gap between DID of the same posting list: " + avgDIDGapInPL);
-        printUI("---- the min avg gap between DID of the same posting list: " + minAvgDIDGapInPL);
-        printUI("---- the max avg gap between DID of the same posting list: " + maxAvgDIDGapInPL);
-        printUI("-- With partition in block of the posting lists (es. skipping or compression). Skipping enabled '" + Flags.considerSkippingBytes() + "' and compression enabled '" + Flags.isCompressionEnabled() + "' :");
-        printUI("---- the average gap between DID of the same block: " + avgBlockDIDGapInPL);
-        printUI("---- the min avg gap between DID of the same block: " + minBlockAvgDIDGapInPL);
-        printUI("---- the max avg gap between DID of the same block: " + maxBlockAvgDIDGapInPL);
+            printUIMag("---- pos " + (i+1) + " -> TermFreqValue: " + mostTF[i] + " , occurrence: " + mostTFOcc[i] + " (row value) , " + String.format("%.4f", mostTFPerc[i]) + " %");
+        printUIMag("- Statistics of DocID gap in posting list:");
+        printUIMag("-- Generic:");
+        printUIMag("---- the average gap between DID of the same posting list: " + avgDIDGapInPL);
+        printUIMag("---- the min avg gap between DID of the same posting list: " + minAvgDIDGapInPL);
+        printUIMag("---- the max avg gap between DID of the same posting list: " + maxAvgDIDGapInPL);
+        printUIMag("-- With partition in block of the posting lists (es. skipping or compression). Skipping enabled '" + Flags.considerSkippingBytes() + "' and compression enabled '" + Flags.isCompressionEnabled() + "' :");
+        printUIMag("---- the average gap between DID of the same block: " + avgBlockDIDGapInPL);
+        printUIMag("---- the min avg gap between DID of the same block: " + minBlockAvgDIDGapInPL);
+        printUIMag("---- the max avg gap between DID of the same block: " + maxBlockAvgDIDGapInPL);
     }
 
     /**
