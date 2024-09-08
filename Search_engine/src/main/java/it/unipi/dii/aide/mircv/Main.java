@@ -1008,7 +1008,7 @@ public class Main
                     FileChannel docIdChannel = docidFile.getChannel();
                     FileChannel termFreqChannel = termfreqFile.getChannel()
             ) {
-                // 1 - read and not uncompress the whole compressed posting list
+                // 1 - read and not uncompress the whole compressed posting list ---------------------------------------
                 startTime = System.currentTimeMillis();
                 // read the termFreq of the whole posting list
                 int startOffsetTF;                  // the current offset (at each iteration) for the compressed TermFreq
@@ -1036,7 +1036,7 @@ public class Main
                 printUIMag("Byte loaded for TF: " + sizeToReadTF + " Byte loaded for DID: " + sizeToReadDID);
                 printTime( "Whole posting list loaded and not uncompressed in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
-                // 1.5 - read and uncompress the whole compressed posting list
+                // 1.5 - read and uncompress the whole compressed posting list -----------------------------------------
                 startTime = System.currentTimeMillis();
                 // read the termFreq of the whole posting list
                 startOffsetTF = (int) de.getOffsetTermFreq();
@@ -1058,39 +1058,36 @@ public class Main
                 int startTF = 0;
                 int startDID = 0;
                 int numTFComp = 0;
+                int sumTF = 0;
+                int sumDID = 0;
                 for(int i = 0; i < sList.getSkipArrLen(); i++)
                 {
-                    ///*
                     if (i != 0)
                     {
                         startTF = (int)sList.getSkipBlockInfo(i-1).getFreqOffset() - (int) de.getOffsetTermFreq();
                         startDID = (int)sList.getSkipBlockInfo(i-1).getDocIdOffset() - (int) de.getOffsetDocId();
                     }
-                    //*/
-                    //printUIMag("Iteration: " + i + " startTF: " + startTF + " startDID: " + startDID);
-
-                    //numTFComp = min(SKIP_POINTERS_THRESHOLD, (de.getDf() - (SKIP_POINTERS_THRESHOLD * 0)));
+                    //printUIMag("Iteration: " + i + " startTF: " + startTF + " startDID: " + startDID)
                     numTFComp = min(SKIP_POINTERS_THRESHOLD, (de.getDf() - (SKIP_POINTERS_THRESHOLD * i)));
-                    //Arrays.copyOfRange(tf, startTF, (int)sList.getSkipBlockInfo(i).getFreqOffset());
-                    //Arrays.copyOfRange(docids, startDID, (int)sList.getSkipBlockInfo(i).getDocIdOffset());
-                    //ArrayList<Integer> uncompressedTf = Unary.integersDecompression(Arrays.copyOfRange(tf, startTF, (int)sList.getSkipBlockInfo(0).getFreqOffset()), numTFComp);  // decompress term freq
-                    //ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(Arrays.copyOfRange(docids, startDID, (int)sList.getSkipBlockInfo(0).getDocIdOffset()),true);    // decompress DocID
-                    ArrayList<Integer> uncompressedTf = Unary.integersDecompression(Arrays.copyOfRange(tf, startTF, (int)sList.getSkipBlockInfo(i).getFreqOffset()), numTFComp);  // decompress term freq
-                    ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(Arrays.copyOfRange(docids, startDID, (int)sList.getSkipBlockInfo(i).getDocIdOffset()),true);    // decompress DocID
+
+                    ArrayList<Integer> uncompressedTf = Unary.integersDecompression(Arrays.copyOfRange(tf, startTF, ((int)sList.getSkipBlockInfo(i).getFreqOffset()) - (int) de.getOffsetTermFreq()), numTFComp);  // decompress term freq
+                    ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(Arrays.copyOfRange(docids, startDID, ((int)sList.getSkipBlockInfo(i).getDocIdOffset()) - (int) de.getOffsetDocId()),true);    // decompress DocID
+                    sumTF += ((int)sList.getSkipBlockInfo(i).getFreqOffset() - (int) de.getOffsetTermFreq() - startTF);
+                    sumDID += ((int)sList.getSkipBlockInfo(i).getDocIdOffset() - (int) de.getOffsetDocId() - startDID);
                 }
 
                 endTime = System.currentTimeMillis();
-                printUIMag("Byte loaded for TF: " + sizeToReadTF + " Byte loaded for DID: " + sizeToReadDID);
+                printUIMag("Byte loaded for TF: " + sizeToReadTF + " and uncompressed: " + sumTF + " , Byte loaded for DID: " + sizeToReadDID + " and uncompressed: " + sumDID);
                 printTime( "Whole posting list loaded and uncompressed in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
-                // 2 - read and uncompress the blocks of the compressed posting list (one call function)
+                // 2 - read and uncompress the blocks of the compressed posting list (one call function) ---------------
                 startTime = System.currentTimeMillis();
                 postingList = readAndUncompressCompressedAndSkippedPLFromDisk(sList, de.getOffsetDocId(), de.getOffsetTermFreq(), de.getTermFreqSize(), de.getDocIdSize(), de.getSkipArrLen(), de.getDf(), docIdChannel, termFreqChannel);
                 endTime = System.currentTimeMillis();
                 printUIMag("Byte loaded for TF: " + de.getTermFreqSize() + " Byte loaded for DID: " + de.getDocIdSize());
                 printTime( "The blocks (one call function) of posting list loaded and uncompressed in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
-                // 3 - read and not uncompress the blocks of the compressed posting list (more call function)
+                // 3 - read and not uncompress the blocks of the compressed posting list (more call function) ----------
                 startTime = System.currentTimeMillis();
                 for(int i = 0; i < sList.getSkipArrLen(); i++)
                 {
@@ -1103,7 +1100,7 @@ public class Main
                 printUIMag("Byte loaded for TF: " + byteTFLoaded + " Byte loaded for DID: " + byteDIDLoaded);
                 printTime( "The blocks (more call function) of posting list loaded and not uncompressed in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
-                // 4 - read and uncompress the blocks of the compressed posting list (more call function)
+                // 4 - read and uncompress the blocks of the compressed posting list (more call function) --------------
                 startTime = System.currentTimeMillis();
                 byteTFLoaded = 0;
                 byteDIDLoaded = 0;
@@ -1111,11 +1108,11 @@ public class Main
                 {
                     tf = readCompTFBlockFromDisk(sList, i, de.getOffsetTermFreq(), de.getTermFreqSize(), de.getSkipArrLen(), termFreqChannel);
                     docids = readCompDIDBlockFromDisk(sList, i, de.getOffsetDocId(), de.getDocIdSize(), de.getSkipArrLen(), docIdChannel);
-                    byteTFLoaded += tf.length;
-                    byteDIDLoaded += docids.length;
-                    numTFComp = min(SKIP_POINTERS_THRESHOLD, (de.getDf() - (SKIP_POINTERS_THRESHOLD * i)));
                     if ( !(tf == null) && !(docids == null) )       // decompress the block
                     {
+                        byteTFLoaded += tf.length;
+                        byteDIDLoaded += docids.length;
+                        numTFComp = min(SKIP_POINTERS_THRESHOLD, (de.getDf() - (SKIP_POINTERS_THRESHOLD * i)));
                         ArrayList<Integer> uncompressedTf = Unary.integersDecompression(tf, numTFComp);  // decompress term freq
                         ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(docids,true);    // decompress DocID
                     }
