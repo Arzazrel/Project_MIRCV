@@ -127,7 +127,7 @@ public class SkipList
      *
      * @param skipOffset    the offset indicates the start of the Skip Info array
      * @param skipArrLen    the len of the SkipInfo array
-     * @return
+     * @return  the array of the Skip Info related to each skipping block of the PL of the term
      */
     private ArrayList<SkipInfo> getSkipArrayFromDisk (long skipOffset,int skipArrLen)
     {
@@ -136,15 +136,17 @@ public class SkipList
         int index = 0;              // take the current position of the SkipInfo array
         long offset = skipOffset;   // var to indicates the offset of each SkipInfo element in the disk
 
-        //printDebug("-- getSkipArrayFromDisk function(SkipList):");
         try (
                 FileChannel channel = new RandomAccessFile(SKIP_FILE, "rw").getChannel()
         ) {
+            long mapSize = (long) skipArrLen * SkipInfo.SKIPPING_INFO_SIZE; // Dimensione totale da mappare
+            MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, skipOffset, mapSize);
             // get all skipInfo related to the posting list
             while(index < skipArrLen)
             {
                 tempSkipInfo = new SkipInfo();                      // create new temp object
-                tempSkipInfo.readSkipInfoFromDisk(offset, channel); // read from disk
+                int position = index * SkipInfo.SKIPPING_INFO_SIZE;
+                tempSkipInfo.readSkipInfoFromDisk(buffer, position); // read from disk
                 tempSkipList.add(tempSkipInfo);                     // add the read skipInfo element into array
                 index++;                                            // update index
                 offset += SkipInfo.SKIPPING_INFO_SIZE;              // update offset, pointer to the beginning of next block
@@ -154,7 +156,6 @@ public class SkipList
         {
             e.printStackTrace();
         }
-
         return tempSkipList;
     }
 
@@ -379,10 +380,18 @@ public class SkipList
         int i = 0;
         int startBlockPos, endBlockPos;
 
+        printDebug("testReadAllSkip:");
         // check if the posting list length is enough for skipping
-        if (currPostList.size() >= SKIP_POINTERS_THRESHOLD)
+        if (currPostList == null)
         {
-            printDebug("testReadAllSkip:");
+            while (i < points.size())           // scann all skipping block of the SkipList
+            {
+                printDebug("-- skipArrayPosition: " + i + " with maxDID: " + points.get(i).getMaxDocId());
+                i++;
+            }
+        }
+        else
+        {
             while (i < points.size())           // scann all skipping block of the SkipList
             {
                 startBlockPos = i * skipInterval;       // calculate the position in the PL of the first DID of the block
@@ -391,8 +400,6 @@ public class SkipList
                 i++;
             }
         }
-        else
-            printDebug("The posting list is too small, the skipping is not used.");
     }
 
     // -------------------------------------------- end: test functions ------------------------------------------------

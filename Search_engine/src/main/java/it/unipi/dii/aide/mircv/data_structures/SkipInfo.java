@@ -2,6 +2,7 @@ package it.unipi.dii.aide.mircv.data_structures;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import static it.unipi.dii.aide.mircv.utils.Constants.*;
 
@@ -67,7 +68,6 @@ public class SkipInfo
      * Function to store a skip Info instance into disk.
      *
      * @param skipFileChannel   // the channel for the file into disk
-     * @throws IOException
      */
     public void storeSkipInfoToDisk(FileChannel skipFileChannel) throws IOException
     {
@@ -87,23 +87,15 @@ public class SkipInfo
     /**
      * Function to read a skip Info instance from disk.
      *
-     * @param start             //
-     * @param skipFileChannel   // the channel for the file into disk
-     * @throws IOException
+     * @param buffer    buffer to read
+     * @param position  the start position in the buffer for the current skip info
      */
-    public void readSkipInfoFromDisk(long start, FileChannel skipFileChannel) throws IOException
+    public void readSkipInfoFromDisk(MappedByteBuffer buffer, int position) throws IOException
     {
-        ByteBuffer skipPointsBuffer = ByteBuffer.allocate(SKIPPING_INFO_SIZE);
-
-        skipFileChannel.position(start);                    // set the position for the read start
-
-        while (skipPointsBuffer.hasRemaining())             // read from the file (skipFile)
-            skipFileChannel.read(skipPointsBuffer);
-
-        skipPointsBuffer.rewind();                          // reset to 0 the current position of the buffer
-
-        this.setMaxDocId(skipPointsBuffer.getInt());        // read MaxDocID
-        this.setDocIdOffset(skipPointsBuffer.getLong());    // read docID offset
-        this.setFreqOffset(skipPointsBuffer.getLong());     // read term freq offset
+        buffer.position(position);      // take current position of the buffer
+        // read from the buffer
+        this.setMaxDocId(buffer.getInt());        // read MaxDocID
+        this.setDocIdOffset(buffer.getLong());    // read docID offset
+        this.setFreqOffset(buffer.getLong());     // read term freq offset
     }
 }
