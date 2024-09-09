@@ -250,42 +250,6 @@ public final class DataStructureHandler
 
     // -------- start: functions to read from disk --------
 
-
-    /**
-     * Function to read all document table from disk and put it in memory (HashMap documentTable). This function uses
-     * and maps a little buffer for each document element (slow reading).
-     *
-     * @param indexBuilding if true indexing is in progress | if false indexing isn't in progress
-     * @throws IOException
-     */
-    /*
-    public static void readDocumentTableFromDisk(boolean indexBuilding) throws IOException
-    {
-        printLoad("Loading document table from disk...");
-
-        try (
-             RandomAccessFile docTableRaf = new RandomAccessFile(DOCTABLE_FILE, "r");
-             FileChannel channel = docTableRaf.getChannel()
-        ) {
-            DocumentElement de = new DocumentElement();
-            int byteLetti = 0;
-
-            // for to read all DocumentElement stored into disk
-            for (int i = 0; i < channel.size(); i += DOCELEM_SIZE)
-            {
-                de.readDocumentElementFromDisk(i, channel); // get the ith DocElem
-                if(indexBuilding)
-                    PartialIndexBuilder.documentTable.put(de.getDocid(), new DocumentElement(de.getDocno(), de.getDocid(), de.getDoclength()));
-                else
-                    QueryProcessor.documentTable.put(de.getDocid(), new DocumentElement(de.getDocno(), de.getDocid(), de.getDoclength(), de.getDenomPartBM25()));
-
-                byteLetti = i;
-            }
-            printDebug("Ho letto: " + (byteLetti + DOCELEM_SIZE) + " B. Elementi della DocTable in memoria: " + QueryProcessor.documentTable.size());
-        }
-    }
-     */
-
     /**
      * Function to read all document table from disk and put it in memory (HashMap documentTable). This function uses
      * and maps a big buffer not a little buffer for each document element, in this way the reading is faster.
@@ -359,15 +323,12 @@ public final class DataStructureHandler
             {
                 dictionaryBlockOffsets.add(buffer.getLong());
                 buffer.position((i+1)*LONG_BYTES); //skip to position of the data of the next block to read
-                //printDebug("OFFSET BLOCK " + i + ": " + dictionaryBlockOffsets.get(i));
             }
 
             printDebug(dictionaryBlockOffsets.size() + " blocks loaded");
-
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
 
     /**
@@ -382,8 +343,7 @@ public final class DataStructureHandler
      */
     public static ArrayList<Posting> readPostingListFromDisk(long offsetDocId, long offsetTermFreq, int posting_size, FileChannel docidChannel, FileChannel termfreqChannel)
     {
-        ArrayList<Posting> pl = new ArrayList<>();
-        //ArrayList<Posting> pl = new ArrayList<>(posting_size);
+        ArrayList<Posting> pl = new ArrayList<>(posting_size);
 
         try {
             MappedByteBuffer docidBuffer = docidChannel.map(FileChannel.MapMode.READ_ONLY, offsetDocId, (long) posting_size * Integer.BYTES);
@@ -415,14 +375,16 @@ public final class DataStructureHandler
      */
     public static int[] storeCompressedPostingIntoDisk(ArrayList<Posting> pl, FileChannel termFreqChannel, FileChannel docIDChannel)
     {
-        ArrayList<Integer> tf = new ArrayList<>();      // arraylist to contain the term freqs of the PL
-        ArrayList<Integer> docid  = new ArrayList<>();  // arraylist to contain the DocID of the PL
+        int lenPL = pl.size();
+        ArrayList<Integer> tf = new ArrayList<>(lenPL);      // arraylist to contain the term freqs of the PL
+        ArrayList<Integer> docid  = new ArrayList<>(lenPL);  // arraylist to contain the DocID of the PL
         int[] length = new int[2];                      // array to contain the values ot the lens (in Bytes) for the compressed lists
         byte[] compressedTf;                            // array for the compressed term freq
         byte[] compressedDocId;                         // array for the compressed DocID
 
         // get the term freq and the DocID
-        for(Posting ps : pl) {
+        for(Posting ps : pl)
+        {
             tf.add(ps.getTermFreq());       // get term freq
             docid.add(ps.getDocId());       // get DocID
         }
@@ -439,13 +401,10 @@ public final class DataStructureHandler
 
             length[0] = compressedTf.length;        // save the bytes of TF list
             length[1] = compressedDocId.length;     // save the bytes of DID list
-            //printDebug("Store length -> length[0] (termFreq): " + length[0] + " and length[1] (DID): " + length[1]);
             return length;
-
         } catch (IOException e) {
             e.printStackTrace();
         }
-
         return null;
     }
 
@@ -463,7 +422,7 @@ public final class DataStructureHandler
      */
     public static ArrayList<Posting> readCompressedPostingListFromDisk(long offsetDocId, long offsetTermFreq, int termFreqSize, int docIdSize, int posting_size, FileChannel docidChannel, FileChannel termfreqChannel)
     {
-        ArrayList<Posting> uncompressed = new ArrayList<>();    // decompressed posting list
+        ArrayList<Posting> uncompressed = new ArrayList<>(posting_size);    // decompressed posting list
         byte[] docids = new byte[docIdSize];                    // array for the compressed DocID list
         byte[] tf = new byte[termFreqSize];                     // array for the compressed TermFreq list
 
@@ -484,7 +443,6 @@ public final class DataStructureHandler
         } catch (IOException e) {
             e.printStackTrace();
         }
-
         return null;
     }
 
@@ -504,7 +462,7 @@ public final class DataStructureHandler
      */
     public static ArrayList<Posting> readAndUncompressCompressedAndSkippedPLFromDisk(SkipList sl, long offsetDocId, long offsetTermFreq, int termFreqSize, int docIdSize,int skipArrLen, int posting_size, FileChannel docidChannel, FileChannel termfreqChannel)
     {
-        ArrayList<Posting> uncompressed = new ArrayList<>();    // decompressed posting list
+        ArrayList<Posting> uncompressed = new ArrayList<>(posting_size);    // decompressed posting list
         SkipInfo currSkipInfo;      // the instance of skipInfo related to the term
         byte[] docids;              // array for the compressed DocID list
         byte[] tf;                  // array for the compressed TermFreq list
@@ -643,8 +601,8 @@ public final class DataStructureHandler
     {
         SkipInfo currSkipInfo;          // SkipInfo related to current (at each iteration) block
         byte[] docids;                  // array for the compressed TermFreq list
-        int startOffsetDID;                  // the current offset (at each iteration) for the compressed TermFreq
-        int sizeToReadDID = 0;               // the current size (at each iteration) for the compressed TermFreq
+        int startOffsetDID;             // the current offset (at each iteration) for the compressed TermFreq
+        int sizeToReadDID = 0;          // the current size (at each iteration) for the compressed TermFreq
 
         // control check of boundaries
         if ( (blockIndex < 0) || (blockIndex >= skipArrLen))
@@ -673,7 +631,6 @@ public final class DataStructureHandler
             docids = new byte[sizeToReadDID];                 // initialize the byte array for the compressed DID list
             docidBuffer.get(docids, 0, sizeToReadDID);  // read the DID compressed block of the PL
             return docids;
-
         } catch (IOException e) {
             e.printStackTrace();
         }

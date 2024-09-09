@@ -260,7 +260,7 @@ public final class QueryProcessor
         postingLists = retrieveAllPostListsFromQuery(newProcQuery);   // take all posting lists of query terms
         endTime = System.currentTimeMillis();           // end time for retrieve all posting lists of the query
         // shows query execution time
-        printTime("\n*** Retrieved all posting lists in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        printTime("*** Retrieved all posting lists in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
         // check the number of posting lists not empty and perform the best choice
         if (pLNotEmpty == 0)    // all terms in the query aren't in the dictionary or empty query
@@ -952,7 +952,7 @@ public final class QueryProcessor
         postingLists = retrieveAllPostingListsMaxScore(newProcQuery,orderedQueryTerm,termUpperBoundList,sumTUBList);   // take all posting lists of query terms
         endTime = System.currentTimeMillis();           // end time for retrieve all posting lists of the query
         // shows query execution time
-        printTime("\n*** Retrieved all posting lists in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        printTime("*** Retrieved all posting lists in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
         // check the number of posting lists not empty and perform the best choice
         if (pLNotEmpty == 0)    // all terms in the query aren't in the dictionary or empty query
@@ -1271,7 +1271,7 @@ public final class QueryProcessor
         postingLists = retrieveAllPostingListsMaxScore(newProcQuery, orderedQueryTerm, termUpperBoundList, sumTUBList);   // take all posting lists of query terms
         endTime = System.currentTimeMillis();           // end time for retrieve all posting lists of the query
         // shows query execution time
-        printTime("\n*** Retrieved all posting lists in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        printTime("*** Retrieved all posting lists in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
         // check the number of posting lists not empty and perform the best choice
         if (pLNotEmpty == 0)    // all terms in the query aren't in the dictionary or empty query
@@ -2251,8 +2251,11 @@ public final class QueryProcessor
         double partialScore = 0;            // var that contain partial score
         double IDFWeight = 0;               //
 
-        processedQuery = new ArrayList<>();
+        processedQuery = new ArrayList<>(1);
         processedQuery.add(term);           // insert the term
+
+        if (!dictionary.getTermToTermStat().containsKey(processedQuery.get(0)))
+            return maxScore;
 
         if(Flags.considerSkippingBytes() && Flags.isCompressionEnabled())
         {
@@ -2266,6 +2269,7 @@ public final class QueryProcessor
         if (postingLists[0] == null)
             return maxScore;            // return 0
 
+        //printDebug("Calcolo TUB per il termine: " + processedQuery.get(0));
         IDFWeight = Math.log10(((double) CollectionStatistics.getNDocs() / postingLists[0].size()));    // calculate IDFweight
 
         // execute the term query -> optimization -> there is one posting list -> the DID are already sort
@@ -2523,7 +2527,6 @@ public final class QueryProcessor
             termUpperBoundList[i] = tempTUBblock.getTermUpperBound();                   // get term upper bound
             sumTUBList[i] = sumTUB;                 // get the term upper bound sum of the previous posting lists
             sumTUB += termUpperBoundList[i];
-            //printDebug("Ordered query term -> Position: " + i + " term: '" + orderedQueryTerm[i] + "' with TUB: " + termUpperBoundList[i]); // control print
         }
 
         // take the posting lists for the related term (ordered by term upper bound instead query order)
@@ -2585,7 +2588,6 @@ public final class QueryProcessor
         for (int i = 0; i < plsSize; i++)
         {
             tempTUBblock = pq.poll();               // get block
-            assert tempTUBblock != null;
             orderedQueryTerm[i] = processedQuery.get(tempTUBblock.getTermPosition());   // get the term
             termUpperBoundList[i] = tempTUBblock.getTermUpperBound();                   // get term upper bound
             sumTUBList[i] = sumTUB;                 // get the term upper bound sum of the previous posting lists
@@ -2603,8 +2605,6 @@ public final class QueryProcessor
      * @param orderedQueryTerm  array of string to contain the query terms sorted by term upper bound. (used only in the case of Max Score)
      * @param slArr             the array of SkipInfo to initialize with object related to the query term
      * @param maxScore          if 'true' is the case of max score enabled, if 'false' max score is not enabled use simple DAAT
-     * @return  an array of posting lists (ArrayList of posting). the array has length equal to the number of terms,
-     *          and the i-th position in the array contains the posting list of the i-th term in the processedQuery
      */
     private static void retrieveFirstCompBlockOfPLFromQuery(ArrayList<String> processedQuery, String[] orderedQueryTerm, SkipList[] slArr, boolean maxScore)
     {
@@ -2815,18 +2815,9 @@ public final class QueryProcessor
             // take posting list for each term in query
             for (String term : processedQuery)
             {
-                // there is a posting list for the query term == the term is in the collection
-                if (dictionary.getTermToTermStat().containsKey(term))
-                {
-                    //printDebug("DAAT: retrieve posting list of  " + term);
-                    DictionaryElem de = dictionary.getTermToTermStat().get(term);
-                    // read adn uncompress the whole posting list related to term
-                    postingLists[iterator] = readAndUncompressCompressedAndSkippedPLFromDisk(slArr[iterator], de.getOffsetDocId(), de.getOffsetTermFreq(), de.getTermFreqSize(), de.getDocIdSize(), de.getSkipArrLen(), de.getDf(), docIdChannel, termFreqChannel);
-                }
-                else        // there isn't a posting list for the query term == the term isn't in the collection
-                {
-                    termNotInCollection.add(term);  // update array list of the term not in collection
-                }
+                DictionaryElem de = dictionary.getTermToTermStat().get(term);
+                // read adn uncompress the whole posting list related to term
+                postingLists[iterator] = readAndUncompressCompressedAndSkippedPLFromDisk(slArr[iterator], de.getOffsetDocId(), de.getOffsetTermFreq(), de.getTermFreqSize(), de.getDocIdSize(), de.getSkipArrLen(), de.getDf(), docIdChannel, termFreqChannel);
                 iterator++;                 // update iterator
             }
             return postingLists;
@@ -2847,7 +2838,7 @@ public final class QueryProcessor
      */
     private static ArrayList<Integer> getRankedResults(int numResults)
     {
-        ArrayList<Integer> rankedResults = new ArrayList<>();   // array list to contain the top "numResults" docs
+        ArrayList<Integer> rankedResults = new ArrayList<>(numResults); // array list to contain the top "numResults" docs
         String currDocNO;           // indicates the DocNO of the current document in the result (top 'numResults' docs)
         long startTime, endTime;    // variables to calculate the execution time
 
@@ -2857,24 +2848,19 @@ public final class QueryProcessor
         startTime = System.currentTimeMillis();         // start time of hash map ordering
 
         QueryProcessor.ResultBlock currentResPQ;        // var that contain the resultBlock extract from pq in the current iteration
-        ArrayList<Integer> results = new ArrayList<Integer>();       // Create an ArrayList object
-
         while(!resPQ.isEmpty())                         // control if the priority queue for results is empty
         {
-            //printDebug("Taken: " + resPQ.peek().getDID() + " with score: " + resPQ.peek().getScore());
             currentResPQ = resPQ.poll();                                    // take the lowest element (score and DID)
             currDocNO = documentTable.get(currentResPQ.getDID()).getDocno();// take the DocNo related to the DID
             try{
-                results.add(Integer.valueOf(currDocNO));                    // add to the array list
+                rankedResults.add(Integer.valueOf(currDocNO));                    // add to the array list
             }
             catch (NumberFormatException ex){
                 ex.printStackTrace();
             }
         }
         // order the result from the best to the worst (reverse order of the priority queue)
-        rankedResults = new ArrayList<Integer>(results);     // Create an ArrayList object
         Collections.reverse(rankedResults);
-        //printDebug("orderedResults " + rankedResults);
 
         endTime = System.currentTimeMillis();           // end time of hash map ordering
         printTime("*** Ranked results (results priority queue) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
@@ -2940,13 +2926,6 @@ public final class QueryProcessor
 
         for (int i = 0; i < postingLists.length; i++)       // scan all query terms
         {
-            /*
-            if (postingLists[i] == null)    // control check
-            {
-                //printDebug("SetAllSkipList -- term: " + orderedQueryTerm[i] + " not in collection.");
-                tempSkipListArray[i] = null;
-                continue;
-            }*/
             //printDebug("SetAllSkipList -- SkipList related to the term: " + orderedQueryTerm[i] + " in position: " + i);
             tempDictElem = dictionary.getTermStat(orderedQueryTerm[i]); // get dictionary elem associated to term
             // create the skipList related to query's term
@@ -2972,12 +2951,13 @@ public final class QueryProcessor
 
         if (maxScore)       // Max Score enabled
         {
-            if (orderedQueryTerm.length == 0)   // control check
+            int queryLen = orderedQueryTerm.length;
+            if (queryLen == 0)   // control check
                 return null;
 
-            tempSkipListArray = new SkipList[orderedQueryTerm.length];  // set array
+            tempSkipListArray = new SkipList[queryLen];     // set array
 
-            for (int i = 0; i < orderedQueryTerm.length; i++)       // scan all query terms
+            for (int i = 0; i < queryLen; i++)              // scan all query terms
             {
                 if (dictionary.getTermToTermStat().containsKey(orderedQueryTerm[i]))  // check if the term is in the dictionary
                 {
@@ -3170,7 +3150,7 @@ public final class QueryProcessor
     }
 
     /**
-     * function to create an array of indexes for posting lists
+     * Function to create an array of indexes for posting lists
      *
      * @param postingLists  the posting lists of each term in the query
      * @return  an array that contains the index for the current posting (position) for each posting lists of the term
@@ -3475,7 +3455,8 @@ public final class QueryProcessor
         }
 
         // read term upper bound if is needed
-        if (Flags.isDynamicPruningEnabled() && TermDocUpperBound.termUpperBoundTableIsEmpty()) {
+        if (Flags.isDynamicPruningEnabled() && TermDocUpperBound.termUpperBoundTableIsEmpty())
+        {
             if (TermDocUpperBound.termUpperBoundFileExist())     // the file already exist
                 TermDocUpperBound.readTermUpperBoundTableFromDisk();
             else                                                // the file not exist
@@ -3570,6 +3551,111 @@ public final class QueryProcessor
         printTime("\nThe fastest query (disjunctive mode) executes in " + fasterQueryDis + " ms and its QUID is " + quidFastDis);
         printTime("The slowest query (disjunctive mode) executes in " + slowerQueryDis + " ms and its QUID is " + quidSlowDis);
         printTime("The average queries execution time (disjunctive mode) is " + avgExTimeDis / ((long) numQueries * numTest) + " ms");
+        printUIMag("--------------------------------------------------------------------------------");
+    }
+
+    /**
+     * Function allowing a user to enter a query that the system will execute a specified number of times, showing at
+     * the end the times of the several executions and the average times.
+     *
+     * @param numTest       the number of test to do
+     * @param sc    scanner to get the choice of the user inserted via keyboard
+     */
+    public static void testQuery(int numTest, Scanner sc)
+    {
+        ArrayList<Integer> rankedResults;   // ArrayList that contain the ranked results of query
+        long startTime, endTime;        // variables to calculate the execution time
+        long startTimeTest, endTimeTest;// variables to calculate the execution time of all test
+        long fasterQueryCon = 100000;   // indicates the fastest execution time for the query (conjunctive)
+        long slowerQueryCon = 0;        // indicates the slowest execution time for the query (conjunctive)
+        long fasterQueryDis = 100000;   // indicates the fastest execution time for the query (disjunctive)
+        long slowerQueryDis = 0;        // indicates the slowest execution time for the query (disjunctive)
+        long avgExTimeCon = 0;          // indicate the average execution time for the queries(conjunctive)
+        long avgExTimeDis = 0;          // indicate the average execution time for the queries (disjunctive)
+
+        // control check for queries
+        try {
+            if (!queryStartControl())
+                return;                 // there aren't all files needed for execute a query, function it's terminated
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        // read term upper bound if is needed
+        if (Flags.isDynamicPruningEnabled() && TermDocUpperBound.termUpperBoundTableIsEmpty())
+        {
+            if (TermDocUpperBound.termUpperBoundFileExist())     // the file already exist
+                TermDocUpperBound.readTermUpperBoundTableFromDisk();
+            else                                                // the file not exist
+                TermDocUpperBound.calculateTermsUpperBound(false);   // calculate term upper bound for each term of dictionary
+        }
+
+        // take the query from user
+        printUI("Insert query: \n");
+        String query = sc.nextLine();           // take user's query
+        // control check of the query
+        if (query == null || query.isEmpty())
+        {
+            printError("Error: the query is empty.");
+            return;
+        }
+
+        // start test
+        printUIMag("--------------------------------------------------------------------------------");
+        startTimeTest = System.currentTimeMillis();         // start time of all test
+        for (int i = 0; i < numTest; i++)
+        {   // -- START - for - number of test -
+            // print of the query and result obtained by search engine
+            printUIMag("-- Start query test number : " + i + " ---------------------------------------------");
+            printUIMag("---- disjunctive mode ----");
+
+            startTime = System.currentTimeMillis();         // start time of execute query
+            rankedResults = queryManager(query, false, 5);    // run the query in disjunctive mode
+            printQueryResults(rankedResults);
+            endTime = System.currentTimeMillis();           // end time of execute query
+            // shows query execution time
+            printTime("\nQuery (disjunctive mode) executes in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+            // does queries collection statistics
+            if ((endTime - startTime) < fasterQueryDis)
+                fasterQueryDis = (endTime - startTime);     // update faster time
+
+            if ((endTime - startTime) > slowerQueryDis)
+                slowerQueryDis = (endTime - startTime);     // update slower time
+
+            avgExTimeDis += (endTime - startTime);          // update avg execution time
+
+            printUIMag("---- conjunctive mode ----");
+            startTime = System.currentTimeMillis();         // start time of execute query
+            rankedResults = queryManager(query, true, 5);    // run the query in conjunctive mode
+            printQueryResults(rankedResults);
+            endTime = System.currentTimeMillis();           // end time of execute query
+            // shows query execution time
+            printTime("\nQuery (conjunctive mode) executes in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+            printUIMag("--------------------------------------------------------------------------------");
+
+            // does queries collection statistics
+            if ((endTime - startTime) < fasterQueryCon)
+                fasterQueryCon = (endTime - startTime);     // update faster time
+
+            if ((endTime - startTime) > slowerQueryCon)
+                slowerQueryCon = (endTime - startTime);     // update slower time
+
+            avgExTimeCon += (endTime - startTime);          // update avg execution time
+        }   // -- END - for - number of test -
+
+        endTimeTest = System.currentTimeMillis();         // start time of all test
+        // print queries collection statistics
+        printUIMag(" End query test... Executed: " + numTest + " times.");         // control print
+        printTime(" All test executed in: "  + (endTimeTest - startTimeTest) + " ms (" + formatTime(startTimeTest, endTimeTest) + ")");
+        printUIMag("--------------------------------------------------------------------------------");
+        printTime("The fastest query execution (conjunctive mode) is " + fasterQueryCon + " ms");
+        printTime("The slowest query execution (conjunctive mode) is " + slowerQueryCon + " ms");
+        printTime("The average query execution time (conjunctive mode) is " + avgExTimeCon / numTest + " ms");
+
+        printTime("\nThe fastest query execution (disjunctive mode) is " + fasterQueryDis + " ms");
+        printTime("The slowest query execution (disjunctive mode) is " + slowerQueryDis + " ms");
+        printTime("The average query execution time (disjunctive mode) is " + avgExTimeDis / numTest + " ms");
         printUIMag("--------------------------------------------------------------------------------");
     }
     // -------- end: function to read collection of query --------
