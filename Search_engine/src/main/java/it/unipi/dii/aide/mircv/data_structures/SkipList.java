@@ -396,7 +396,7 @@ public class SkipList
             {
                 startBlockPos = i * skipInterval;       // calculate the position in the PL of the first DID of the block
                 endBlockPos = min(((i + 1) * skipInterval) - 1, currPostList.size() - 1);   // calculate the position in the PL of the last DID of the block
-                printDebug("-- skipArrayPosition: " + i + " with first DID: " + currPostList.get(startBlockPos).getDocId() + " with maxDID: " + points.get(i).getMaxDocId() + " and real maxDID: " + currPostList.get(endBlockPos).getDocId());
+                printDebug("-- skipArrayPosition: " + i + " with first DID: " + currPostList.get(startBlockPos).getDocId() + " with saved maxDID: " + points.get(i).getMaxDocId() + " and real maxDID: " + currPostList.get(endBlockPos).getDocId());
                 i++;
             }
         }

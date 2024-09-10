@@ -45,6 +45,8 @@ public final class QueryProcessor
     static ArrayList<Posting>[] skipAndCompPLs;  // contains all the posting lists for each term of the query (case of compression and skipping enabled)
     static PriorityQueue<Integer> pqDID = new PriorityQueue<Integer>();    // priority queue for the DID when use max score when compression and skipping are enabled
 
+    static double[] logTermFreq;
+
     static double k = CollectionStatistics.getK();
     static double b = CollectionStatistics.getB();
     static double avgDocLen = CollectionStatistics.getAvgDocLen();
@@ -2310,14 +2312,11 @@ public final class QueryProcessor
     {
         double TFweight, scoreTFIDF;     // variables to calculate the TFIDF score value
 
-        // control to avoid log and division to 0
-        if (termFreq == 0)
+        if (termFreq == 0)          // control to avoid acess to position -1
             return (double) 0;
 
-        TFweight = termFreqWeightTable.get(termFreq);   // take TF weight from memory
-        //TFweight = (1 + Math.log10(termFreq));  // calculate TF weight
+        TFweight = logTermFreq[termFreq-1];   // take TF weight from memory
         scoreTFIDF = TFweight * IDFweight;          // calculate TFIDF weight from Tf and IDF weight values
-        //printDebug("ScoringTFIDF - TFweight(mem) = " + TFweight + " IDFweight = " + IDFweight + " scoreTFIDF = " + scoreTFIDF);
         return scoreTFIDF;
     }
 
@@ -2382,13 +2381,16 @@ public final class QueryProcessor
     public static void readTFWeightFromDisk()
     {
         long startTime, endTime;
-        int tf = 1;
+        int tf = 0;
 
         printLoad("Loading all useful values for termFreqWeight from disk...");
 
         startTime = System.currentTimeMillis();
         if (!termFreqWeightTable.isEmpty())
             termFreqWeightTable.clear();
+
+        CollectionStatistics.readCollectionStatsFromDisk();
+        logTermFreq = new double[CollectionStatistics.getMaxTermFreq()];
 
         try (
                 RandomAccessFile docStats = new RandomAccessFile(TERMFREQWEIGHT_FILE, "rw");
@@ -2402,7 +2404,7 @@ public final class QueryProcessor
             // for to read all termFreqWeight stored into disk
             for (int i = 0; i < channel.size(); i += DOUBLE_BYTES)
             {
-                termFreqWeightTable.put(tf, buffer.getDouble());
+                logTermFreq[tf] = buffer.getDouble();
                 tf++;
             }
         } catch (IOException ioe) {
@@ -2410,8 +2412,6 @@ public final class QueryProcessor
         }
         endTime = System.currentTimeMillis();
         printTime("TermFreqWeight loaded in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
-        //printDebug("The maxTF is: " + CollectionStatistics.getMaxTermFreq() + " and the size of termFreqWeightTable is: " + termFreqWeightTable.size());
-        //printDebug("TermFreqWeight hashtable: " + termFreqWeightTable);
     }
 
     /**

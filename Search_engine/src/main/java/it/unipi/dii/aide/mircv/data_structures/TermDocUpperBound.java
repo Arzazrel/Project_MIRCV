@@ -60,7 +60,7 @@ public class TermDocUpperBound
         for (String term : termsList)
         {
             currentTUB = QueryProcessor.maxScoreTerm(term,scoringFunc,computeStats); // calculate the term upper bound for the current term
-            termUpperBoundTable.put(term,currentTUB);           // add term upper bound in the hashmap
+            termUpperBoundTable.put(term,currentTUB);       // add term upper bound in the hashmap
             termCount++;        // update counter
         }
         endTime = System.currentTimeMillis();           // end time to calculate all term upper bound
