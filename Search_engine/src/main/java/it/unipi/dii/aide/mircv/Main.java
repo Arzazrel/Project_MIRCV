@@ -10,10 +10,8 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Scanner;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static it.unipi.dii.aide.mircv.QueryProcessor.queryManager;
 import static it.unipi.dii.aide.mircv.QueryProcessor.queryStartControl;
@@ -50,6 +48,7 @@ public class Main
                     "\n\t  t -> query test mode" +
                     "\n\t  r -> compression test" +
                     "\n\t  d -> data reading test" +
+                    "\n\t  p -> print data read from disk" +
                     "\n\t  x -> exit" +
                     "\n***********************************\n");
             String mode = sc.nextLine();        // take user's choice
@@ -192,6 +191,15 @@ public class Main
 
                     CollectionStatistics.readCollectionStatsFromDisk(); // read statistics
                     CollectionStatistics.printCollectionStatistics();   // show collection statistic
+
+                    continue;
+                case "p":       // print data read from disk
+
+                    // control check that all the files and resources required are present
+                    if (!queryStartControl())
+                        return;                           // error exit
+
+                    printDataReadFromDisk(sc);
 
                     continue;
                 case "q":       // execute a query
@@ -721,6 +729,174 @@ public class Main
     }
 
     /**
+     *  Function to read the data structures on the disk (posting list of a term, skip list of a term, tec...) and print
+     *  (show to user) them.
+     *
+     * @param sc    scanner to get the choice of the user inserted via keyboard
+     */
+    private static void printDataReadFromDisk(Scanner sc)
+    {
+        ArrayList<String> procChosenTerm;       // array list for containing the processed query term
+        DictionaryElem dictEl;
+        int validNum = 0;                   // 1 = valid number - 0 = not valid (negative number or not a number)
+        String chosenTerm = "";                 // the term whose posting list will be used for second tests
+        long startTime,endTime;             // variables to calculate the execution time
+
+
+        printUIMag("This function once chosen the data structure to be read (related to a term) it will read the data from disk and print them");
+        printUI("To choose the data to be read, enter the letter corresponding to the desired data, the data-letter pairs are shown below.");
+        printUI("Select an option:" +
+                "\n\t  t -> A document information from document table." +
+                "\n\t  d -> A term information from dictionary." +
+                "\n\t  p -> A posting list relating to a query to be entered." +
+                "\n\t  s -> A Skip List relating to a term to be entered.");
+
+        while(true)
+        {   // -- START - while for data selection --
+            String mode = sc.nextLine();        // take user's choice
+
+            switch (mode)   // switch to run user's choice
+            {
+                case "t":       // Document Table information
+                    DocumentElement docElem;
+                    int doc = 1;
+                    // do while for choosing the number of test to execute
+                    do {
+                        printUI("What is the document ID of the document (must be a positive number).");
+                        try {
+                            doc = Integer.parseInt(sc.nextLine());    // take the int inserted by user
+                            validNum = (doc > 0) ? 1 : 0;               // validity check of the int
+                        } catch (NumberFormatException nfe) {
+                            printError("Insert a valid positive number");
+                        }
+                    } while (validNum == 0);  // continues until a valid number is entered
+
+                    if (!QueryProcessor.documentTable.containsKey(doc))
+                    {
+                        printError("The entered DocID is not valid (the related document isn't in this collection).");
+                        return;
+                    }
+
+                    // read information from document table
+                    startTime = System.currentTimeMillis();
+                    docElem = QueryProcessor.documentTable.get(doc);    // take information
+                    endTime = System.currentTimeMillis();
+                    printTime("Read information related to document '" + doc + "' in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+                    printUIMag(docElem.toString());
+                    return;     // exit
+                case "d":       // Dictionary information
+                    printUI("Please enter the term.");
+                    chosenTerm = sc.nextLine().toUpperCase();                    // take the user's choice
+                    // preprocess of the entered term
+                    try {
+                        procChosenTerm = TextProcessor.preprocessText(chosenTerm); // Preprocessing of document text
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    if (procChosenTerm.isEmpty() || !QueryProcessor.dictionary.getTermToTermStat().containsKey(procChosenTerm.get(0)))
+                    {
+                        printError("The entered term is empty or not in the collection.");
+                        return;
+                    }
+                    else
+                        chosenTerm = procChosenTerm.get(0);     // take term
+
+                    // read information from dictionary
+                    startTime = System.currentTimeMillis();
+                    dictEl = QueryProcessor.dictionary.getTermStat(chosenTerm);
+                    endTime = System.currentTimeMillis();
+                    printTime("Read information related to term '" + chosenTerm + "' in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+                    printUIMag(dictEl.toString());
+                    return;     // exit
+                case "p":       // posting list information
+                    ArrayList<Posting> postingList;         // array list for the posting list of the term
+                    printUI("Please enter the term.");
+                    chosenTerm = sc.nextLine().toUpperCase();                    // take the user's choice
+                    // preprocess of the entered term
+                    try {
+                        procChosenTerm = TextProcessor.preprocessText(chosenTerm); // Preprocessing of document text
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    if (procChosenTerm.isEmpty() || !QueryProcessor.dictionary.getTermToTermStat().containsKey(procChosenTerm.get(0)))
+                    {
+                        printError("The entered term is empty or not in the collection.");
+                        return;
+                    }
+                    else
+                        chosenTerm = procChosenTerm.get(0);     // take term
+
+                    startTime = System.currentTimeMillis();
+                    try(
+                            // open complete files to read the postingList
+                            RandomAccessFile docidFile = new RandomAccessFile(DOCID_FILE, "rw");
+                            RandomAccessFile termfreqFile = new RandomAccessFile(TERMFREQ_FILE, "rw");
+                            // FileChannel
+                            FileChannel docIdChannel = docidFile.getChannel();
+                            FileChannel termFreqChannel = termfreqFile.getChannel()
+                    ) {
+
+                        DictionaryElem de = QueryProcessor.dictionary.getTermToTermStat().get(chosenTerm);
+                        postingList = readPostingListFromDisk(de.getOffsetDocId(),de.getOffsetTermFreq(),de.getDf(),docIdChannel,termFreqChannel);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    endTime = System.currentTimeMillis();
+                    printTime("Read posting list related to term '" + chosenTerm + "' in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+                    printUIMag("The entire posting list of the term is:");
+                    for (int i = 0; i < postingList.size(); i++)
+                    {
+                        printUIMag("- Posting " + i + ": DocID = " + postingList.get(i).getDocId() + " , TermFreq = " + postingList.get(i).getTermFreq());
+                    }
+                    printUIMag("The sie of the posting list readed and shown is: " + postingList.size());
+
+                    return;     // exit
+                case "s":       // skip list information
+                    SkipList skipList;         // array list for the posting list of the term
+                    File skip = new File(SKIP_FILE);                // skipInfo
+                    if(skip.exists() && Flags.considerSkippingBytes())
+                        printSize(formatSize("skipInfo", skip.length()));
+                    else
+                    {
+                        printError("SkipInfo file is not present on the disk or skipping is disabled, read test cannot be performed.");
+                        return;
+                    }
+
+                    printUI("Please enter the term.");
+                    chosenTerm = sc.nextLine().toUpperCase();                    // take the user's choice
+                    // preprocess of the entered term
+                    try {
+                        procChosenTerm = TextProcessor.preprocessText(chosenTerm); // Preprocessing of document text
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    if (procChosenTerm.isEmpty() || !QueryProcessor.dictionary.getTermToTermStat().containsKey(procChosenTerm.get(0)))
+                    {
+                        printError("The entered term is empty or not in the collection.");
+                        return;
+                    }
+                    else
+                        chosenTerm = procChosenTerm.get(0);     // take term
+
+                    startTime = System.currentTimeMillis();
+                    dictEl = QueryProcessor.dictionary.getTermStat(chosenTerm); // get dictionary elem associated to term
+                    // create the skipList related to term
+                    skipList = new SkipList(dictEl.getSkipOffset(), dictEl.getSkipArrLen(),null, dictEl.getDf());
+                    endTime = System.currentTimeMillis();
+                    printTime("Read skip List related to term '" + chosenTerm + "' in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+                    skipList.testReadAllSkip();
+                    printUIMag("The sie of the posting list readed and shown is: " + skipList.getSkipArrLen());
+                    return;     // exit
+                default:
+                    printError("Please, enter a valid letter for the choice of options.");
+            }
+        }   // -- END - while for data selection --
+    }
+
+    /**
      * Function to test and show the result of compression and decompression. This function make some different test:
      * 1 - the first test is composed by two different test, one for Unary-code and the other for variable-byte code.
      *     Unary-code: in this test is filled and displays a list of positive integers that will be compressed using
@@ -1103,8 +1279,23 @@ public class Main
                         //printUIMag("Iteration: " + i + " startTF: " + startTF + " startDID: " + startDID)
                         numTFComp = min(SKIP_POINTERS_THRESHOLD, (de.getDf() - (SKIP_POINTERS_THRESHOLD * i)));
 
-                        ArrayList<Integer> uncompressedTf = Unary.integersDecompression(Arrays.copyOfRange(tf, startTF, ((int)sList.getSkipBlockInfo(i).getFreqOffset()) - (int) de.getOffsetTermFreq()), numTFComp);  // decompress term freq
-                        ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(Arrays.copyOfRange(docids, startDID, ((int)sList.getSkipBlockInfo(i).getDocIdOffset()) - (int) de.getOffsetDocId()),true);    // decompress DocID
+                        /*
+                        Arrays.copyOfRange(tf, startTF, ((int)sList.getSkipBlockInfo(i).getFreqOffset() - (int) de.getOffsetTermFreq()));
+                        Arrays.copyOfRange(docids, startDID, ((int)sList.getSkipBlockInfo(i).getDocIdOffset() - (int) de.getOffsetDocId()));
+
+                        List<Byte> byteListTF = new ArrayList<>();
+                        for (byte b : tf) {
+                            byteListTF.add(b);
+                        }
+                        byteListTF.subList(startTF, ((int)sList.getSkipBlockInfo(i).getFreqOffset() - (int) de.getOffsetTermFreq()));
+                        List<Byte> byteListDID = new ArrayList<>();
+                        for (byte b : docids) {
+                            byteListDID.add(b);
+                        }
+                        byteListDID.subList(startDID, ((int)sList.getSkipBlockInfo(i).getDocIdOffset() - (int) de.getOffsetDocId()));
+                        */
+                        ArrayList<Integer> uncompressedTf = Unary.integersDecompression(Arrays.copyOfRange(tf, startTF, ((int)sList.getSkipBlockInfo(i).getFreqOffset() - (int) de.getOffsetTermFreq())), numTFComp);  // decompress term freq
+                        ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(Arrays.copyOfRange(docids, startDID, ((int)sList.getSkipBlockInfo(i).getDocIdOffset() - (int) de.getOffsetDocId())),true);    // decompress DocID
                         sumTF += ((int)sList.getSkipBlockInfo(i).getFreqOffset() - (int) de.getOffsetTermFreq() - startTF);
                         sumDID += ((int)sList.getSkipBlockInfo(i).getDocIdOffset() - (int) de.getOffsetDocId() - startDID);
                     }
@@ -1165,7 +1356,7 @@ public class Main
 
             endTimeTest = System.currentTimeMillis();         // start time of all test
             // print queries collection statistics
-            printUIMag(" End posting list uncompression test... Executed: " + numberTest + " times");         // control print
+            printUIMag(" End posting list uncompression test of the term: '" + term + "'. Executed: " + numberTest + " times");         // control print
             printTime(" All test executed in: "  + (endTimeTest - startTimeTest) + " ms (" + formatTime(startTimeTest, endTimeTest) + ")");
             printUIMag("--------------------------------------------------------------------------------");
             printTime("Whole posting list loaded and not uncompressed in " + (avgReadPL / numberTest) + " ms");
