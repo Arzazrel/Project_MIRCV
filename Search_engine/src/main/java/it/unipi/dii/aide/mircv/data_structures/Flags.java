@@ -14,13 +14,15 @@ import static it.unipi.dii.aide.mircv.utils.Constants.*;
  */
 public final class Flags
 {
-    private static int numberOfFlags = 6;       // indicates the number of flags (to be read or write into or from disk)
+    private static int numberOfFlags = 7;       // indicates the number of flags (to be read or write into or from disk)
     private static boolean sws_flag = false;            // true = stop words removal and stemming enabled, false = stop words removal and stemming disabled
     private static boolean compression_flag = false;    // true = compression enabled, false = compression disabled
     private static boolean scoring_flag = false;        // true = scoring enable, false = scoring disable
     private static boolean skip_flag = false;           // true = skipping enable, false = skipping disable
     private static boolean qdPruning_flag = false;      // true = query executed with dynamic pruning algorithm (Max Score), false = query executed with classic DAAT algorithm
     private static boolean deletePartFile_flag = false; // true = delete the partial file after complete the indexing, false = doesn't delete partial file after complete the indexing
+    private static boolean wholePLInMem_flag = false;   // considered only if skipping and compression are both enabled. If true, compressed posting lists will be loaded completely in memory and not in blocks
+
     // -- start -- get method
     public static boolean isSwsEnabled() { return sws_flag; }
 
@@ -33,6 +35,8 @@ public final class Flags
     public static boolean isDynamicPruningEnabled() { return qdPruning_flag; }
 
     public static boolean isDeletePartFileEnabled() { return deletePartFile_flag; }
+
+    public static boolean isWholePLInMemEnabled() { return wholePLInMem_flag; }
 
     // -- start -- set method
     public static void setSws(boolean sws_flag) { Flags.sws_flag = sws_flag; }
@@ -50,6 +54,8 @@ public final class Flags
     public static void setDynamicPruning(boolean qdPruning_flag) { Flags.qdPruning_flag = qdPruning_flag;}
 
     public static void setDeletePartFile(boolean deletePartFile_flag) { Flags.deletePartFile_flag = deletePartFile_flag;}
+
+    public static void setWholePLInMem(boolean wholePLInMem_flag) { Flags.wholePLInMem_flag = wholePLInMem_flag;}
 
     // -- start -- functions
 
@@ -72,6 +78,7 @@ public final class Flags
             buffer.putInt(considerSkippingBytes() ? 1 : 0);    // write skipping user's choice
             buffer.putInt(isDynamicPruningEnabled() ? 1 : 0);  // write dynamic pruning user's choice
             buffer.putInt(isDeletePartFileEnabled() ? 1 : 0);  // write delete partial file user's choice
+            buffer.putInt(isWholePLInMemEnabled() ? 1 : 0);    // write whole PL in memory user's choice
 
         } catch (IOException ioe) {
             ioe.printStackTrace();
@@ -100,6 +107,7 @@ public final class Flags
             int skip_flag = flagsBuffer.getInt();               // read skipping user's choice
             int qdPruning_flag = flagsBuffer.getInt();          // read dynamic pruning user's choice
             int deletePartFile_flag = flagsBuffer.getInt();     // read delete partial file user's choice
+            int wholePLInMem_flag = flagsBuffer.getInt();       // read whole PL in memory user's choice
 
             // Set flag values with values read
             setSws(isSwsEnabled == 1);                          // set stop words removal user's choice
@@ -108,6 +116,7 @@ public final class Flags
             setConsiderSkippingBytes(skip_flag == 1);           // set skipping user's choice
             setDynamicPruning(qdPruning_flag == 1);             // set dynamic pruning user's choice
             setDeletePartFile(deletePartFile_flag == 1);        // set delete partial file user's choice
+            setWholePLInMem(wholePLInMem_flag == 1);            // set whole PL in memory user's choice
         } catch (IOException ioe) {
             ioe.printStackTrace();
         }
@@ -125,6 +134,7 @@ public final class Flags
         printDebug("- skipping flag : " + considerSkippingBytes());         // print choice for skipping
         printDebug("- dynamic pruning flag : " + isDynamicPruningEnabled());// print choice for query with dynamic pruning algorithm
         printDebug("- delete partial file flag : " + isDeletePartFileEnabled());// print choice for delete partial file
+        printDebug("- whole PL in memory flag : " + isWholePLInMemEnabled());   // print choice for whole PL in memory
     }
 
     /**
@@ -143,6 +153,9 @@ public final class Flags
         printUI("                       -> if is 'false': queries will be executed with classic DAAT algorithm.");
         printUI("6) delete partial file -> if is 'true': the partial file will be deleted after complete the inverted index.");
         printUI("                       -> if is 'false': the partial file will not be deleted after complete the inverted index.");
+        printUI("7) whole PL in memory  -> (only considered if compression and skipping enabled)");
+        printUI("                       -> if is 'true': only if compression and skipping are enabled, compressed posting lists for query terms will be loaded entirely in memory instead of in blocks.");
+        printUI("                       -> if is 'false': does not affect the behaviour of the algorithms.");
 
         printUIMag("\nThe user's choices for the flags are:");                         // control print for the user
         printUIMag("- is stopwords removal enabled : " + isSwsEnabled());              // print choice for stopwords removal
@@ -151,6 +164,7 @@ public final class Flags
         printUIMag("- is skipping enabled          : " + considerSkippingBytes());     // print choice for skipping
         printUIMag("- is dynamic pruning enabled   : " + isDynamicPruningEnabled());   // print choice for dynamic pruning algorithm
         printUIMag("- delete partial file enabled  : " + isDeletePartFileEnabled());   // print choice for delete partial file
+        printUIMag("- whole PL in memory enabled   : " + isWholePLInMemEnabled());      // print choice for whole PL in memory
     }
 
     /**

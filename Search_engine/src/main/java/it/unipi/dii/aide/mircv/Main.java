@@ -17,6 +17,7 @@ import static it.unipi.dii.aide.mircv.QueryProcessor.queryManager;
 import static it.unipi.dii.aide.mircv.QueryProcessor.queryStartControl;
 import static it.unipi.dii.aide.mircv.data_structures.CollectionStatistics.readCollectionStatsFromDisk;
 import static it.unipi.dii.aide.mircv.data_structures.DataStructureHandler.*;
+import static it.unipi.dii.aide.mircv.data_structures.Flags.isWholePLInMemEnabled;
 import static it.unipi.dii.aide.mircv.utils.FileSystem.*;
 import static it.unipi.dii.aide.mircv.utils.Constants.*;
 import static it.unipi.dii.aide.mircv.data_structures.Flags.*;
@@ -121,6 +122,7 @@ public class Main
                     boolean skipping = false;       // var for take user preferences on the skipping
                     boolean query_eff = false;      // var for take user preferences on the dynamic pruning algorithm (in query execution)
                     boolean deletePartFile = false; // var for take user preference on the delete partial file
+                    boolean wholePLInMem = false;   // var for take user preference on whole PL in memory
 
                     // take the new values
                     sws = getUserChoice(sc, "stopwords removal");    // take user preferences on the removal of stopwords
@@ -129,48 +131,54 @@ public class Main
                     skipping = getUserChoice(sc, "skipping");        // take user preferences on the skipping
                     query_eff = getUserChoice(sc, "dynamic pruning algorithm"); // take user preferences on the dynamic pruning algorithm
                     deletePartFile = getUserChoice(sc, "delete partial file");  // take user preferences for the delete partial file
+                    wholePLInMem = getUserChoice(sc, "whole PL in memory");     // take user preferences for whole PL in memory
 
                     // check the changed values
                     if (isSwsEnabled() != sws)
                     {
-                        printDebug("The value of the stopwords removal flag has been changed.");
+                        printUIMag("The value of the stopwords removal flag has been changed.");
                         setSws(sws);                            // change the value
                         rebuildIndexing = true;                 // set the value for the recomputing
                     }
                     if (isCompressionEnabled() != compression)
                     {
-                        printDebug("The value of the compression flag has been changed.");
+                        printUIMag("The value of the compression flag has been changed.");
                         setCompression(compression);            // change the value
                         rebuildIndexing = true;                 // set the value for the recomputing
                     }
                     if (isScoringEnabled() != scoring)
                     {
-                        printDebug("The value of the scoring flag has been changed.");
+                        printUIMag("The value of the scoring flag has been changed.");
                         setScoring(scoring);                    // change the value
                         recomputeTUB = true;                    // set the value for the recomputing
                     }
                     if (considerSkippingBytes() != skipping)
                     {
-                        printDebug("The value of the skipping flag has been changed.");
+                        printUIMag("The value of the skipping flag has been changed.");
                         setConsiderSkippingBytes(skipping);     // change the value
                         rebuildIndexing = true;                 // set the value for the recomputing
                     }
                     if (isDynamicPruningEnabled() != query_eff)
                     {
-                        printDebug("The value of the dynamic pruning algorithm flag has been changed.");
+                        printUIMag("The value of the dynamic pruning algorithm flag has been changed.");
                         setDynamicPruning(query_eff);           // change the value
                         if (isDynamicPruningEnabled())
                             recomputeTUB = true;                // set the value for the recomputing
                     }
                     if (isDeletePartFileEnabled() != deletePartFile)
                     {
-                        printDebug("The value of the delete partial file flag has been changed.");
+                        printUIMag("The value of the delete partial file flag has been changed.");
                         setDeletePartFile(deletePartFile);      // change the value
                         if (isDeletePartFileEnabled())
                         {
                             delete_tempFiles();                 // delete the partial files of the indexing
                             printLoad("Partial file deleted.");
                         }
+                    }
+                    if (isWholePLInMemEnabled() != wholePLInMem)
+                    {
+                        printUIMag("The value of whole PL in memory flag has been changed.");
+                        setWholePLInMem(wholePLInMem);          // change the value
                     }
 
                     storeFlagsIntoDisk();      // store flags into disk
@@ -372,6 +380,7 @@ public class Main
             setConsiderSkippingBytes(getUserChoice(sc, "skipping"));            // take user preferences on the scoring
             setDynamicPruning(getUserChoice(sc, "dynamic pruning algorithm"));  // take user preferences for the dynamic pruning algorithm
             setDeletePartFile(getUserChoice(sc, "delete partial file"));        // take user preferences for the delete partial file
+            setWholePLInMem(getUserChoice(sc, "whole PL in memory"));     // take user preferences for whole PL in memory
 
             storeFlagsIntoDisk();       // store Flags
         }
@@ -1279,21 +1288,6 @@ public class Main
                         //printUIMag("Iteration: " + i + " startTF: " + startTF + " startDID: " + startDID)
                         numTFComp = min(SKIP_POINTERS_THRESHOLD, (de.getDf() - (SKIP_POINTERS_THRESHOLD * i)));
 
-                        /*
-                        Arrays.copyOfRange(tf, startTF, ((int)sList.getSkipBlockInfo(i).getFreqOffset() - (int) de.getOffsetTermFreq()));
-                        Arrays.copyOfRange(docids, startDID, ((int)sList.getSkipBlockInfo(i).getDocIdOffset() - (int) de.getOffsetDocId()));
-
-                        List<Byte> byteListTF = new ArrayList<>();
-                        for (byte b : tf) {
-                            byteListTF.add(b);
-                        }
-                        byteListTF.subList(startTF, ((int)sList.getSkipBlockInfo(i).getFreqOffset() - (int) de.getOffsetTermFreq()));
-                        List<Byte> byteListDID = new ArrayList<>();
-                        for (byte b : docids) {
-                            byteListDID.add(b);
-                        }
-                        byteListDID.subList(startDID, ((int)sList.getSkipBlockInfo(i).getDocIdOffset() - (int) de.getOffsetDocId()));
-                        */
                         ArrayList<Integer> uncompressedTf = Unary.integersDecompression(Arrays.copyOfRange(tf, startTF, ((int)sList.getSkipBlockInfo(i).getFreqOffset() - (int) de.getOffsetTermFreq())), numTFComp);  // decompress term freq
                         ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(Arrays.copyOfRange(docids, startDID, ((int)sList.getSkipBlockInfo(i).getDocIdOffset() - (int) de.getOffsetDocId())),true);    // decompress DocID
                         sumTF += ((int)sList.getSkipBlockInfo(i).getFreqOffset() - (int) de.getOffsetTermFreq() - startTF);
