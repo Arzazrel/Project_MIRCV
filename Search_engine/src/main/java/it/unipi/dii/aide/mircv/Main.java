@@ -758,6 +758,7 @@ public class Main
                 "\n\t  t -> A document information from document table." +
                 "\n\t  d -> A term information from dictionary." +
                 "\n\t  p -> A posting list relating to a query to be entered." +
+                "\n\t  u -> A term upper bound relating to a term to be entered." +
                 "\n\t  s -> A Skip List relating to a term to be entered.");
 
         while(true)
@@ -860,6 +861,33 @@ public class Main
                         printUIMag("- Posting " + i + ": DocID = " + postingList.get(i).getDocId() + " , TermFreq = " + postingList.get(i).getTermFreq());
                     }
                     printUIMag("The sie of the posting list readed and shown is: " + postingList.size());
+
+                    return;     // exit
+                case "u":       // term upper bound infomation
+                    double termTUB;
+                    if (!TermDocUpperBound.termUpperBoundFileExist())
+                    {
+                        printError("The file of term upper bound isn't exist.");
+                        return;
+                    }
+
+                    if (TermDocUpperBound.termUpperBoundTableIsEmpty())
+                        TermDocUpperBound.readTermUpperBoundTableFromDisk();    // read TUB from disk
+
+                    printUI("Please enter the term.");
+                    chosenTerm = sc.nextLine().toUpperCase();                    // take the user's choice
+                    // preprocess of the entered term
+                    try {
+                        procChosenTerm = TextProcessor.preprocessText(chosenTerm); // Preprocessing of document text
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    termTUB = TermDocUpperBound.getTermUpperBound(procChosenTerm.get(0));
+                    if (termTUB == 0)
+                        printUIMag("The term don't have a Term Upper Bound stored into disk.");
+                    else
+                        printUIMag("The Term Upper Bound for '" + procChosenTerm.get(0) + "' is: " + termTUB);
 
                     return;     // exit
                 case "s":       // skip list information
