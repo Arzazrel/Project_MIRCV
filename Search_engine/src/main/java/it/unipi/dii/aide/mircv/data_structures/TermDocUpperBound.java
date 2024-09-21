@@ -53,7 +53,6 @@ public class TermDocUpperBound
         startTime = System.currentTimeMillis();             // start time to calculate all term upper bound
 
         termsList = new ArrayList<>(QueryProcessor.getDictionary().keySet());   // read all the term of the dictionary
-        Collections.sort(termsList);                        // order the dictionary term list
         scoringFunc = Flags.isScoringEnabled();             // take user's choice about using scoring function
 
         // scan all term in the dictionary
@@ -72,10 +71,7 @@ public class TermDocUpperBound
             CollectionStatistics.storeCollectionStatsIntoDisk();    // save collection statistics
         }
 
-        startTime = System.currentTimeMillis();         // start time to store all term upper bound
         storeTermUpperBoundTableIntoDisk();     // save the hashmap into disk
-        endTime = System.currentTimeMillis();           // end time to store all term upper bound
-        printTime("Stored all term upper bound( " + termCount + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
     /**
@@ -181,9 +177,13 @@ public class TermDocUpperBound
      */
     static void storeTermUpperBoundTableIntoDisk()
     {
+        ArrayList<String> termsList;    // array list for all the term
+        long startTime,endTime;         // variables to calculate the execution time
+        long startTime1,endTime1;         // variables to calculate the execution time
 
         printLoad("Storing terms upper bound into disk...");
 
+        startTime = System.currentTimeMillis();         // start time to store all term upper bound
         try (RandomAccessFile raf = new RandomAccessFile(TERMUPPERBOUND_FILE, "rw");
              FileChannel channel = raf.getChannel())
         {
@@ -191,16 +191,24 @@ public class TermDocUpperBound
             // Buffer not created
             if(buffer == null)
                 return;
+
+            termsList = new ArrayList<>(QueryProcessor.getDictionary().keySet());   // read all the term of the dictionary
+            Collections.sort(termsList);                        // order the dictionary term list
+
             // scan all document elements of the termUpperBoundTable
-            for(double termUpperBound: termUpperBoundTable.values())
+            for (String term : termsList)
             {
+                double termUpperBound = termUpperBoundTable.get(term);  // get TUB related to current term
                 buffer.putDouble(termUpperBound);       // write termUpperBoundTable into file
                 if(debug)
                     printDebug("write the term upper bound: " + termUpperBound);
             }
+            printLoad("Stored " + termUpperBoundTable.size() + " terms upper bound into disk...");
         } catch (IOException e) {
             e.printStackTrace();
         }
+        endTime = System.currentTimeMillis();           // end time to store all term upper bound
+        printTime("*** Stored all term upper bound( " + termUpperBoundTable.size() + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
     /**
@@ -219,7 +227,7 @@ public class TermDocUpperBound
         Collections.sort(termsList);    // order the list
         termUpperBoundTable.clear();    // free the hash map table
 
-        startTime = System.currentTimeMillis();         // start time to store all term upper bound
+        startTime = System.currentTimeMillis();         // start time to load all term upper bound
         try (
                 RandomAccessFile raf = new RandomAccessFile(TERMUPPERBOUND_FILE, "r");
                 FileChannel channel = raf.getChannel()
@@ -242,8 +250,8 @@ public class TermDocUpperBound
         {
             e.printStackTrace();
         }
-        endTime = System.currentTimeMillis();           // end time to store all term upper bound
-        printTime("*** Read all term upper bound( " + termsList.size() + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        endTime = System.currentTimeMillis();           // end time to load all term upper bound
+        printTime("*** Loaded all term upper bound( " + termsList.size() + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
     // ---------------- end: read/write into disk functions ----------------
 }
