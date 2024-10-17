@@ -34,7 +34,6 @@ public final class QueryProcessor
     // indicate whether order all or only first "numberOfResults" results from hash table. TEST VARIABLE
     private static boolean orderAllHashMap = false;
     public static HashMap<Integer, DocumentElement> documentTable = new HashMap<>();    // hash table DocID to related DocElement
-    public static HashMap<Integer, Double> termFreqWeightTable = new HashMap<>();    // hash table DocID to related DocElement
     static it.unipi.dii.aide.mircv.data_structures.Dictionary dictionary = new Dictionary();    // dictionary in memory
     private static ArrayList<String> termNotInCollection = new ArrayList<>();   // ArrayList that contain the term that are in the query but not in the collection
     static PriorityQueue<QueryProcessor.ResultBlock> resPQ;     // priority queue for the result of scoring function for the best numberOfResults docs
@@ -45,8 +44,8 @@ public final class QueryProcessor
     static ArrayList<Posting>[] skipAndCompPLs;  // contains all the posting lists for each term of the query (case of compression and skipping enabled)
     static PriorityQueue<Integer> pqDID = new PriorityQueue<Integer>();    // priority queue for the DID when use max score when compression and skipping are enabled
     static double[] logTermFreq;    // array to contain the precomputed TF score (1 + log(TermFeq)) for each possible value of TermFreq in this collection (117)
-    static byte[][] termFreqPL; // array for the compressed TermFreq list for each terms of the query
-    static byte[][] docIDPL;    // array for the compressed TermFreq list for each terms of the query
+    static byte[][] termFreqPL;     // array for the compressed TermFreq list for each terms of the query
+    static byte[][] docIDPL;        // array for the compressed TermFreq list for each terms of the query
     // ---------------------------------------------- start: functions -------------------------------------------------
 
     // ---------------------------------------- start: set and get functions -------------------------------------------
@@ -177,10 +176,10 @@ public final class QueryProcessor
         else
             printDebug("Document Table is already loaded.");
 
-        if (termFreqWeightTable.isEmpty())
+        if ((logTermFreq == null) || (logTermFreq.length == 0))      // check for the precalculated value used to compute the score function
             readTFWeightFromDisk();
         else
-            printDebug("termFreqWeightTable is already loaded.");
+            printDebug("termFreq array is already loaded.");
 
         return true;
     }
@@ -297,10 +296,12 @@ public final class QueryProcessor
         // 2 - start DAAT
         startTime = System.currentTimeMillis();           // start time of DAAT (comp + skipping)
         previousDID = postPQ.peek().getDocID();
+        int count = 0;
         if (isConjunctive)
         {   // -- start - if - conj --
             while (!postPQ.isEmpty())
             {   // -- start - while fot scan all block --
+                count++;
                 currElem = postPQ.poll();               // get the current element
                 currentDID = currElem.getDocID();       // get current DID
                 currIndexPL = currElem.getIndexPL();    // get the current PL index
@@ -372,6 +373,7 @@ public final class QueryProcessor
         {   // -- start - else - disj --
             while (!postPQ.isEmpty())
             {   // -- start - if - conj --
+                count++;
                 currElem = postPQ.poll();             // get the current element
                 currentDID = currElem.getDocID();       // get current DID
                 currIndexPL = currElem.getIndexPL();    // get the current PL index
@@ -441,6 +443,7 @@ public final class QueryProcessor
         }   // -- end - else - disj --
         endTime = System.currentTimeMillis();           // end time of DAAT (comp + skipping)
         printTime("*** DAAT (PQ version) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        printDebug("Iterazioni dell'algoritmo: " + count);
     }
 
     /**
@@ -1636,10 +1639,13 @@ public final class QueryProcessor
         int plsLen = pLNotEmpty;                // take the number of posting list
         int currTF = 0;                         // var for the current Term Freq
         int currPLIndex = 0;                    // var for the index of the current PL at the current iteration
+        int count = 0;
+        boolean first = true;
         if (isConjunctive)
         {   // -- start - if conjunctive --
             while (!didPQ.isEmpty())
             {   // -- start - for 0: DID --
+                count++;
                 currDID = didPQ.poll();     // take current DID
                 partialScore = 0;           // reset var
                 resetScore = false;         // set to false
@@ -1689,6 +1695,11 @@ public final class QueryProcessor
 
                 for (int i = 0; i < firstEssPostListIndex; i++)
                 {   // -- start - for - NoEPL --
+                    if (first)
+                    {
+                        printDebug("Prima iterazione in NEPL: " + count);
+                        first = false;
+                    }
                     resetScore = true;       // reset the partial score
                     currPLIndex = postingListsIndex[i];     // take the current index for the current posting list
 
@@ -1791,9 +1802,9 @@ public final class QueryProcessor
         }   // -- end - if conjunctive --
         else        // disjunctive
         {   // -- start - else disjunctive --
-            // MaxScore algorithm - scan all Doc retrieved and calculate score (TFIDF or BM25)
             while (!didPQ.isEmpty())
             {   // -- start - for 0: DID --
+                count++;
                 currDID = didPQ.poll();     // take current DID
                 partialScore = 0;           // reset var
                 // 0 - can the essential posting lists, default case is query Disjunctive
@@ -1830,6 +1841,12 @@ public final class QueryProcessor
                     // check if the doc has no zero possibility to have a score greater than threshold
                     if (currentDocUpperBound <= threshold)
                         break;                              // go to next iteration with next DID
+
+                    if (first)
+                    {
+                        printDebug("Prima iterazione in NEPL: " + count);
+                        first = false;
+                    }
 
                     currPLIndex = postingListsIndex[i];     // take the current index for the current posting list
                     if (currPLIndex < lengthPostingList[i]) // check if the index is not out of posting list bound
@@ -1919,6 +1936,7 @@ public final class QueryProcessor
         endTime = System.currentTimeMillis();           // end time of DAAT
         // shows DAAT execution time
         printTime("*** Max Score PQ(skipping) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        printDebug("Iterazioni dell'algoritmo: " + count);
     }
 
     /**
@@ -2882,6 +2900,10 @@ public final class QueryProcessor
         long startTime, endTime;
 
         printLoad("Calculated and stored all useful values for termFreqWeight...");
+
+        CollectionStatistics.readCollectionStatsFromDisk();
+        logTermFreq = new double[CollectionStatistics.getMaxTermFreq()];    // initialize array for the precomputed value
+
         startTime = System.currentTimeMillis();
         try (
                 RandomAccessFile docStats = new RandomAccessFile(TERMFREQWEIGHT_FILE, "rw");
@@ -2894,9 +2916,9 @@ public final class QueryProcessor
             for(int i = 1; i <= maxTF; i++)
             {
                 TFweight = (1 + Math.log10(i));         // calculate TF weight
-                termFreqWeightTable.put(i,TFweight);    // put into hash table
+                logTermFreq[i-1] = TFweight;            // save TF weight in memory
                 // store
-                buffer.putDouble(TFweight);             // write termFreqWeight
+                buffer.putDouble(TFweight);             // write termFreqWeight into disk
             }
         } catch (IOException ioe) {
             ioe.printStackTrace();
@@ -2917,9 +2939,6 @@ public final class QueryProcessor
         printLoad("Loading all useful values for termFreqWeight from disk...");
 
         startTime = System.currentTimeMillis();
-        if (!termFreqWeightTable.isEmpty())
-            termFreqWeightTable.clear();
-
         CollectionStatistics.readCollectionStatsFromDisk();
         logTermFreq = new double[CollectionStatistics.getMaxTermFreq()];
 
@@ -3195,10 +3214,8 @@ public final class QueryProcessor
         byte[] docids;                  // array for the compressed TermFreq list
         // control check
         if ( (indexPL >= slArr.length) || (blockIndex >= slArr[indexPL].getSkipArrLen()))
-        {
-            printError("retrieveCompBlockOfPL -> error in the parameter. indexPL: " + indexPL + " and blockIndex: " + blockIndex);
             return;
-        }
+
         try(
                 // open complete files to read the postingList
                 RandomAccessFile docidFile = new RandomAccessFile(DOCID_FILE, "rw");
@@ -3548,7 +3565,7 @@ public final class QueryProcessor
 
         return rankedResults;
     }
-    
+
     /**
      * Function to retrieve length for each posting lists passed as parameter.
      *

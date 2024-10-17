@@ -73,21 +73,14 @@ public class SkipList
         if (Flags.considerSkippingBytes())
             points = getSkipArrayFromDisk(skipOffset, skipArrLen);      // get the array of skipInfo
         else
-        {
             points = null;
-            //printDebug("---- This posting list has size = " + currPostList.size() + " that is too small for activate the skipping (skipping threshold = " + SKIP_POINTERS_THRESHOLD);
-        }
 
-        //if ((currPostList!=null) && (currPostList.size() >= SKIP_POINTERS_THRESHOLD))
-        //if (currPostList != null)
         if (Flags.considerSkippingBytes())
         {
             skipElemIterator = points.iterator();                       // initialize the iterator
             if (skipElemIterator.hasNext())                             // set the iterator
                 skipElemIterator.next();
-                //printDebug("Constructor first skipping block: " + skipElemIterator.next().getMaxDocId());                              // go in first position with iterator
         }
-        //printDebug("-- SkipList constructor -- This skipList element:\n" + this);    // debug print
     }
 
     @Override
@@ -150,7 +143,6 @@ public class SkipList
                 tempSkipList.add(tempSkipInfo);                     // add the read skipInfo element into array
                 index++;                                            // update index
                 offset += SkipInfo.SKIPPING_INFO_SIZE;              // update offset, pointer to the beginning of next block
-                //printDebug("---- Read the block in position : " + index + "\n------" + tempSkipInfo);// debug print
             }
         } catch (IOException e)
         {
@@ -183,8 +175,8 @@ public class SkipList
     {
         SkipInfo currentSI;     // to contain the current SkipInfo block
         int searchIndex;        // contains the index of the DocID searched or the greater one
-        int startBlockPos;      //
-        int endBlockPos;        //
+        int startBlockPos;      // start index of the binary search
+        int endBlockPos;        // end index of the binary search
 
         // check the next hop
         if(skipElemIterator == null)        // no blocks or finished
@@ -194,7 +186,6 @@ public class SkipList
         if (currPostList.size() >= SKIP_POINTERS_THRESHOLD)
         {
             currentSI = points.get(pointsIndex);        // initialize the current SkipInfo
-            //printDebug("++ IN nextGEQ - 0 iteration -> search DID: " + docID + " skipArrayPosition: " + pointsIndex + " wit maxDID: " + currentSI.getMaxDocId());
             // use skipping to find the searched DocID
             while (currentSI.getMaxDocId() < docID)
             {
@@ -203,7 +194,6 @@ public class SkipList
 
                 currentSI = skipElemIterator.next();    // hop to next position
                 pointsIndex++;                          // update the index
-                //printDebug("++++ IN nextGEQ -> skipArrayPosition: " + pointsIndex + " with maxDID: " + currentSI.getMaxDocId());
             }
 
             // the searched DocID is in the current skip block (if there is)
@@ -211,16 +201,11 @@ public class SkipList
             startBlockPos = pointsIndex * skipInterval;
             postListIndex = max(startBlockPos, currentPos);                         // SEE NOTE 0
             endBlockPos = min((currPostList.size()-1), ((pointsIndex + 1) * skipInterval) - 1);
-            //printDebug("++ IN nextGEQ end iteration -> search: " + docID + " and startblock: " + startBlockPos + " postlistIndex: " + postListIndex + " -> effective maxDID: " + currPostList.get(endBlockPos).getDocId());
 
             searchIndex = booleanSearch(docID, endBlockPos);    // search the index of the searched DocID
-            //printDebug("Used skipping -> found position: " + searchIndex + " with DocID: " + currPostList.get(searchIndex).getDocId());
         }
         else        // posting list too small, normal binary search
-        {
             searchIndex = booleanSearch(docID, (currPostList.size()-1));    // search the index of the searched DocID
-            //printDebug("Used booleanSearch -> found position: " + searchIndex + " with DocID: " + currPostList.get(searchIndex).getDocId());
-        }
 
         return searchIndex;
     }
@@ -357,12 +342,12 @@ public class SkipList
             //printDebug("uncompressedTf len: " + uncompressedTf.size() + " uncompressedDocid len: " + uncompressedDocid.size());
             //printDebug("First DID uncompressed is: " + uncompressedDocid.get(0));
             // add the block to the related PL
-            currPostList.clear();
+            //currPostList.clear();
+            currPostList = new ArrayList<>(numTFComp);
             for (int i = 0; i < numTFComp; i++)
             {
                 // add the posting to the posting list
-                currPostList.add(new Posting(uncompressedDocid.get(i), uncompressedTf.get(i)));
-                // SEE NOTE 1
+                currPostList.add(new Posting(uncompressedDocid.get(i), uncompressedTf.get(i)));     // SEE NOTE 1
             }
             QueryProcessor.setPLInSkipAndCompPLs(currPostList, indexPL);      // set the PL in 'QueryProcessor'
         } catch (IOException e) {
