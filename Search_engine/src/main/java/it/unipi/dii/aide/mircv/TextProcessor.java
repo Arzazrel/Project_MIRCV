@@ -70,11 +70,11 @@ public class TextProcessor
     /**
      * Function to clean the input text.
      *
-     * @param input             is the query of the users (in words)
-     * @return  a string that contains the string without not permitted or useless characters
+     * @param input     is the query of the users (in words)
+     * @return a string that contains the string without not permitted or useless characters
      */
-    private static String cleanText(String input) {
-
+    private static String cleanText(String input)
+    {
         input = input.replaceAll("https?://\\S+\\s?", " "); // Replace URLs with spaces
         input = input.toLowerCase();                                         // Convert text to lowercase
         input = input.replaceAll("<[^>]*>", "");            // Remove HTML tags
@@ -88,17 +88,26 @@ public class TextProcessor
     /**
      * Function to tokenize a string into individual words.
      *
-     * @param input             is the query of the users (in words)
+     * @param input     is the query of the users (in words)
      * @return  an arraylist of string that contains the term(string) of the query
      */
-    private static ArrayList<String> tokenizeText(String input) {
-        return new ArrayList<>(Arrays.asList(input.toLowerCase().split(" "))); // Tokenize by splitting on spaces
+    private static ArrayList<String> tokenizeText(String input)
+    {
+        ArrayList<String> alQuery;        // Create an ArrayList object for the token of the query
+        alQuery = new ArrayList<>(Arrays.asList(input.toLowerCase().split(" ")));   // Tokenize by splitting on spaces
+
+        // check for case of one or more not allowed characters at the beginning of the query
+        // (a not allowed character remain at the beginning of the array list)
+        if (!alQuery.isEmpty() && alQuery.get(0).isEmpty())
+            alQuery.remove(0);      // remove the space at the beginning
+
+        return alQuery;
     }
 
     /**
      * Function to apply stemming on tokens.
      *
-     * @param tokens             is the query of the users (in token)
+     * @param tokens    is the query of the users (in token)
      * @return  an arraylist of string that contains the token of the query after the stemming
      */
     private static ArrayList<String> applyStemming(ArrayList<String> tokens)

@@ -106,11 +106,12 @@ public final class QueryProcessor
             processedQuery = TextProcessor.preprocessText(query); // Preprocessing of document text
 
             // check if query is empty
-            if (processedQuery.isEmpty() || (processedQuery.size() == 1 && processedQuery.get(0).equals("")))
+            if (processedQuery.isEmpty() || (processedQuery.size() == 1 && processedQuery.get(0).isEmpty()))
             {
                 printError("Error: query is empty, please retry.");     // mex of error
                 return rankedResults;
             }
+
             // manage the query execution algorithm depending on the flags selected by the user
             chooseQueryAlg(processedQuery, isConjunctive, numberOfResults);
 
@@ -296,12 +297,10 @@ public final class QueryProcessor
         // 2 - start DAAT
         startTime = System.currentTimeMillis();           // start time of DAAT (comp + skipping)
         previousDID = postPQ.peek().getDocID();
-        int count = 0;
         if (isConjunctive)
         {   // -- start - if - conj --
             while (!postPQ.isEmpty())
             {   // -- start - while fot scan all block --
-                count++;
                 currElem = postPQ.poll();               // get the current element
                 currentDID = currElem.getDocID();       // get current DID
                 currIndexPL = currElem.getIndexPL();    // get the current PL index
@@ -373,7 +372,6 @@ public final class QueryProcessor
         {   // -- start - else - disj --
             while (!postPQ.isEmpty())
             {   // -- start - if - conj --
-                count++;
                 currElem = postPQ.poll();             // get the current element
                 currentDID = currElem.getDocID();       // get current DID
                 currIndexPL = currElem.getIndexPL();    // get the current PL index
@@ -443,7 +441,6 @@ public final class QueryProcessor
         }   // -- end - else - disj --
         endTime = System.currentTimeMillis();           // end time of DAAT (comp + skipping)
         printTime("*** DAAT (PQ version) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
-        printDebug("Iterazioni dell'algoritmo: " + count);
     }
 
     /**
