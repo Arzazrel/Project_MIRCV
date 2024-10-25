@@ -292,13 +292,14 @@ public class Main
                     printUI("Choose from how many test fleets to take queries. Selecting:\n" +
                             "- ‘0’ all available files will be used (the number of queries selected by the user from all files will be taken)\n" +
                             "- '1' a query entered by the user will be used\n" +
+                            "- '2' analysis of test query terms on both test collections\n" +
                             "- '2019' the 2019 test file will be used\n" +
                             "- '2020' will use the 2020 test file\n");
                     // take the user choice for the test file
                     do {
                         try {
                             fileChoice = Integer.parseInt(sc.nextLine());    // take the int inserted by user
-                            if ((fileChoice == 0) || (fileChoice == 1) || (fileChoice == 2019) || (fileChoice == 2020))  // validity check
+                            if ((fileChoice == 0) || (fileChoice == 1) || (fileChoice == 2) || (fileChoice == 2019) || (fileChoice == 2020))  // validity check
                                 validNum = 1;
                         } catch (NumberFormatException nfe) {
                             printError("Insert a valid positive number");
@@ -306,7 +307,7 @@ public class Main
                     } while (validNum == 0);    // continues until a valid number is entered
                     validNum = 0;               // reset
 
-                    if (fileChoice != 1)    // to be asked in all cases except when the user enters a query
+                    if ((fileChoice != 1) && (fileChoice != 2))    // to be asked in all cases except when the user enters a query
                     {
                         // do while for choosing the number of queries to execute
                         do {
@@ -320,16 +321,19 @@ public class Main
                         } while (validNum == 0);  // continues until a valid number is entered
                     }
 
-                    // do while for choosing the number of test to execute
-                    do {
-                        printUI("Type how many times you want to repeat the test (must be a positive number).");
-                        try {
-                            numberTest = Integer.parseInt(sc.nextLine());    // take the int inserted by user
-                            validNum = (numberTest > 0) ? 1 : 0;               // validity check of the int
-                        } catch (NumberFormatException nfe) {
-                            printError("Insert a valid positive number");
-                        }
-                    } while (validNum == 0);  // continues until a valid number is entered
+                    if (fileChoice != 2)    // to be asked in all cases except when the user enters a query
+                    {
+                        // do while for choosing the number of test to execute
+                        do {
+                            printUI("Type how many times you want to repeat the test (must be a positive number).");
+                            try {
+                                numberTest = Integer.parseInt(sc.nextLine());    // take the int inserted by user
+                                validNum = (numberTest > 0) ? 1 : 0;               // validity check of the int
+                            } catch (NumberFormatException nfe) {
+                                printError("Insert a valid positive number");
+                            }
+                        } while (validNum == 0);  // continues until a valid number is entered
+                    }
 
                     switch (fileChoice)     // switch to run user's choice
                     {
@@ -339,6 +343,10 @@ public class Main
                             break;
                         case 1:         // take query from user
                             QueryProcessor.testQuery(numberTest, sc);
+                            break;
+                        case 2:         // take query from user
+                            QueryProcessor.readAndAnalyzeQueryFromCollection(TEST_QUERY_2019_PATH);
+                            QueryProcessor.readAndAnalyzeQueryFromCollection(TEST_QUERY_2020_PATH);
                             break;
                         case 2019:      // take queries from 2019 file
                             QueryProcessor.readQueryFromCollection(numberOfQueries,TEST_QUERY_2019_PATH, numberTest);   // take queries from first file

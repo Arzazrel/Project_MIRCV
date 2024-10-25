@@ -46,6 +46,25 @@ public class TextProcessor
     }
 
     /**
+     * Function to do the first steps of the query preprocessing of the user (in word).
+     * This method only remove the not allowed characters and the tokenization and doesn't apply the remove stopwords
+     * or stemming. This method return the term of the query from the query in word.
+     *
+     * @param input             is the query of the users (in words)
+     * @return  an ArrayList of string that contains the term of the query after preprocessing
+     */
+    public static ArrayList<String> removeAndCleanText(String input) throws IOException
+    {
+        ArrayList<String> tokenList;
+
+        // Preprocess the Text
+        input = cleanText(input);           // Clean the text by removing URLs, HTML tags, punctuation, etc...
+        tokenList = tokenizeText(input);    // Tokenize the cleaned text into individual words
+
+        return tokenList;   // Return the preprocessed tokens
+    }
+
+    /**
      * Function to remove unicode characters from a string.
      *
      * @param input             is the query of the users (in words)

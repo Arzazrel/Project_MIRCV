@@ -4157,8 +4157,14 @@ public final class QueryProcessor
                 TermDocUpperBound.calculateTermsUpperBound(false);   // calculate term upper bound for each term of dictionary
         }
 
-        printUIMag(" Start query test... from: " + pathTest);         // control print
+        // check if the collection file exists
         File file = new File(pathTest);
+        if(!file.exists())
+        {
+            printError("The selected queries collection file does not exist.");
+            return;
+        }
+        printUIMag(" Start query test... from: " + pathTest);         // control print
         String record;          // string to contain the queries and their result
 
         printUIMag("--------------------------------------------------------------------------------");
@@ -4245,6 +4251,127 @@ public final class QueryProcessor
         printTime("\nThe fastest query (disjunctive mode) executes in " + fasterQueryDis + " ms and its QUID is " + quidFastDis);
         printTime("The slowest query (disjunctive mode) executes in " + slowerQueryDis + " ms and its QUID is " + quidSlowDis);
         printTime("The average queries execution time (disjunctive mode) is " + avgExTimeDis / ((long) numQueries * numTest) + " ms");
+        printUIMag("--------------------------------------------------------------------------------");
+    }
+
+    /**
+     * Function that automatically analyses the test query terms of a collection passed as a parameter.
+     *
+     * @param pathTest      string identified the path for the test queries
+     */
+    public static void readAndAnalyzeQueryFromCollection(String pathTest)
+    {
+        int queryCount = 0;             // indicates how many queries have been made
+        int minTermBefore = 100000;     // min query len before preprocessing
+        String quidMinBefore = "";      // indicates the query ID of the shortest query before preprocessing in the collection
+        int minTermAfter = 100000;      // min query len after preprocessing
+        String quidMinAfter = "";       // indicates the query ID of the shortest query after preprocessing in the collection
+        float avgTermBefore = 0;        // avg query len before preprocessing
+        float avgTermAfter = 0;         // avg query len after preprocessing
+        int maxTermBefore = 0;          // max query len before preprocessing
+        String quidMaxBefore = "";      // indicates the query ID of the longest query before preprocessing in the collection
+        int maxTermAfter = 0;           // max query len after preprocessing
+        String quidMaxAfter = "";       // indicates the query ID of the longest query after preprocessing in the collection
+        long startTime, endTime;        // variables to calculate the execution time
+
+        // control check for the collection file
+        File collFile = new File(pathTest);               // blocks.txt
+        if(!collFile.exists())
+        {
+            printError("The selected queries collection file does not exist.");
+            return;
+        }
+
+        // -- control for file into disk
+        if (!FileSystem.areThereAllMergedFiles() || !Flags.isThereFlagsFile() || !CollectionStatistics.isThereStatsFile())
+        {
+            printError("Error: missing required files.");
+            return;
+        }
+        readFlagsFromDisk();                                // read flags from disk
+
+        printUIMag("Term query analysis from: " + pathTest);         // control print
+        String record;          // string to contain the queries and their result
+
+        startTime = System.currentTimeMillis();         // start time of all test
+        try
+        {
+            InputStream tarArchiveInputStream = new GzipCompressorInputStream(new FileInputStream(collFile));
+            BufferedReader buffer_collection = new BufferedReader(new InputStreamReader(tarArchiveInputStream, StandardCharsets.UTF_8));
+
+            // scan all queries in the collection
+            while ((record = buffer_collection.readLine()) != null)
+            {   // -- START - while - i-th test -
+                if (record.isBlank())
+                    continue;       // empty string or composed by whitespace characters or malformed
+
+                String[] queryProc = record.split("\t", 2);  // preprocess the query to obtain the queryDID
+                String qid = queryProc[0];      // get the DocNO of the best result for the query
+                ArrayList<String> tokenList;    // for contain the preprocessed query
+                int termNumBefore = 0;          // the number of the term before preproc for the current query
+                int termNumAfter = 0;           // the number of the term after preproc for the current query
+
+                // -- part only for clean the text
+                tokenList = TextProcessor.removeAndCleanText(queryProc[1]); // clean
+                termNumBefore = tokenList.size();           // take the size
+
+                // queries collection statistics
+                if (termNumBefore < minTermBefore)
+                {
+                    minTermBefore = termNumBefore;          // update faster time
+                    quidMinBefore = qid;                    // update quid
+                }
+                if (termNumBefore > maxTermBefore)
+                {
+                    maxTermBefore = termNumBefore;          // update faster time
+                    quidMaxBefore = qid;                    // update quid
+                }
+                avgTermBefore += termNumBefore;
+
+                // -- part of preprocessing
+                if (Flags.isSwsEnabled())   // Check if the filtering flag is enabled
+                {
+                    tokenList = TextProcessor.preprocessText(queryProc[1]); // preprocess the text according flags
+                    termNumAfter = tokenList.size();        // take the size
+
+                    if (termNumAfter < minTermAfter)
+                    {
+                        minTermAfter = termNumAfter;            // update faster time
+                        quidMaxAfter = qid;                     // update quid
+                    }
+                    if (termNumAfter > maxTermAfter)
+                    {
+                        maxTermAfter = termNumAfter;            // update faster time
+                        quidMaxAfter = qid;                     // update quid
+                    }
+                }
+                avgTermAfter += termNumAfter;
+
+                queryCount++;       // update counter
+            }   // -- END - while - i-th test -
+
+            buffer_collection.close();      // close buffer reader
+            tarArchiveInputStream.close();  // close tar archive
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        endTime = System.currentTimeMillis();         // start time of all test
+        // print queries collection statistics
+        printTime("Whole analysis executed in: "  + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        printUIMag("--------------------------------------------------------------------------------");
+        printTime("Analysis of the query before preprocessing (only the clean).");
+        printTime("The shortest query has " + minTermBefore + " terms and its QUID is " + quidMinBefore);
+        printTime("The longest query has " + maxTermBefore + " terms and its QUID is " + quidMaxBefore);
+        printTime("The average number of terms before preprocessing is " + avgTermBefore / queryCount );
+
+        if (Flags.isSwsEnabled())   // Check if the filtering flag is enabled
+        {
+            printTime("\nAnalysis of the query after preprocessing (with stopwords removal and stemming).");
+            printTime("The shortest query has " + minTermAfter + " terms and its QUID is " + quidMinAfter);
+            printTime("The longest query has " + maxTermAfter + " terms and its QUID is " + quidMaxAfter);
+            printTime("The average number of terms after preprocessing is " + avgTermAfter / queryCount );
+        }
         printUIMag("--------------------------------------------------------------------------------");
     }
 
