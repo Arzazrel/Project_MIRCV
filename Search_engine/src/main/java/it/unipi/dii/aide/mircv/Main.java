@@ -160,9 +160,10 @@ public class Main
                     }
                     if (isDynamicPruningEnabled() != query_eff)
                     {
+                        File termUB = new File(TERMUPPERBOUND_FILE);
                         printUIMag("The value of the dynamic pruning algorithm flag has been changed.");
                         setDynamicPruning(query_eff);           // change the value
-                        if (isDynamicPruningEnabled())
+                        if (isDynamicPruningEnabled() && !termUB.exists())
                             recomputeTUB = true;                // set the value for the recomputing
                     }
                     if (isDeletePartFileEnabled() != deletePartFile)
@@ -212,7 +213,6 @@ public class Main
                     continue;
                 case "q":       // execute a query
 
-                    //Flags.setConsiderSkippingBytes(true);
                     ArrayList<Integer> rankedResults;       // ArrayList that contain the ranked results of query
                     int numberOfResults = 0;    // take the integer entered by users that indicate the number of results wanted for query
 
