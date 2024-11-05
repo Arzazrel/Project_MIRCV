@@ -59,7 +59,7 @@ public final class QueryProcessor
      */
     public static void setPLInSkipAndCompPLs(ArrayList<Posting> pl, int index)
     {
-        if ((skipAndCompPLs != null) || (index >= skipAndCompPLs.length))
+        if ((skipAndCompPLs == null) || (index >= skipAndCompPLs.length))
             return;
 
         skipAndCompPLs[index] = pl;  // set new uncompressed block of the posting list
@@ -73,7 +73,7 @@ public final class QueryProcessor
      */
     public static ArrayList<Posting> getPLInSkipAndCompPLs(int index)
     {
-        if ((skipAndCompPLs != null) || (index >= skipAndCompPLs.length))
+        if ((skipAndCompPLs == null) || (index >= skipAndCompPLs.length))
             return null;
 
         return skipAndCompPLs[index];
@@ -1431,7 +1431,7 @@ public final class QueryProcessor
                     resPQ.add(new QueryProcessor.ResultBlock(currDID, partialScore));     // add to priority queue
                     threshold = resPQ.peek().getScore();    // update threshold
                     // calculate new essential posting lists and update firstEssPostListIndex
-                    firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold);
+                    firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold, firstEssPostListIndex);
                     //printDebug("-- **** New threshold: " + threshold + " new first essential posting list: " + firstEssPostListIndex);
                 }
             }   // -- end - for: DID --
@@ -1547,7 +1547,7 @@ public final class QueryProcessor
                     resPQ.add(new QueryProcessor.ResultBlock(currDID, partialScore));     // add to priority queue
                     threshold = resPQ.peek().getScore();    // update threshold
                     // calculate new essential posting lists and update firstEssPostListIndex
-                    firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold);
+                    firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold, firstEssPostListIndex);
                     //printDebug("-- **** New threshold: " + threshold + " new first essential posting list: " + firstEssPostListIndex);
                 }
             }   // -- end - for: DID --
@@ -1623,29 +1623,42 @@ public final class QueryProcessor
         IDFweight = calculateIDFWeight(lengthPostingList);                      // calculate the IDF weight
         skipListArray = SetAllSkipList(orderedQueryTerm, postingLists);         // create the skip List reference related to the term of query
 
+        int maxDID = CollectionStatistics.getNDocs();
+        BitSet processedDocs = new BitSet(maxDID + 1);      // "+1" to include the max value
+
         // 1 - take the first posting from the posting lists of the query terms
         for (int i = 0; i < pLNotEmpty; i++)                // add the DID block to PQ (pqDID)
         {
-            currDID = postingLists[i].get(0).getDocId();  // take DID in the first position
-            if (!didPQ.contains(currDID))
-                didPQ.add(currDID);                 // add to priority queue
+            currDID = postingLists[i].get(0).getDocId();    // take DID in the first position
+            if (!processedDocs.get(currDID))
+            {
+                didPQ.add(currDID);             // add the first DID in the PLs
+                processedDocs.set(currDID);     // set the bit related to currDID in the bitset
+            }
         }
 
+        // ++++++++++++++++++++
+        for (int i = 0; i < pLNotEmpty; i++)                // add the DID block to PQ (pqDID)
+        {
+            printDebug("Word: '" + orderedQueryTerm[i] + "', with index: " + i + ", len: " + lengthPostingList[i] + ", num of block: " + skipListArray[i].getSkipArrLen() + ", and TUB: " + termUpperBoundList[i]);
+        }
+        // ++++++++++++++++++++
+
         // 2 - start DAAT + MaxScore algorithm, scan all Doc retrieved and calculate score (TFIDF or BM25)
-        startTime = System.currentTimeMillis();           // start time of DAAT + MAX SCORE
+        startTime = System.currentTimeMillis();     // start time of DAAT + MAX SCORE
+        double newFEPL = sumTUBList[1];         // if this value is exceeded with the threshold, the first essential posting list must be recalculated
         int plsLen = pLNotEmpty;                // take the number of posting list
         int currTF = 0;                         // var for the current Term Freq
         int currPLIndex = 0;                    // var for the index of the current PL at the current iteration
-        int count = 0;
-        boolean first = true;
+        int count = 0;      // +++++++++++++++++++++++++
         if (isConjunctive)
         {   // -- start - if conjunctive --
             while (!didPQ.isEmpty())
             {   // -- start - for 0: DID --
-                count++;
                 currDID = didPQ.poll();     // take current DID
                 partialScore = 0;           // reset var
                 resetScore = false;         // set to false
+                count++;        // ++++++++++++++++++++++++++++++++++++
                 // 0 - scan the essential posting lists, default case is query Disjunctive
                 for (int j = firstEssPostListIndex; j < plsLen; j++)
                 {   // -- start - for - EPL --
@@ -1663,12 +1676,20 @@ public final class QueryProcessor
                             else
                                 partialScore += ScoringTFIDF(currTF, IDFweight[j]);             // use TFIDF
 
+                            // ++++++++++++++++++
+                            if ((currDID == 1179421) || (currDID == 5822941) || (currDID == 5822946) || (currDID == 2317084) || (currDID == 2317082))
+                                printDebug("DID: " + currDID + " - EPL index: " + j + " ('" + orderedQueryTerm[j] + "') with score: " + partialScore);
+                            // ++++++++++++++++++
+
                             // in the current position of this PL there is the currentDID -> insert in PQ new DID (the next DID in this PL)
                             if (postingListsIndex[j] < lengthPostingList[j])
                             {
                                 int tempDID = postingLists[j].get(postingListsIndex[j]).getDocId();
-                                if (!didPQ.contains(tempDID))
-                                    didPQ.add(tempDID);                 // add to priority queue
+                                if (!processedDocs.get(tempDID))
+                                {
+                                    didPQ.add(tempDID);             // add the first DID in the PLs
+                                    processedDocs.set(tempDID);     // set the bit related to currDID in the bitset
+                                }
                             }
                         }
                         else
@@ -1692,11 +1713,6 @@ public final class QueryProcessor
 
                 for (int i = 0; i < firstEssPostListIndex; i++)
                 {   // -- start - for - NoEPL --
-                    if (first)
-                    {
-                        printDebug("Prima iterazione in NEPL: " + count);
-                        first = false;
-                    }
                     resetScore = true;       // reset the partial score
                     currPLIndex = postingListsIndex[i];     // take the current index for the current posting list
 
@@ -1717,6 +1733,11 @@ public final class QueryProcessor
                             else
                                 partialScore += ScoringTFIDF(currTF, IDFweight[i]);             // use TFIDF
                             currentDocUpperBound += partialScore;               // update currentDocUpperBound
+
+                            // ++++++++++++++++++
+                            if ((currDID == 1179421) || (currDID == 5822941) || (currDID == 5822946) || (currDID == 2317084) || (currDID == 2317082))
+                                printDebug("DID: " + currDID + " - NEPL index: " + i + " ('" + orderedQueryTerm[i] + "') with score: " + partialScore);
+                            // ++++++++++++++++++
 
                             resetScore = false;         // reset the partial score
                             postingListsIndex[i]++;     // update the index of the postin list
@@ -1758,6 +1779,11 @@ public final class QueryProcessor
                                         partialScore += ScoringTFIDF(currTF, IDFweight[i]);             // use TFIDF
                                     currentDocUpperBound += partialScore;               // update currentDocUpperBound
 
+                                    // ++++++++++++++++++
+                                    if ((currDID == 1179421) || (currDID == 5822941) || (currDID == 5822946) || (currDID == 2317084) || (currDID == 2317082))
+                                        printDebug("DID: " + currDID + " - NEPL index: " + i + " ('" + orderedQueryTerm[i] + "') with score: " + partialScore);
+                                    // ++++++++++++++++++
+
                                     resetScore = false;         // reset the partial score
                                     postingListsIndex[i]++;     // update the index of the postin list
                                 }
@@ -1792,8 +1818,12 @@ public final class QueryProcessor
                     resPQ.add(new QueryProcessor.ResultBlock(currDID, partialScore));     // add to priority queue
                     threshold = resPQ.peek().getScore();    // update threshold
                     // calculate new essential posting lists and update firstEssPostListIndex
-                    firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold);
-                    //printDebug("-- **** New threshold: " + threshold + " new first essential posting list: " + firstEssPostListIndex);
+                    if ((threshold > newFEPL) && (firstEssPostListIndex != (plsLen - 1)))
+                    {
+                        firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold,firstEssPostListIndex);
+                        newFEPL = sumTUBList[min(firstEssPostListIndex + 1, pLNotEmpty - 1)];
+                        printDebug("new FEPL: " + firstEssPostListIndex + ", threshold: " + threshold + ", new value for new FEPL: " + newFEPL);
+                    }
                 }
             }   // -- end - for: DID --
         }   // -- end - if conjunctive --
@@ -1801,9 +1831,9 @@ public final class QueryProcessor
         {   // -- start - else disjunctive --
             while (!didPQ.isEmpty())
             {   // -- start - for 0: DID --
-                count++;
                 currDID = didPQ.poll();     // take current DID
                 partialScore = 0;           // reset var
+                count++;        // ++++++++++++++++++++++++++++++++++++
                 // 0 - can the essential posting lists, default case is query Disjunctive
                 for (int j = firstEssPostListIndex; j < plsLen; j++)
                 {   // -- start - for - EPL --
@@ -1819,12 +1849,21 @@ public final class QueryProcessor
                             partialScore += ScoringBM25(currDID, currTF , IDFweight[j]);     // use BM25
                         else
                             partialScore += ScoringTFIDF(currTF, IDFweight[j]);               // use TFIDF
+
+                        // ++++++++++++++++++
+                        if ((currDID == 1179421) || (currDID == 5822941) || (currDID == 5822946) || (currDID == 2317084) || (currDID == 2317082))
+                            printDebug("DID: " + currDID + " - EPL index: " + j + " ('" + orderedQueryTerm[j] + "') with score: " + partialScore);
+                        // ++++++++++++++++++
+
                         // in the current position of this PL there is the currentDID -> insert in PQ new DID (the next DID in this PL)
                         if (postingListsIndex[j] < lengthPostingList[j])
                         {
                             int tempDID = postingLists[j].get(postingListsIndex[j]).getDocId();
-                            if (!didPQ.contains(tempDID))
-                                didPQ.add(tempDID);                 // add to priority queue
+                            if (!processedDocs.get(tempDID))
+                            {
+                                didPQ.add(tempDID);             // add the first DID in the PLs
+                                processedDocs.set(tempDID);     // set the bit related to currDID in the bitset
+                            }
                         }
                     }
                 }   // -- end - for - EPL --
@@ -1838,12 +1877,6 @@ public final class QueryProcessor
                     // check if the doc has no zero possibility to have a score greater than threshold
                     if (currentDocUpperBound <= threshold)
                         break;                              // go to next iteration with next DID
-
-                    if (first)
-                    {
-                        printDebug("Prima iterazione in NEPL: " + count);
-                        first = false;
-                    }
 
                     currPLIndex = postingListsIndex[i];     // take the current index for the current posting list
                     if (currPLIndex < lengthPostingList[i]) // check if the index is not out of posting list bound
@@ -1863,6 +1896,11 @@ public final class QueryProcessor
                             else
                                 partialScore += ScoringTFIDF(currTF, IDFweight[i]);             // use TFIDF
                             currentDocUpperBound += partialScore;               // update currentDocUpperBound
+
+                            // ++++++++++++++++++
+                            if ((currDID == 1179421) || (currDID == 5822941) || (currDID == 5822946) || (currDID == 2317084) || (currDID == 2317082))
+                                printDebug("DID: " + currDID + " - NEPL index: " + i + " ('" + orderedQueryTerm[i] + "') with score: " + partialScore);
+                            // ++++++++++++++++++
 
                             postingListsIndex[i]++;     // update the index of the postin list
                         }
@@ -1903,6 +1941,11 @@ public final class QueryProcessor
                                         partialScore += ScoringTFIDF(currTF, IDFweight[i]);             // use TFIDF
                                     currentDocUpperBound += partialScore;               // update currentDocUpperBound
 
+                                    // ++++++++++++++++++
+                                    if ((currDID == 1179421) || (currDID == 5822941) || (currDID == 5822946) || (currDID == 2317084) || (currDID == 2317082))
+                                        printDebug("DID: " + currDID + " - NEPL index: " + i + " ('" + orderedQueryTerm[i] + "') with score: " + partialScore);
+                                    // ++++++++++++++++++
+
                                     postingListsIndex[i]++;     // update the index of the postin list
                                 }
                             }
@@ -1925,15 +1968,19 @@ public final class QueryProcessor
                     resPQ.add(new QueryProcessor.ResultBlock(currDID, partialScore));     // add to priority queue
                     threshold = resPQ.peek().getScore();    // update threshold
                     // calculate new essential posting lists and update firstEssPostListIndex
-                    firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold);
-                    //printDebug("-- **** New threshold: " + threshold + " new first essential posting list: " + firstEssPostListIndex);
+                    if ((threshold > newFEPL) && (firstEssPostListIndex != (plsLen - 1)))
+                    {
+                        firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold,firstEssPostListIndex);
+                        newFEPL = sumTUBList[min(firstEssPostListIndex + 1, pLNotEmpty - 1)];
+                        printDebug("new FEPL: " + firstEssPostListIndex + ", threshold: " + threshold + ", new value for new FEPL: " + newFEPL);
+                    }
                 }
             }   // -- end - for: DID --
         }   // -- start - if conjunctive --
         endTime = System.currentTimeMillis();           // end time of DAAT
         // shows DAAT execution time
         printTime("*** Max Score PQ(skipping) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
-        printDebug("Iterazioni dell'algoritmo: " + count);
+        printDebug("Number of count of MAXSCORE: " + count);
     }
 
     /**
@@ -2004,6 +2051,10 @@ public final class QueryProcessor
         setAllUtilsListMAxScoreCompAndSkipping(newProcQuery, orderedQueryTerm, termUpperBoundList, sumTUBList);   // calculate utilities arrays
         // create the skip List reference related to the term of query
         skipListArray = skipListInitCompAndSkip(newProcQuery, orderedQueryTerm, true);
+
+        int maxDID = CollectionStatistics.getNDocs();
+        BitSet processedDocs = new BitSet(maxDID + 1);      // "+1" to include the max value
+
         // 0.5 - take the first block of the PL
         skipAndCompPLs = new ArrayList[pLNotEmpty];
         for (int i = 0; i < pLNotEmpty; i++)
@@ -2011,25 +2062,39 @@ public final class QueryProcessor
             if(!retrieveCompBlockOfPLAndUncompressMaxScore(orderedQueryTerm[i], skipListArray, 0, i))
                 return;     // error
             int currDID = skipAndCompPLs[i].get(0).getDocId();
-            if (!didPQ.contains(currDID))
+            if (!processedDocs.get(currDID))
+            {
                 didPQ.add(currDID);             // add the first DID in the PLs
+                processedDocs.set(currDID);     // set the bit related to currDID in the bitset
+            }
         }
 
-        blockIndex = new int[pLNotEmpty];    // set the index block for each PL
-        Arrays.fill(blockIndex, 1);                 // the first block (with index 0) has already been taken
+        blockIndex = new int[pLNotEmpty];       // set the index block for each PL
+        Arrays.fill(blockIndex, 1);         // the first block (with index 0) has already been taken
         postingListsIndex = getPostingListsIndex(skipAndCompPLs);               // get the index initialized
         lengthPostingList = retrieveLengthAllPostingLists(orderedQueryTerm);    // take the length of each posting list
         IDFweight = calculateIDFWeight(lengthPostingList);                      // calculate the IDF weight
+        double newFEPL = sumTUBList[1];         // if this value is exceeded with the threshold, the first essential posting list must be recalculated
+
+        // ++++++++++++++++++++
+        /*for (int i = 0; i < pLNotEmpty; i++)                // add the DID block to PQ (pqDID)
+        {
+            printDebug("Word: '" + orderedQueryTerm[i] + "', with index: " + i + ", len: " + lengthPostingList[i] + ", num of block: " + skipListArray[i].getSkipArrLen() + ", and TUB: " + termUpperBoundList[i]);
+        }*/
+        int[] countBlock = new int[pLNotEmpty];       // set the index block for each PL
+        Arrays.fill(countBlock, 0);         // the first block (with index 0) has already been taken*/
+        // ++++++++++++++++++++
 
         startTime = System.currentTimeMillis();           // start time of DAAT + MAX SCORE (comp + skipping)
         // MaxScore algorithm - scan all Doc retrieved and calculate score (TFIDF or BM25)
+        int count = 0;
         if (isConjunctive)
         {   // -- start - if conjunctive --
             while (!didPQ.isEmpty())
             {   // -- start - while 0: DID --
                 currentDID = didPQ.poll();  // take the current DID
                 partialScore = 0;           // reset var
-
+                count++;        // ++++++++++++++++++++++++++++++++++++
                 // 0 - scan the essential posting lists, default case is query Disjunctive
                 for (int j = firstEssPostListIndex; j < pLNotEmpty; j++)
                 {   // -- start - for 0.1: EPL --
@@ -2063,8 +2128,11 @@ public final class QueryProcessor
                             }
                             // add new DID from this PL
                             int currDID = skipAndCompPLs[j].get(postingListsIndex[j]).getDocId();
-                            if (!didPQ.contains(currDID))
+                            if (!processedDocs.get(currDID))
+                            {
                                 didPQ.add(currDID);             // add the first DID in the PLs
+                                processedDocs.set(currDID);     // set the bit related to currDID in the bitset
+                            }
                         }
                         else
                             resetScore = true;       // reset the partial score
@@ -2200,7 +2268,12 @@ public final class QueryProcessor
                     resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
                     threshold = resPQ.peek().getScore();    // update threshold
                     // calculate new essential posting lists and update firstEssPostListIndex
-                    firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold);
+                    if ((threshold > newFEPL) && (firstEssPostListIndex != (pLNotEmpty - 1)))
+                    {
+                        firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold,firstEssPostListIndex);
+                        newFEPL = sumTUBList[min(firstEssPostListIndex + 1, pLNotEmpty - 1)];
+                        //printDebug("new FEPL: " + firstEssPostListIndex);
+                    }
                 }
             }   // -- end - while 0: DID --
         }   // -- end - if conjunctive --
@@ -2210,7 +2283,7 @@ public final class QueryProcessor
             {   // -- start - while 0: DID --
                 currentDID = didPQ.poll();  // take the current DID
                 partialScore = 0;           // reset var
-
+                count++;        // ++++++++++++++++++++++++++++++++++++
                 // 0 - scan the essential posting lists, default case is query Disjunctive
                 for (int j = firstEssPostListIndex; j < pLNotEmpty; j++)
                 {   // -- start - for 0.1: EPL --
@@ -2235,17 +2308,27 @@ public final class QueryProcessor
                                 {
                                     blockIndex[j]++;            // increment the counter of block
                                     postingListsIndex[j] = 0;   // reset the index of the posting list
+                                    // ++++++++++++++++++++
+                                    countBlock[j]++;
+                                    //printDebug("loaded new block for '" + orderedQueryTerm[j] + "' of index: " + j + " next block to load: " + blockIndex[j]);
+                                    // ++++++++++++++++++++
                                 }
                                 else    // was the last block, the PL is over
                                 {
                                     skipAndCompPLs[j] = null;   // set to null the posting list
+                                    // ++++++++++++++++++++
+                                    //printDebug("PL in the index: " + j + " is ended");
+                                    // ++++++++++++++++++++
                                     continue;
                                 }
                             }
                             // add new DID from this PL
                             int currDID = skipAndCompPLs[j].get(postingListsIndex[j]).getDocId();
-                            if (!didPQ.contains(currDID))
+                            if (!processedDocs.get(currDID))
+                            {
                                 didPQ.add(currDID);             // add the first DID in the PLs
+                                processedDocs.set(currDID);     // set the bit related to currDID in the bitset
+                            }
                         }
                     }   // -- end - if 0.1.1: check PL null --
                 }   // -- end - for 0.1: EPL --
@@ -2293,9 +2376,9 @@ public final class QueryProcessor
                                 double currScore = 0;
                                 // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
                                 if (scoringFunc)
-                                    currScore += ScoringBM25(currentDID, currentP.getTermFreq(), IDFweight[i]);   // use BM25
+                                    currScore = ScoringBM25(currentDID, currentP.getTermFreq(), IDFweight[i]);  // use BM25
                                 else
-                                    currScore += ScoringTFIDF(currentP.getTermFreq(), IDFweight[i]);             // use TFIDF
+                                    currScore = ScoringTFIDF(currentP.getTermFreq(), IDFweight[i]);             // use TFIDF
                                 partialScore += currScore;
                                 currentDocUpperBound += currScore;               // update currentDocUpperBound
 
@@ -2330,9 +2413,9 @@ public final class QueryProcessor
                                 double currScore = 0;
                                 // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
                                 if (scoringFunc)
-                                    currScore += ScoringBM25(currentDID, currentP.getTermFreq(), IDFweight[i]);   // use BM25
+                                    currScore = ScoringBM25(currentDID, currentP.getTermFreq(), IDFweight[i]);  // use BM25
                                 else
-                                    currScore += ScoringTFIDF(currentP.getTermFreq(), IDFweight[i]);             // use TFIDF
+                                    currScore = ScoringTFIDF(currentP.getTermFreq(), IDFweight[i]);             // use TFIDF
                                 partialScore += currScore;
                                 currentDocUpperBound += currScore;               // update currentDocUpperBound
 
@@ -2360,12 +2443,25 @@ public final class QueryProcessor
                     resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
                     threshold = resPQ.peek().getScore();    // update threshold
                     // calculate new essential posting lists and update firstEssPostListIndex
-                    firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold);
+                    if ((threshold > newFEPL) && (firstEssPostListIndex != (pLNotEmpty - 1)))
+                    {
+                        firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold,firstEssPostListIndex);
+                        newFEPL = sumTUBList[min(firstEssPostListIndex + 1, pLNotEmpty - 1)];
+                        //printDebug("new FEPL: " + firstEssPostListIndex + ", threshold: " + threshold + ", new value for new FEPL: " + newFEPL);
+                    }
                 }
             }   // -- end - while 0: DID --
         }   // -- end - else disjunctive --
         endTime = System.currentTimeMillis();           // end time of DAAT
         printTime("*** MAX SCORE (comp+skipping) V2 execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        // ++++++++++++++++++++++++++
+        printDebug("Number of count of MAXSCORE: " + count);
+        printDebug("Count of block loaded ");
+        for (int i = 0; i < pLNotEmpty; i++)                // add the DID block to PQ (pqDID)
+        {
+            printDebug("- " + i + ") count: " + countBlock[i]);
+        }
+        // ++++++++++++++++++++++++++
     }
 
     /**
@@ -2470,8 +2566,10 @@ public final class QueryProcessor
             if (!didPQ.contains(currDID))
                 didPQ.add(currDID);             // add the first DID in the PLs
         }
+        double newFEPL = sumTUBList[1];         // if this value is exceeded with the threshold, the first essential posting list must be recalculated
 
         startTime = System.currentTimeMillis();     // start time of DAAT + MAX SCORE (comp + skipping + wholePLInMem)
+        int count = 0;
         // MaxScore algorithm - scan all Doc retrieved and calculate score (TFIDF or BM25)
         if (isConjunctive)
         {   // -- start - if conjunctive --
@@ -2479,6 +2577,7 @@ public final class QueryProcessor
             {   // -- start - while 0: DID --
                 currentDID = didPQ.poll();  // take the current DID
                 partialScore = 0;           // reset var
+                count++;        // ++++++++++++++++++++++++++++++++++++
                 // 0 - scan the essential posting lists, default case is query Disjunctive
                 for (int j = firstEssPostListIndex; j < pLNotEmpty; j++)
                 {   // -- start - for 0.1: EPL --
@@ -2650,7 +2749,8 @@ public final class QueryProcessor
                     resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
                     threshold = resPQ.peek().getScore();    // update threshold
                     // calculate new essential posting lists and update firstEssPostListIndex
-                    firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold);
+                    if (threshold > newFEPL)
+                        firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold,firstEssPostListIndex);
                 }
             }   // -- end - while 0: DID --
         }   // -- end - if conjunctive --
@@ -2660,7 +2760,7 @@ public final class QueryProcessor
             {   // -- start - while 0: DID --
                 currentDID = didPQ.poll();  // take the current DID
                 partialScore = 0;           // reset var
-
+                count++;        // ++++++++++++++++++++++++++++++++++++
                 // 0 - scan the essential posting lists, default case is query Disjunctive
                 for (int j = firstEssPostListIndex; j < pLNotEmpty; j++)
                 {   // -- start - for 0.1: EPL --
@@ -2811,12 +2911,14 @@ public final class QueryProcessor
                     resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
                     threshold = resPQ.peek().getScore();    // update threshold
                     // calculate new essential posting lists and update firstEssPostListIndex
-                    firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold);
+                    if (threshold > newFEPL)
+                        firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold,firstEssPostListIndex);
                 }
             }   // -- end - while 0: DID --
         }   // -- end - else disjunctive --
         endTime = System.currentTimeMillis();       // end time of DAAT + MAX SCORE (comp + skipping + wholePLInMem)
         printTime("*** MAX SCORE (comp + skipping + WPLInMem) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        printDebug("Number of count of MAXSCORE: " + count);
     }
 
     // -------------------------------------------- END - Execution Query alg ------------------------------------------
@@ -3020,26 +3122,52 @@ public final class QueryProcessor
         IDFWeight = Math.log10(((double) CollectionStatistics.getNDocs() / postingLists[0].size()));    // calculate IDFweight
 
         // execute the term query -> optimization -> there is one posting list -> the DID are already sort
-        for (Posting p : postingLists[0])
+        if (scoringFunc)    // use BM25
         {
-            // calculate SCORE (TFIDF or BM25) for this term and currentDID and sum to partial score
-            if (scoringFunc)
-                partialScore = ScoringBM25(p.getDocId(), p.getTermFreq(), IDFWeight); // use BM25
-            else
-                partialScore = ScoringTFIDF(p.getTermFreq(), IDFWeight);              // use TFIDF
-
-            // save score if is the new current term upper bound
-            if ( partialScore > maxScore)
+            for (Posting p : postingLists[0])
             {
-                maxScore = partialScore;
+                // calculate SCORE (BM25) for this term and currentDID and sum to partial score
+                partialScore = ScoringBM25(p.getDocId(), p.getTermFreq(), IDFWeight);
+
+                // save score if is the new current term upper bound
+                if ( partialScore > maxScore)
+                {
+                    maxScore = partialScore;
+                }
+                // compute term freq statistics
+                if (computeStats)
+                    CollectionStatistics.addTFOccToTermFreqTable(p.getTermFreq());
             }
-            // compute term freq statistics
-            if (computeStats)
-                CollectionStatistics.addTFOccToTermFreqTable(p.getTermFreq());
         }
+        else                // use TFIDF
+        {
+            int maxTermFreq = 0;    // indicates the current max term frequency value
+            int currTermFreq;       // indicates the current value for the term frequency
+            for (Posting p : postingLists[0])
+            {
+                // in this case with TFIDF all the components for calculating the score are constant except the TFIDF
+                // values, so to know whether one doc has a higher score than another just see if it has a higher term
+                // frequency. Thus, the term frequencies are compared directly and the score is only calculated if there
+                // is a new document with termFreq (score) greater than the current maximum.
+                currTermFreq = p.getTermFreq();
+                // check if is the new current term upper bound
+                if ( currTermFreq > maxTermFreq)
+                {
+                    // calculate SCORE (TFIDF) for this term and currentDID and sum to partial score
+                    partialScore = ScoringTFIDF(currTermFreq, IDFWeight);
+
+                    maxTermFreq = currTermFreq; // update the max term freq
+                    maxScore = partialScore;    // save new TUB
+                }
+
+                // compute term freq statistics
+                if (computeStats)
+                    CollectionStatistics.addTFOccToTermFreqTable(p.getTermFreq());
+            }
+        }
+
         return maxScore;        // return term upper bound
     }
-
     // ------------------------ end: scoring function ------------------------
 
     // ------------------------ start: function to retrieve PL of the term in query ------------------------
@@ -3547,6 +3675,7 @@ public final class QueryProcessor
         {
             currentResPQ = resPQ.poll();                                    // take the lowest element (score and DID)
             currDocNO = documentTable.get(currentResPQ.getDID()).getDocno();// take the DocNo related to the DID
+            //printDebug("DID: " + currentResPQ.getDID() + ", DocNO: " + currDocNO + ", Score: " + currentResPQ.getScore());
             try{
                 rankedResults.add(Integer.valueOf(currDocNO));                    // add to the array list
             }
@@ -3585,14 +3714,15 @@ public final class QueryProcessor
     /**
      * function to update the essential posting lists by the threshold passed as parameter
      *
-     * @param sumTUBList    array of double to contain the sum of the term upper bound of the previous position
-     * @param threshold     the current threshold passes as parameter
+     * @param sumTUBList        array of double to contain the sum of the term upper bound of the previous position
+     * @param threshold         the current threshold passes as parameter
+     * @param currentFirstEPL   the current position of the first Essential PL (index of beginning, to be updated)
      * @return  an integer that indicate the index of the first new essential posting list. The new essential posting
      *          list will be the posting lists with index between the returned integer and the last posting lists
      */
-    private static int updateEssentialPositngLists (double[] sumTUBList, double threshold)
+    private static int updateEssentialPositngLists (double[] sumTUBList, double threshold, int currentFirstEPL)
     {
-        for (int i = 1; i < sumTUBList.length; i++)
+        for (int i = (currentFirstEPL + 1); i < sumTUBList.length; i++)
         {
             if (sumTUBList[i] > threshold)
                 return i - 1;

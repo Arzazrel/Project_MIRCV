@@ -285,6 +285,13 @@ public class SkipList
             postListIndex = 0;              // set the current position in the current block of PL
         currentSI = points.get(pointsIndex);        // initialize the current SkipInfo
         //printDebug("++ IN nextGEQ - 0 iteration -> search DID: " + docID + " skipArrayPosition: " + pointsIndex + " wit maxDID: " + currentSI.getMaxDocId());
+
+        /*if ((docID == 1179421) || (docID == 5822941) || (docID == 5822946) || (docID == 2317084) || (docID == 2317082))
+        {
+            printDebug("++ IN nextGEQ -> search DID: " + docID);
+            printDebug("---- 0 iteration -> skipArrayPosition: " + pointsIndex + " wit maxDID: " + currentSI.getMaxDocId());
+        }*/
+
         // use skipping to find the searched DocID
         while (currentSI.getMaxDocId() < docID)
         {
@@ -299,11 +306,17 @@ public class SkipList
 
         // skip from a skipping block and another
         if (startPointsIndex != pointsIndex)
-            readAndAddUncompBlockPL(term, plIndex);
+            readAndAddUncompBlockPL(term, plIndex, docID);
 
         endBlockPos = min((skipInterval - 1) , ((totalPostListLen - (pointsIndex * skipInterval)) - 1));    // take the end position
         //printDebug("++ IN nextGEQ end iteration -> search: " + docID + " postlistIndex (startPos): " + postListIndex + " -> effective maxDID: " + currPostList.get(endBlockPos).getDocId());
         searchIndex = booleanSearch(docID, endBlockPos);    // search the index of the searched DocID
+
+        /*if ((docID == 1179421) || (docID == 5822941) || (docID == 5822946) || (docID == 2317084) || (docID == 2317082))
+        {
+            printDebug("---- N iteration -> skipArrayPosition: " + pointsIndex + " with maxDID: " + currentSI.getMaxDocId());
+            printDebug("---- N iteration -> returned position: " + searchIndex + " with DID: " + currPostList.get(searchIndex).getDocId());
+        }*/
 
         return searchIndex;
     }
@@ -314,7 +327,7 @@ public class SkipList
      * @param term      the term of the query related to this instance
      * @param indexPL   the index of the PL in the array of PLs (the index of the term in the ordered query term)
      */
-    private void readAndAddUncompBlockPL(String term, int indexPL)
+    private void readAndAddUncompBlockPL(String term, int indexPL, int docID)
     {
         byte[] tf;                      // array for the compressed TermFreq list
         byte[] docids;                  // array for the compressed TermFreq list
@@ -335,12 +348,19 @@ public class SkipList
             int numTFComp = min(SKIP_POINTERS_THRESHOLD, (de.getDf() - (SKIP_POINTERS_THRESHOLD * pointsIndex)));
             if ( (tf == null) || (docids == null) )     // control check
                 return;
+
             // decompress the block
             ArrayList<Integer> uncompressedTf = Unary.integersDecompression(tf, numTFComp);  // decompress term freq
             ArrayList<Integer> uncompressedDocid = VariableBytes.integersDecompression(docids,true);    // decompress DocID
-            //printDebug("readAndAddUncompBlockPL for term: " + "'" + term + "' -> Request Block:" + pointsIndex + " with skipArr len: " + de.getSkipArrLen());
-            //printDebug("uncompressedTf len: " + uncompressedTf.size() + " uncompressedDocid len: " + uncompressedDocid.size());
-            //printDebug("First DID uncompressed is: " + uncompressedDocid.get(0));
+
+            /*if ((docID == 1179421) || (docID == 5822941) || (docID == 5822946) || (docID == 2317084) || (docID == 2317082))
+            {
+                printDebug("readAndAddUncompBlockPL for term: " + "'" + term + "' -> Request Block:" + pointsIndex + " with skipArr len: " + de.getSkipArrLen());
+                printDebug("uncompressedTf len: " + uncompressedTf.size() + " uncompressedDocid len: " + uncompressedDocid.size());
+                printDebug("First DID uncompressed is: " + uncompressedDocid.get(0));
+                printDebug("Last DID uncompressed is: " + uncompressedDocid.get(0));
+            }*/
+
             // add the block to the related PL
             //currPostList.clear();
             currPostList = new ArrayList<>(numTFComp);

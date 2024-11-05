@@ -428,12 +428,12 @@ public class Main
     private static void calculateTUBs() throws IOException
     {
         if (!queryStartControl())
-            return;                           // error exit
+            return;                 // error exit
 
         if (isScoringEnabled())     // use BM25
             DataStructureHandler.calcAndStoreDenPartBM25inDocTable();   // calculate denominator part of BM25
 
-        TermDocUpperBound.calculateTermsUpperBound(false);   // calculate term upper bound for each term of dictionary
+        TermDocUpperBound.calculateTermsUpperBound(false);  // calculate term upper bound for each term of dictionary
         //TermDocUpperBound.calculateDocsUpperBound();    // calculate doc upper bound for each doc of docTable (future implementation)
     }
 

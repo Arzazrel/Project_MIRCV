@@ -49,12 +49,11 @@ public class TermDocUpperBound
         if (!CollectionStatistics.getTermFreqTable().isEmpty() && computeStats)
             CollectionStatistics.getTermFreqTable().clear();    // free the hash table, will be fill
 
-        printLoad("Calculating terms upper bound...");   // control print
         startTime = System.currentTimeMillis();             // start time to calculate all term upper bound
-
         termsList = new ArrayList<>(QueryProcessor.getDictionary().keySet());   // read all the term of the dictionary
         scoringFunc = Flags.isScoringEnabled();             // take user's choice about using scoring function
 
+        printLoad("Calculating terms upper bound for " + termsList.size() + " terms ...");   // control print
         // scan all term in the dictionary
         for (String term : termsList)
         {
@@ -179,7 +178,6 @@ public class TermDocUpperBound
     {
         ArrayList<String> termsList;    // array list for all the term
         long startTime,endTime;         // variables to calculate the execution time
-        long startTime1,endTime1;         // variables to calculate the execution time
 
         printLoad("Storing terms upper bound into disk...");
 
