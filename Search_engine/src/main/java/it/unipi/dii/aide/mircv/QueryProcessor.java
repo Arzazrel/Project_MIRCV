@@ -1794,7 +1794,6 @@ public final class QueryProcessor
                     resPQ.add(new QueryProcessor.ResultBlock(currDID, partialScore));     // add to priority queue
                     threshold = resPQ.peek().getScore();    // update threshold
                     // calculate new essential posting lists and update firstEssPostListIndex
-                    //firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold, firstEssPostListIndex);
                     if ((threshold > newFEPL) && (firstEssPostListIndex != (plsLen - 1)))
                     {
                         firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold,firstEssPostListIndex);
@@ -1928,12 +1927,10 @@ public final class QueryProcessor
                     resPQ.add(new QueryProcessor.ResultBlock(currDID, partialScore));     // add to priority queue
                     threshold = resPQ.peek().getScore();    // update threshold
                     // calculate new essential posting lists and update firstEssPostListIndex
-                    //firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold, firstEssPostListIndex);
                     if ((threshold > newFEPL) && (firstEssPostListIndex != (plsLen - 1)))
                     {
                         firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold,firstEssPostListIndex);
                         newFEPL = sumTUBList[min(firstEssPostListIndex + 1, pLNotEmpty - 1)];
-                        printDebug("new FEPL: " + firstEssPostListIndex + ", threshold: " + threshold + ", new value for new FEPL: " + newFEPL);
                     }
                 }
             }   // -- end - for: DID --
@@ -2217,12 +2214,11 @@ public final class QueryProcessor
                     resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
                     threshold = resPQ.peek().getScore();    // update threshold
                     // calculate new essential posting lists and update firstEssPostListIndex
-                    firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold, firstEssPostListIndex);
-                    /*if ((threshold > newFEPL) && (firstEssPostListIndex != (pLNotEmpty - 1)))
+                    if ((threshold > newFEPL) && (firstEssPostListIndex != (pLNotEmpty - 1)))
                     {
                         firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold,firstEssPostListIndex);
                         newFEPL = sumTUBList[min(firstEssPostListIndex + 1, pLNotEmpty - 1)];
-                    }*/
+                    }
                 }
             }   // -- end - while 0: DID --
         }   // -- end - if conjunctive --
@@ -2384,12 +2380,11 @@ public final class QueryProcessor
                     resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
                     threshold = resPQ.peek().getScore();    // update threshold
                     // calculate new essential posting lists and update firstEssPostListIndex
-                    firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold, firstEssPostListIndex);
-                    /*if ((threshold > newFEPL) && (firstEssPostListIndex != (pLNotEmpty - 1)))
+                    if ((threshold > newFEPL) && (firstEssPostListIndex != (pLNotEmpty - 1)))
                     {
                         firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold,firstEssPostListIndex);
                         newFEPL = sumTUBList[min(firstEssPostListIndex + 1, pLNotEmpty - 1)];
-                    }*/
+                    }
                 }
             }   // -- end - while 0: DID --
         }   // -- end - else disjunctive --
@@ -2680,12 +2675,11 @@ public final class QueryProcessor
                     resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
                     threshold = resPQ.peek().getScore();    // update threshold
                     // calculate new essential posting lists and update firstEssPostListIndex
-                    firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold, firstEssPostListIndex);
-                    /*if ((threshold > newFEPL) && (firstEssPostListIndex != (pLNotEmpty - 1)))
+                    if ((threshold > newFEPL) && (firstEssPostListIndex != (pLNotEmpty - 1)))
                     {
                         firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold,firstEssPostListIndex);
                         newFEPL = sumTUBList[min(firstEssPostListIndex + 1, pLNotEmpty - 1)];
-                    }*/
+                    }
                 }
             }   // -- end - while 0: DID --
         }   // -- end - if conjunctive --
@@ -2845,12 +2839,11 @@ public final class QueryProcessor
                     resPQ.add(new QueryProcessor.ResultBlock(currentDID, partialScore));     // add to priority queue
                     threshold = resPQ.peek().getScore();    // update threshold
                     // calculate new essential posting lists and update firstEssPostListIndex
-                    firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold, firstEssPostListIndex);
-                    /*if ((threshold > newFEPL) && (firstEssPostListIndex != (pLNotEmpty - 1)))
+                    if ((threshold > newFEPL) && (firstEssPostListIndex != (pLNotEmpty - 1)))
                     {
                         firstEssPostListIndex = updateEssentialPositngLists(sumTUBList, threshold,firstEssPostListIndex);
                         newFEPL = sumTUBList[min(firstEssPostListIndex + 1, pLNotEmpty - 1)];
-                    }*/
+                    }
                 }
             }   // -- end - while 0: DID --
         }   // -- end - else disjunctive --
@@ -3612,7 +3605,6 @@ public final class QueryProcessor
         {
             currentResPQ = resPQ.poll();                                    // take the lowest element (score and DID)
             currDocNO = documentTable.get(currentResPQ.getDID()).getDocno();// take the DocNo related to the DID
-            //printDebug("DID: " + currentResPQ.getDID() + ", DocNO: " + currDocNO + ", Score: " + currentResPQ.getScore());
             try{
                 rankedResults.add(Integer.valueOf(currDocNO));                    // add to the array list
             }
@@ -4556,6 +4548,4 @@ public final class QueryProcessor
  *                          lists the document score will be less than the minimum threshold to be among the top docs.
  *      firstEssPostListIndex = 0 -> all posting list have already been scanned
  *      resetScore = true -> conjunctive case, the DID must be in all posting lists
- *
- * 1 -
  */
