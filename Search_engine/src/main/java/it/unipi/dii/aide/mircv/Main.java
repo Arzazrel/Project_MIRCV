@@ -50,6 +50,7 @@ public class Main
                     "\n\t  r -> compression test" +
                     "\n\t  d -> data reading test" +
                     "\n\t  p -> print data read from disk" +
+                    "\n\t  b -> calculates the term upper bound of a term" +
                     "\n\t  x -> exit" +
                     "\n***********************************\n");
             String mode = sc.nextLine();        // take user's choice
@@ -65,6 +66,11 @@ public class Main
                 case "d":       // execute data reading test
 
                     dataReadingTest(sc);   // data read test , data reading test
+
+                    continue;
+                case "b":       // execute term upper bound calculating test
+
+                    termUpperBoundTest(sc);   // data read test , data reading test
 
                     continue;
                 case "i":       // calculate the indexing
@@ -753,10 +759,10 @@ public class Main
      */
     private static void printDataReadFromDisk(Scanner sc)
     {
-        ArrayList<String> procChosenTerm;       // array list for containing the processed query term
+        ArrayList<String> procChosenTerm;   // array list for containing the processed query term
         DictionaryElem dictEl;
         int validNum = 0;                   // 1 = valid number - 0 = not valid (negative number or not a number)
-        String chosenTerm = "";                 // the term whose posting list will be used for second tests
+        String chosenTerm = "";             // the term whose posting list will be used for second tests
         long startTime,endTime;             // variables to calculate the execution time
 
 
@@ -1047,6 +1053,47 @@ public class Main
                 compPLTestRead(procChosenTerm.get(0), sc);
             }
         }
+    }
+
+    /**
+     * Function to test and show the result of calculating the term upper bound for a term specified by the user.
+     *
+     * @param sc    scanner to get the choice of the user inserted via keyboard
+     */
+    private static void termUpperBoundTest(Scanner sc)
+    {
+        String chosenTerm = "";     // the term chose by the user
+        long startTime,endTime;     // variables to calculate the execution time
+
+        printUI("Please enter the term whose term upper bound (TUB) you want to calculate.\n");
+        chosenTerm = sc.nextLine().toUpperCase();                    // take the user's choice
+        // preprocess of the entered term
+        ArrayList<String> procChosenTerm;                       // array list for containing the query term
+        try {
+            procChosenTerm = TextProcessor.preprocessText(chosenTerm); // Preprocessing of document text
+
+            // -- control for structures in memory - if not load them from disk
+            if (!QueryProcessor.queryStartControl())
+            {
+                printError("Error in load the file from disk.");
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        // check if the term is in the dictionarys
+        String term = procChosenTerm.get(0);
+        if (QueryProcessor.dictionary.getTermToTermStat().containsKey(term))
+        {
+            printUIMag("Calculating term upper bound of '" + term + "'.");
+            startTime = System.currentTimeMillis();             // start time to calculate all term upper bound
+            double tub = QueryProcessor.maxScoreTerm(term, Flags.isScoringEnabled(), false);
+            endTime = System.currentTimeMillis();           // end time to calculate all term upper bound
+            printUI("The TUB for '" + term + "' is: " + tub);
+            printTime("TUB calculated in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        }
+        else
+            printError("The term isn't in the dictionary.");
     }
 
     /**
