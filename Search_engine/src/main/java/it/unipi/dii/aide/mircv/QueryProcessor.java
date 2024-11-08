@@ -265,11 +265,10 @@ public final class QueryProcessor
         if((procQLen != pLNotEmpty) && (isConjunctive)) // there is at least one term not in dictionary, if conjunctive -> no results must be returned
             return;         // exit
 
-        startTime = System.currentTimeMillis();         // start time for retrieve all posting lists of the query
+        //startTime = System.currentTimeMillis();         // start time for retrieve all posting lists of the query
         postingLists = retrieveAllPostListsFromQuery(newProcQuery);   // take all posting lists of query terms
-        endTime = System.currentTimeMillis();           // end time for retrieve all posting lists of the query
-        // shows query execution time
-        printTime("*** Retrieved all posting lists in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        //endTime = System.currentTimeMillis();           // end time for retrieve all posting lists of the query
+        //printTime("*** Retrieved all posting lists in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
         // check the number of posting lists not empty and perform the best choice
         if (pLNotEmpty == 0)    // all terms in the query aren't in the dictionary or empty query
@@ -295,7 +294,7 @@ public final class QueryProcessor
         }
 
         // 2 - start DAAT
-        startTime = System.currentTimeMillis();           // start time of DAAT (comp + skipping)
+        //startTime = System.currentTimeMillis();           // start time of DAAT (comp + skipping)
         previousDID = postPQ.peek().getDocID();
         if (isConjunctive)
         {   // -- start - if - conj --
@@ -439,8 +438,8 @@ public final class QueryProcessor
                 }
             }
         }   // -- end - else - disj --
-        endTime = System.currentTimeMillis();           // end time of DAAT (comp + skipping)
-        printTime("*** DAAT (PQ version) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        //endTime = System.currentTimeMillis();           // end time of DAAT (comp + skipping)
+        //printTime("*** DAAT (PQ version) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
     /**
@@ -499,11 +498,10 @@ public final class QueryProcessor
         else if (pLNotEmpty == 1)   // there is only 1 postingList (query with one term or query with more term but only one in dictionary)
         {
             // The PL is only one -> read and decompress the whole PL and use the classic optimization method
-            startTime = System.currentTimeMillis();         // start time for retrieve the posting lists of the query
+            //startTime = System.currentTimeMillis();         // start time for retrieve the posting lists of the query
             postingLists = retrieveAllUncompPL(newProcQuery, skipListArray); // get the uncompress PL
-            endTime = System.currentTimeMillis();           // end time for retrieve the posting lists of the query
-            // shows query execution time
-            printTime("*** DAAT (comp+skipping) retrieved PL (case 1 PL) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+            //endTime = System.currentTimeMillis();           // end time for retrieve the posting lists of the query
+            //printTime("*** DAAT (comp+skipping) retrieved PL (case 1 PL) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
             DAATOnePostingList(newProcQuery.get(0), postingLists[0], scoringFunc, numberOfResults);   // execute DAAT algorithm
             return;     // exit
@@ -537,7 +535,7 @@ public final class QueryProcessor
         }
 
         // 2) start DAAT
-        startTime = System.currentTimeMillis();           // start time of DAAT (comp + skipping)
+        //startTime = System.currentTimeMillis();           // start time of DAAT (comp + skipping)
         previousDID = postPQ.peek().getDocID();
         if (isConjunctive)
         {   // -- start - if - conj --
@@ -693,8 +691,8 @@ public final class QueryProcessor
                 }
             }
         }   // -- end - else - disj --
-        endTime = System.currentTimeMillis();           // end time of DAAT (comp + skipping)
-        printTime("*** DAAT (comp+skipping) V2 execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        //endTime = System.currentTimeMillis();           // end time of DAAT (comp + skipping)
+        //printTime("*** DAAT (comp+skipping) V2 execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
     /**
@@ -759,11 +757,10 @@ public final class QueryProcessor
         else if (pLNotEmpty == 1)   // there is only 1 postingList (query with one term or query with more term but only one in dictionary)
         {
             // The PL is only one -> read and decompress the whole PL and use the classic optimization method
-            startTime = System.currentTimeMillis();         // start time for retrieve the posting lists of the query
+            //startTime = System.currentTimeMillis();         // start time for retrieve the posting lists of the query
             postingLists = retrieveAllUncompPL(newProcQuery, skipListArray); // get the uncompress PL
-            endTime = System.currentTimeMillis();           // end time for retrieve the posting lists of the query
-            // shows query execution time
-            printTime("*** DAAT (comp+skipping+wholePLInMem) case 1 PL executed in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+            //endTime = System.currentTimeMillis();           // end time for retrieve the posting lists of the query
+            //printTime("*** DAAT (comp+skipping+wholePLInMem) case 1 PL executed in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
             DAATOnePostingList(newProcQuery.get(0), postingLists[0], scoringFunc, numberOfResults);   // execute DAAT algorithm
             return;     // exit
@@ -771,10 +768,10 @@ public final class QueryProcessor
 
         // -- more postingLists not empty --
         // 0 - load all compressed PLs
-        startTime = System.currentTimeMillis();         // start time for retrieve first block of PLs of the query
+        //startTime = System.currentTimeMillis();         // start time for retrieve first block of PLs of the query
         retrieveAllCompPL(newProcQuery);                // load the whole PLs
-        endTime = System.currentTimeMillis();           // end time for retrieve first block of PLs of the query
-        printTime("*** Load the whole compressed PLs in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        //endTime = System.currentTimeMillis();           // end time for retrieve first block of PLs of the query
+        //printTime("*** Load the whole compressed PLs in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
         // 0.5 - take the first block of the PLs
         postingLists = new ArrayList[pLNotEmpty];
         for (int i = 0; i < pLNotEmpty; i++)
@@ -803,7 +800,7 @@ public final class QueryProcessor
         }
 
         // 2 - start DAAT
-        startTime = System.currentTimeMillis();           // start time of DAAT (comp + skipping)
+        //startTime = System.currentTimeMillis();           // start time of DAAT (comp + skipping)
         previousDID = postPQ.peek().getDocID();
         if (isConjunctive)
         {   // -- start - if - conj --
@@ -959,8 +956,8 @@ public final class QueryProcessor
                 }
             }
         }   // -- end - else - disj --
-        endTime = System.currentTimeMillis();           // end time of DAAT (comp + skipping)
-        printTime("*** DAAT (comp+skipping+wholePLInMem) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        //endTime = System.currentTimeMillis();           // end time of DAAT (comp + skipping)
+        //printTime("*** DAAT (comp+skipping+wholePLInMem) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
     /**
@@ -986,7 +983,7 @@ public final class QueryProcessor
         lengthPostingList = retrieveLengthAllPostingLists(terms);   // take the length of each posting list
         IDFweight = calculateIDFWeight(lengthPostingList);          // calculate the IDF weight
 
-        startTime = System.currentTimeMillis();         // start time of DAAT
+        //startTime = System.currentTimeMillis();         // start time of DAAT
         // optimization -> there is one posting list -> the DID are already sort
         if (scoringFunc)
         {   // start - if - BM25 -
@@ -1040,9 +1037,9 @@ public final class QueryProcessor
                 }
             }
         }   // end - else - TFIDF -
-        endTime = System.currentTimeMillis();           // end time of DAAT
+        //endTime = System.currentTimeMillis();           // end time of DAAT
         // shows DAAT execution time
-        printTime("*** DAAT V.0.5 (only 1 postingList) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        //printTime("*** DAAT V.0.5 (only 1 postingList) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
     /**
@@ -1270,11 +1267,10 @@ public final class QueryProcessor
         double[] termUpperBoundList  = new double[pLNotEmpty];  // contains all the term upper bound for each term of the query
         double[] sumTUBList  = new double[pLNotEmpty];          // array containing the sum of TUB, the value at the i-th position is the sum of TUBs from position 0 to (i-1)
 
-        startTime = System.currentTimeMillis();         // start time for retrieve all posting lists of the query
+        //startTime = System.currentTimeMillis();         // start time for retrieve all posting lists of the query
         postingLists = retrieveAllPostingListsMaxScore(newProcQuery,orderedQueryTerm,termUpperBoundList,sumTUBList);   // take all posting lists of query terms
-        endTime = System.currentTimeMillis();           // end time for retrieve all posting lists of the query
-        // shows query execution time
-        printTime("*** Retrieved all posting lists in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        //endTime = System.currentTimeMillis();           // end time for retrieve all posting lists of the query
+        //printTime("*** Retrieved all posting lists in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
         // check the number of posting lists not empty and perform the best choice
         if (pLNotEmpty == 0)        // all terms in the query aren't in the dictionary or empty query
@@ -1302,7 +1298,7 @@ public final class QueryProcessor
         int plsLen = pLNotEmpty;                // take the number of posting list
         int currTF = 0;                         // var for the current Term Freq
         int currPLIndex = 0;                    // var for the index of the current PL at the current iteration
-        startTime = System.currentTimeMillis();           // start time of DAAT + MAX SCORE
+        //startTime = System.currentTimeMillis();           // start time of DAAT + MAX SCORE
         if (isConjunctive)
         {   // -- start - if - conj --
             while (!didPQ.isEmpty())
@@ -1340,8 +1336,8 @@ public final class QueryProcessor
                     }
                     else
                     {
-                        endTime = System.currentTimeMillis();           // end time of DAAT
-                        printTime("*** DAAT + MAX SCORE (PQ) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+                        //endTime = System.currentTimeMillis();           // end time of DAAT
+                        //printTime("*** DAAT + MAX SCORE (PQ) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
                         return;             // exit from function
                     }
                 }   // -- end - for 0.1: EPL --
@@ -1410,8 +1406,8 @@ public final class QueryProcessor
                     } // if all postings in one posting lists have already been seen the next documents in the posting lists cannot contain all the terms in the query
                     else
                     {
-                        endTime = System.currentTimeMillis();           // end time of DAAT
-                        printTime("*** DAAT + MAX SCORE (PQ) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+                        //endTime = System.currentTimeMillis();           // end time of DAAT
+                        //printTime("*** DAAT + MAX SCORE (PQ) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
                         return;             // exit from function
                     }
                 }   // -- end - for - NoEPL --
@@ -1552,9 +1548,9 @@ public final class QueryProcessor
                 }
             }   // -- end - for: DID --
         }   // -- end - else - disj --
-        endTime = System.currentTimeMillis();           // end time of DAAT
+        //endTime = System.currentTimeMillis();           // end time of DAAT
         // shows DAAT execution time
-        printTime("*** DAAT + MAX SCORE (PQ) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        //printTime("*** DAAT + MAX SCORE (PQ) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
     /**
@@ -1602,11 +1598,10 @@ public final class QueryProcessor
         if((procQLen != pLNotEmpty) && (isConjunctive)) // there is at least one term not in dictionary, if conjunctive -> no results must be returned
             return;         // exit
 
-        startTime = System.currentTimeMillis();         // start time for retrieve all posting lists of the query
+        //startTime = System.currentTimeMillis();         // start time for retrieve all posting lists of the query
         postingLists = retrieveAllPostingListsMaxScore(newProcQuery, orderedQueryTerm, termUpperBoundList, sumTUBList);   // take all posting lists of query terms
-        endTime = System.currentTimeMillis();           // end time for retrieve all posting lists of the query
-        // shows query execution time
-        printTime("*** Retrieved all posting lists in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        //endTime = System.currentTimeMillis();           // end time for retrieve all posting lists of the query
+        //printTime("*** Retrieved all posting lists in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
         // 0.5 - more postingLists not empty, set of the utilities for DAAT
         if (pLNotEmpty == 0)    // all terms in the query aren't in the dictionary or empty query
@@ -1638,7 +1633,7 @@ public final class QueryProcessor
         }
 
         // 2 - start DAAT + MaxScore algorithm, scan all Doc retrieved and calculate score (TFIDF or BM25)
-        startTime = System.currentTimeMillis();     // start time of DAAT + MAX SCORE
+        //startTime = System.currentTimeMillis();     // start time of DAAT + MAX SCORE
         double newFEPL = sumTUBList[1];         // if this value is exceeded with the threshold, the first essential posting list must be recalculated
         int plsLen = pLNotEmpty;                // take the number of posting list
         int currTF = 0;                         // var for the current Term Freq
@@ -1684,9 +1679,8 @@ public final class QueryProcessor
                     else     // must take only the document in which there are all term (DID that compare in all posting lists of the terms)
                     {
                         // if all postings in one posting lists have already been seen the next documents in the posting lists cannot contain all the terms in the query
-                        endTime = System.currentTimeMillis();           // end time of DAAT
-                        // shows query execution time
-                        printTime("*** Max Score PQ(skipping)  execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+                        //endTime = System.currentTimeMillis();           // end time of DAAT
+                        //printTime("*** Max Score PQ(skipping)  execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
                         return;             // exit from function
                     }
                 }   // -- end - for - EPL --
@@ -1771,9 +1765,8 @@ public final class QueryProcessor
                     } // if all postings in one posting lists have already been seen the next documents in the posting lists cannot contain all the terms in the query
                     else
                     {
-                        endTime = System.currentTimeMillis();           // end time of DAAT
-                        // shows query execution time
-                        printTime("*** Max Score PQ(skipping) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+                        //endTime = System.currentTimeMillis();           // end time of DAAT
+                        //printTime("*** Max Score PQ(skipping) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
                         return;             // exit from function
                     }
                 }   // -- end - for - NoEPL --
@@ -1935,9 +1928,9 @@ public final class QueryProcessor
                 }
             }   // -- end - for: DID --
         }   // -- start - if conjunctive --
-        endTime = System.currentTimeMillis();           // end time of DAAT
+        //endTime = System.currentTimeMillis();           // end time of DAAT
         // shows DAAT execution time
-        printTime("*** Max Score PQ(skipping) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        //printTime("*** Max Score PQ(skipping) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
     /**
@@ -1993,11 +1986,10 @@ public final class QueryProcessor
             // create the skip List reference related to the term of query
             skipListArray = skipListInitCompAndSkip(newProcQuery, null, false);
             // The PL is only one -> read and decompress the whole PL and use the classic optimization method
-            startTime = System.currentTimeMillis();         // start time for retrieve the posting lists of the query
+            //startTime = System.currentTimeMillis();         // start time for retrieve the posting lists of the query
             ArrayList<Posting>[] postingLists = retrieveAllUncompPL(newProcQuery, skipListArray); // get the uncompress PL
-            endTime = System.currentTimeMillis();           // end time for retrieve the posting lists of the query
-            // shows query execution time
-            printTime("*** MAX SCORE (comp+skipping) retrieved PL (case 1 PL) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+            //endTime = System.currentTimeMillis();           // end time for retrieve the posting lists of the query
+            //printTime("*** MAX SCORE (comp+skipping) retrieved PL (case 1 PL) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
             DAATOnePostingList(newProcQuery.get(0), postingLists[0], scoringFunc, numberOfResults);   // execute DAAT algorithm
             return;     // exit
@@ -2033,7 +2025,7 @@ public final class QueryProcessor
         IDFweight = calculateIDFWeight(lengthPostingList);                      // calculate the IDF weight
         double newFEPL = sumTUBList[1];         // if this value is exceeded with the threshold, the first essential posting list must be recalculated
 
-        startTime = System.currentTimeMillis();           // start time of DAAT + MAX SCORE (comp + skipping)
+        //startTime = System.currentTimeMillis();           // start time of DAAT + MAX SCORE (comp + skipping)
         // MaxScore algorithm - scan all Doc retrieved and calculate score (TFIDF or BM25)
         if (isConjunctive)
         {   // -- start - if conjunctive --
@@ -2085,8 +2077,8 @@ public final class QueryProcessor
                     }   // -- end - if 0.1.1: check PL null --
                     else     // must take only the document in which there are all term (DID that compare in all posting lists of the terms)
                     {
-                        endTime = System.currentTimeMillis();           // end time of DAAT
-                        printTime("*** MAX SCORE (comp+skipping) V2 execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+                        //endTime = System.currentTimeMillis();           // end time of DAAT
+                        //printTime("*** MAX SCORE (comp+skipping) V2 execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
                         return;             // exit from function
                     }
                 }   // -- end - for 0.1: EPL --
@@ -2189,8 +2181,8 @@ public final class QueryProcessor
                         } // if all postings in one posting lists have already been seen the next documents in the posting lists cannot contain all the terms in the query
                         else
                         {
-                            endTime = System.currentTimeMillis();           // end time of DAAT
-                            printTime("*** MAX SCORE (comp+skipping) V2 execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+                            //endTime = System.currentTimeMillis();           // end time of DAAT
+                            //printTime("*** MAX SCORE (comp+skipping) V2 execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
                             return;             // exit from function
                         }
                         // check if the doc has no zero possibility to have a score greater than threshold
@@ -2388,8 +2380,8 @@ public final class QueryProcessor
                 }
             }   // -- end - while 0: DID --
         }   // -- end - else disjunctive --
-        endTime = System.currentTimeMillis();           // end time of DAAT
-        printTime("*** MAX SCORE (comp+skipping) V2 execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        //endTime = System.currentTimeMillis();           // end time of DAAT
+        //printTime("*** MAX SCORE (comp+skipping) V2 execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
     /**
@@ -2457,11 +2449,11 @@ public final class QueryProcessor
             // create the skip List reference related to the term of query
             skipListArray = skipListInitCompAndSkip(newProcQuery, null, false);
             // The PL is only one -> read and decompress the whole PL and use the classic optimization method
-            startTime = System.currentTimeMillis();         // start time for retrieve the posting lists of the query
+            //startTime = System.currentTimeMillis();         // start time for retrieve the posting lists of the query
             ArrayList<Posting>[] postingLists = retrieveAllUncompPL(newProcQuery, skipListArray); // get the uncompress PL
-            endTime = System.currentTimeMillis();           // end time for retrieve the posting lists of the query
+            //endTime = System.currentTimeMillis();           // end time for retrieve the posting lists of the query
             // shows query execution time
-            printTime("*** MAX SCORE (comp+skipping) retrieved PL (case 1 PL) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+            //printTime("*** MAX SCORE (comp+skipping) retrieved PL (case 1 PL) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
             DAATOnePostingList(newProcQuery.get(0), postingLists[0], scoringFunc, numberOfResults);   // execute DAAT algorithm
             return;     // exit
@@ -2474,10 +2466,10 @@ public final class QueryProcessor
         // create the skip List reference related to the term of query
         skipListArray = skipListInitCompAndSkip(newProcQuery, orderedQueryTerm, true);
 
-        startTime = System.currentTimeMillis();         // start time for retrieve all compressed PLs of the query
+        //startTime = System.currentTimeMillis();         // start time for retrieve all compressed PLs of the query
         retrieveAllCompPLMaxScore(orderedQueryTerm);    // load the whole compressed PLs
-        endTime = System.currentTimeMillis();           // end time for retrieve all compressed PLs of the query
-        printTime("*** MAX SCORE (comp + skipping + WPLInMem) retrieved first block of each PLs in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        //endTime = System.currentTimeMillis();           // end time for retrieve all compressed PLs of the query
+        //printTime("*** MAX SCORE (comp + skipping + WPLInMem) retrieved first block of each PLs in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
         blockIndex = new int[pLNotEmpty];    // set the index block for each PL
         Arrays.fill(blockIndex, 1);                 // the first block (with index 0) has already been taken
@@ -2496,7 +2488,7 @@ public final class QueryProcessor
         }
         double newFEPL = sumTUBList[1];         // if this value is exceeded with the threshold, the first essential posting list must be recalculated
 
-        startTime = System.currentTimeMillis();     // start time of DAAT + MAX SCORE (comp + skipping + wholePLInMem)
+        //startTime = System.currentTimeMillis();     // start time of DAAT + MAX SCORE (comp + skipping + wholePLInMem)
         // MaxScore algorithm - scan all Doc retrieved and calculate score (TFIDF or BM25)
         if (isConjunctive)
         {   // -- start - if conjunctive --
@@ -2546,8 +2538,8 @@ public final class QueryProcessor
                     }   // -- end - if 0.1.1: check PL null --
                     else        // must take only the document in which there are all term (DID that compare in all posting lists of the terms)
                     {
-                        endTime = System.currentTimeMillis();           // end time of DAAT
-                        printTime("*** MAX SCORE (comp + skipping + WPLInMem) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+                        //endTime = System.currentTimeMillis();           // end time of DAAT
+                        //printTime("*** MAX SCORE (comp + skipping + WPLInMem) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
                         return;             // exit from function
                     }
                 }   // -- end - for 0.1: EPL --
@@ -2650,8 +2642,8 @@ public final class QueryProcessor
                         } // if all postings in one posting lists have already been seen the next documents in the posting lists cannot contain all the terms in the query
                         else
                         {
-                            endTime = System.currentTimeMillis();           // end time of DAAT
-                            printTime("*** MAX SCORE (comp + skipping + WPLInMem) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+                            //endTime = System.currentTimeMillis();           // end time of DAAT
+                            //printTime("*** MAX SCORE (comp + skipping + WPLInMem) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
                             return;             // exit from function
                         }
                         // check if the doc has no zero possibility to have a score greater than threshold
@@ -2847,8 +2839,8 @@ public final class QueryProcessor
                 }
             }   // -- end - while 0: DID --
         }   // -- end - else disjunctive --
-        endTime = System.currentTimeMillis();       // end time of DAAT + MAX SCORE (comp + skipping + wholePLInMem)
-        printTime("*** MAX SCORE (comp + skipping + WPLInMem) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        //endTime = System.currentTimeMillis();       // end time of DAAT + MAX SCORE (comp + skipping + wholePLInMem)
+        //printTime("*** MAX SCORE (comp + skipping + WPLInMem) execute in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
     // -------------------------------------------- END - Execution Query alg ------------------------------------------
@@ -3598,7 +3590,7 @@ public final class QueryProcessor
         if (numResults <= 0)        // control check
             return rankedResults;
 
-        startTime = System.currentTimeMillis();         // start time of hash map ordering
+        //startTime = System.currentTimeMillis();         // start time of hash map ordering
 
         QueryProcessor.ResultBlock currentResPQ;        // var that contain the resultBlock extract from pq in the current iteration
         while(!resPQ.isEmpty())                         // control if the priority queue for results is empty
@@ -3615,8 +3607,8 @@ public final class QueryProcessor
         // order the result from the best to the worst (reverse order of the priority queue)
         Collections.reverse(rankedResults);
 
-        endTime = System.currentTimeMillis();           // end time of hash map ordering
-        printTime("*** Ranked results (results priority queue) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+        //endTime = System.currentTimeMillis();           // end time of hash map ordering
+        //printTime("*** Ranked results (results priority queue) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
 
         return rankedResults;
     }
