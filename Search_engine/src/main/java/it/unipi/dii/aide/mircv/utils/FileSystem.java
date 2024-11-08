@@ -23,19 +23,19 @@ public final class FileSystem
         try {
             // delete folders
             File partial_folder = new File(PARTIAL_FOLDER);
-            if(partial_folder.exists())     // check if exist the folder
+            if(partial_folder.exists() && partial_folder.isDirectory())     // check if exist the folder
                 FileUtils.cleanDirectory(partial_folder);       // delete files in partial folder
             else
                 partial_folder.mkdir();     // create the empty folder
 
             File merged_folder = new File(MERGED_FOLDER);
-            if(merged_folder.exists())
+            if(merged_folder.exists() && merged_folder.isDirectory())
                 FileUtils.cleanDirectory(merged_folder);        // delete files in merged folder
             else
                 merged_folder.mkdir();      // create the empty folder
 
             File upperBound_folder = new File(UPPERBOUND_FOLDER);
-            if(upperBound_folder.exists())
+            if(upperBound_folder.exists() && upperBound_folder.isDirectory())
                 FileUtils.cleanDirectory(upperBound_folder);    // delete files in upperBound folder
             else
                 upperBound_folder.mkdir();  // create the empty folder
