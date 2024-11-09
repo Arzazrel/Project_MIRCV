@@ -10,7 +10,7 @@ COLLECTION LINKS
 	
 	Some collection, usefull for the operation of the search engine, can be found on the page accessible via this link 'https://microsoft.github.io/msmarco/TREC-Deep-Learning-2020.
 	The collections used in the project are:
-	- test queries (2020) at this link [test_2020_download](2020 https://msmarco.z22.web.core.windows.net/msmarcoranking/msmarco-test2020-queries.tsv.gz)
+	- test queries (2020) at this link [test_2020_download](https://msmarco.z22.web.core.windows.net/msmarcoranking/msmarco-test2020-queries.tsv.gz)
   	- test queries (2019) at this link [test_2019_download](https://msmarco.z22.web.core.windows.net/msmarcoranking/msmarco-test2019-queries.tsv.gz)
 	- document collection at this link [doc_collection_download](https://msmarco.z22.web.core.windows.net/msmarcoranking/collection.tar.gz)
 
