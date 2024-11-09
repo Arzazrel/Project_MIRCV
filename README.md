@@ -10,9 +10,9 @@ COLLECTION LINKS
 	
 	Some collection, usefull for the operation of the search engine, can be found on the page accessible via this link 'https://microsoft.github.io/msmarco/TREC-Deep-Learning-2020.
 	The collections used in the project are:
-	- test queries (2020) at this link '2020 https://msmarco.z22.web.core.windows.net/msmarcoranking/msmarco-test2020-queries.tsv.gz'
-  	- test queries (2019) at this link 'https://msmarco.z22.web.core.windows.net/msmarcoranking/msmarco-test2019-queries.tsv.gz'
-	- document collection at this link 'https://msmarco.z22.web.core.windows.net/msmarcoranking/collection.tar.gz'
+	- test queries (2020) at this link [test_2020_download](2020 https://msmarco.z22.web.core.windows.net/msmarcoranking/msmarco-test2020-queries.tsv.gz)
+  	- test queries (2019) at this link [test_2019_download](https://msmarco.z22.web.core.windows.net/msmarcoranking/msmarco-test2019-queries.tsv.gz)
+	- document collection at this link [doc_collection_download](https://msmarco.z22.web.core.windows.net/msmarcoranking/collection.tar.gz)
 
 	The test queries collections must be placed in the '\Search_engine\src\main\resources\test' and will be used to test the performance of the search engine. 
 	These files are already present in the corresponding folder, so it should not be necessary to put them there.
@@ -25,7 +25,7 @@ COLLECTION LINKS
 
 JDK Download
 	
-	To download Oracle JDK version 19, you can visit Oracle's official Java SE Downloads page at this link https://www.oracle.com/java/technologies/javase/jdk19-archive-downloads.html. 
+	To download Oracle JDK version 19, you can visit Oracle's official Java SE Downloads page at this link [JDK19_download_page](https://www.oracle.com/java/technologies/javase/jdk19-archive-downloads.html). 
 	Here, Oracle provides archived versions of JDK 19, inluded the 19.0.2 used for the project.
 	To access these downloads, you may need to accept the Oracle Technology Network License Agreement for Java SE, which typically allows for personal and development use but may 
 	have limitations for production environments without a commercial license. Once on the download page, look for "JDK 19.0.2" under the archived versions section, where you’ll find 
