@@ -35,6 +35,7 @@ The folder contains:
 
 
 Project Import Guide
+	
 	Note: you must not change the names of the files used, otherwise the prorgam cannot find them and cannot function correctly.
 
 	0) Download the ‘Search_engine’ folder from the github repository.
@@ -55,6 +56,7 @@ Project Import Guide
 
 
 Project Execution Guide
+	
 	Example of basic operations.
 	0) Run the program.
 	1) A textual interface will be shown with various options divided into 3 categories:
