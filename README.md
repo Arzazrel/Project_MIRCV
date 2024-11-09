@@ -1,11 +1,13 @@
 # Project_MIRCV
 DESCRIPTION
+	
 	Folder for the Multimedia Information Retrieval and Computer Vision project at the University of Pisa (year 2022-2023).
 	This project consists of a local search engine developed completely in java that can operate on a collection of documents locally. 
 	This project was developed using IntelliJ IDEA 2023.2 (Community Edition) with Oracle OpenJDK version 19.0.2.
 
 
 COLLECTION LINKS 
+	
 	Some collection, usefull for the operation of the search engine, can be found on the page accessible via this link 'https://microsoft.github.io/msmarco/TREC-Deep-Learning-2020.
 	The collections used in the project are:
 	- test queries (2020) at this link '2020 https://msmarco.z22.web.core.windows.net/msmarcoranking/msmarco-test2020-queries.tsv.gz'
@@ -22,6 +24,7 @@ COLLECTION LINKS
 
 
 JDK Download
+	
 	To download Oracle JDK version 19, you can visit Oracle's official Java SE Downloads page at this link https://www.oracle.com/java/technologies/javase/jdk19-archive-downloads.html. 
 	Here, Oracle provides archived versions of JDK 19, inluded the 19.0.2 used for the project.
 	To access these downloads, you may need to accept the Oracle Technology Network License Agreement for Java SE, which typically allows for personal and development use but may 
