@@ -1,6 +1,5 @@
 # Project_MIRCV
-DESCRIPTION
-	
+DESCRIPTION	
 	Folder for the Multimedia Information Retrieval and Computer Vision project at the University of Pisa (year 2022-2023).
 	This project consists of a local search engine developed completely in java that can operate on a collection of documents locally. 
 	This project was developed using IntelliJ IDEA 2023.2 (Community Edition) with Oracle OpenJDK version 19.0.2.
