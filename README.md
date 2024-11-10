@@ -23,7 +23,6 @@ COLLECTION LINKS
 	collections will not be found by the programme and some functionality cannot be implemented.
 
 IDE Download
-
 	The version used in the project, like others, can be downloaded at this link [*Intellij_download*](https://www.jetbrains.com/idea/download/other.html). 
 
 
