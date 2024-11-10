@@ -10,9 +10,9 @@ COLLECTION LINKS
 	
 	Some collection, usefull for the operation of the search engine, can be found on the page accessible via this link 'https://microsoft.github.io/msmarco/TREC-Deep-Learning-2020.
 	The collections used in the project are:
-	- test queries (2020) at this link [test_2020_download](https://msmarco.z22.web.core.windows.net/msmarcoranking/msmarco-test2020-queries.tsv.gz)
-  	- test queries (2019) at this link [test_2019_download](https://msmarco.z22.web.core.windows.net/msmarcoranking/msmarco-test2019-queries.tsv.gz)
-	- document collection at this link [doc_collection_download](https://msmarco.z22.web.core.windows.net/msmarcoranking/collection.tar.gz)
+	- test queries (2020) at this link [*test_2020_download*](https://msmarco.z22.web.core.windows.net/msmarcoranking/msmarco-test2020-queries.tsv.gz)
+  	- test queries (2019) at this link [*test_2019_download*](https://msmarco.z22.web.core.windows.net/msmarcoranking/msmarco-test2019-queries.tsv.gz)
+	- document collection at this link [*doc_collection_download*](https://msmarco.z22.web.core.windows.net/msmarcoranking/collection.tar.gz)
 
 	The test queries collections must be placed in the '\Search_engine\src\main\resources\test' and will be used to test the performance of the search engine. 
 	These files are already present in the corresponding folder, so it should not be necessary to put them there.
@@ -21,6 +21,10 @@ COLLECTION LINKS
 	
 	The names of the collections must not be changed. If you want to change them, you will have to change the name in the path in the ‘Costants’ class of the project, otherwise the 
 	collections will not be found by the programme and some functionality cannot be implemented.
+
+IDE Download
+
+	The version used in the project, like others, can be downloaded at this link [*Intellij_download*](https://www.jetbrains.com/idea/download/other.html). 
 
 
 JDK Download
