@@ -6,59 +6,61 @@ This project consists of a local search engine developed completely in java that
 This project was developed using IntelliJ IDEA 2023.2 (Community Edition) with Oracle OpenJDK version 19.0.2.
 
 
-COLLECTION LINKS 
-	
-	Some collection, usefull for the operation of the search engine, can be found on the page accessible via this link 'https://microsoft.github.io/msmarco/TREC-Deep-Learning-2020.
-	The collections used in the project are:
-	- test queries (2020) at this link [*test_2020_download*](https://msmarco.z22.web.core.windows.net/msmarcoranking/msmarco-test2020-queries.tsv.gz)
-  	- test queries (2019) at this link [*test_2019_download*](https://msmarco.z22.web.core.windows.net/msmarcoranking/msmarco-test2019-queries.tsv.gz)
-	- document collection at this link [*doc_collection_download*](https://msmarco.z22.web.core.windows.net/msmarcoranking/collection.tar.gz)
+COLLECTION LINKS  
+  
+Some collection, usefull for the operation of the search engine, can be found on the page accessible via this link 'https://microsoft.github.io/msmarco/TREC-Deep-Learning-2020.
+The collections used in the project are:
+- test queries (2020) at this link [*test_2020_download*](https://msmarco.z22.web.core.windows.net/msmarcoranking/msmarco-test2020-queries.tsv.gz)
+- test queries (2019) at this link [*test_2019_download*](https://msmarco.z22.web.core.windows.net/msmarcoranking/msmarco-test2019-queries.tsv.gz)
+- document collection at this link [*doc_collection_download*](https://msmarco.z22.web.core.windows.net/msmarcoranking/collection.tar.gz)
+  
+The test queries collections must be placed in the '\Search_engine\src\main\resources\test' and will be used to test the performance of the search engine. 
+These files are already present in the corresponding folder, so it should not be necessary to put them there.
+The collection of documents must be placed in the '\Search_engine\src\main\resources' and will be used to create the inverted index and all the data structures required to do the
+information retrieval in that document collection.
+  
+The names of the collections must not be changed. If you want to change them, you will have to change the name in the path in the ‘Costants’ class of the project, otherwise the 
+collections will not be found by the programme and some functionality cannot be implemented.
 
-	The test queries collections must be placed in the '\Search_engine\src\main\resources\test' and will be used to test the performance of the search engine. 
-	These files are already present in the corresponding folder, so it should not be necessary to put them there.
-	The collection of documents must be placed in the '\Search_engine\src\main\resources' and will be used to create the inverted index and all the data structures required to do the
-	information retrieval in that document collection.
-	
-	The names of the collections must not be changed. If you want to change them, you will have to change the name in the path in the ‘Costants’ class of the project, otherwise the 
-	collections will not be found by the programme and some functionality cannot be implemented.
-
-IDE Download
-	The version used in the project, like others, can be downloaded at this link [*Intellij_download*](https://www.jetbrains.com/idea/download/other.html). 
-
-
-JDK Download
-	
-	To download Oracle JDK version 19, you can visit Oracle's official Java SE Downloads page at this link [JDK19_download_page](https://www.oracle.com/java/technologies/javase/jdk19-archive-downloads.html). 
-	Here, Oracle provides archived versions of JDK 19, inluded the 19.0.2 used for the project.
-	To access these downloads, you may need to accept the Oracle Technology Network License Agreement for Java SE, which typically allows for personal and development use but may 
-	have limitations for production environments without a commercial license. Once on the download page, look for "JDK 19.0.2" under the archived versions section, where you’ll find 
-	installers compatible with Linux, macOS, and Windows platforms.
+IDE Download  
+  
+The version used in the project, like others, can be downloaded at this link [*Intellij_download*](https://www.jetbrains.com/idea/download/other.html). 
 
 
-The folder contains:
- - Search_engine: the folder containing the entire search engine java project
- - Documentation: documentation regarding the application and the analysis carried out for the project.
+JDK Download  
+  
+To download Oracle JDK version 19, you can visit Oracle's official Java SE Downloads page at this link [*JDK19_download_page*](https://www.oracle.com/java/technologies/javase/jdk19-archive-downloads.html). 
+Here, Oracle provides archived versions of JDK 19, inluded the 19.0.2 used for the project.
+To access these downloads, you may need to accept the Oracle Technology Network License Agreement for Java SE, which typically allows for personal and development use but may 
+have limitations for production environments without a commercial license. Once on the download page, look for "JDK 19.0.2" under the archived versions section, where you’ll find 
+installers compatible with Linux, macOS, and Windows platforms.
 
 
-Project Import Guide
-	
-	Note: you must not change the names of the files used, otherwise the prorgam cannot find them and cannot function correctly.
+The folder contains:  
+  
+- Search_engine: the folder containing the entire search engine java project
+- Documentation: documentation regarding the application and the analysis carried out for the project.
 
-	0) Download the ‘Search_engine’ folder from the github repository.
-	1) Download the collection from the above link and put it in ‘Search_engine\src\main\resources’. 
-	   It is not necessary to unzip the collection, do not change the name of the collection otherwise the programme will not be able to find it.
-	2) If not present, download the test query collections from the links above and place them in ‘Search_engine\src\main\resources\test’.
-	3) Open IntelliJ IDEA.
-    	4) Select 'File' from the top menu and then click on 'Open'.
-    	5) Navigate to the folder containing the project ('Search_engine' folder), select it, and click OK (or Open).
-    	6) IntelliJ will ask if you want to open the project as a new window or replace an existing one. Choose your preferred option.
-    	5) Wait for IntelliJ to index and configure the project. If prompted to import the project configuration (especially for Maven or Gradle projects), choose the option to import.
-    	6) Ensure that the correct JDK is selected:
-        	- Go to File -> Project Structure.
-        	- In the Project section, confirm the Project SDK version (program developed with version 19.0.2).
-    	7) Build the Project by selecting 'Build' -> 'Build Project' from the menu.
-    	8) To run the project, locate the main class or specific configuration you want to execute. Right-click on the main class file or Run Configuration and choose Run.
-		The project should now be running. If any dependencies are missing, IntelliJ might prompt you to download them automatically.
+
+Project Import Guide  
+  
+Note: you must not change the names of the files used, otherwise the prorgam cannot find them and cannot function correctly.  
+  
+0) Download the ‘Search_engine’ folder from the github repository.
+1) Download the collection from the above link and put it in ‘Search_engine\src\main\resources’. 
+   It is not necessary to unzip the collection, do not change the name of the collection otherwise the programme will not be able to find it.
+2) If not present, download the test query collections from the links above and place them in ‘Search_engine\src\main\resources\test’.
+3) Open IntelliJ IDEA.
+4) Select 'File' from the top menu and then click on 'Open'.
+5) Navigate to the folder containing the project ('Search_engine' folder), select it, and click OK (or Open).
+6) IntelliJ will ask if you want to open the project as a new window or replace an existing one. Choose your preferred option.
+5) Wait for IntelliJ to index and configure the project. If prompted to import the project configuration (especially for Maven or Gradle projects), choose the option to import.
+6) Ensure that the correct JDK is selected:
+     - Go to File -> Project Structure.
+     - In the Project section, confirm the Project SDK version (program developed with version 19.0.2).
+7) Build the Project by selecting 'Build' -> 'Build Project' from the menu.
+8) To run the project, locate the main class or specific configuration you want to execute. Right-click on the main class file or Run Configuration and choose Run.
+   The project should now be running. If any dependencies are missing, IntelliJ might prompt you to download them automatically.
 
 
 Project Execution Guide
