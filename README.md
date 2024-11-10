@@ -1,5 +1,5 @@
 # Project_MIRCV
-DESCRIPTION  
+**DESCRIPTION**  
   
 Folder for the Multimedia Information Retrieval and Computer Vision project at the University of Pisa (year 2022-2023).
 This project consists of a local search engine developed completely in java that can operate on a collection of documents locally. 
@@ -63,76 +63,76 @@ Note: you must not change the names of the files used, otherwise the prorgam can
    The project should now be running. If any dependencies are missing, IntelliJ might prompt you to download them automatically.
 
 
-Project Execution Guide
-	
-	Example of basic operations.
-	0) Run the program.
-	1) A textual interface will be shown with various options divided into 3 categories:
-		- Functionalities: includes the main functionalities of the search engine;
-		- Statistics: includes the options to show the general statistics of the collection and data structures of the inverted index; 
-		- Test: includes options for testing and verifying all the various search engine functionalities.
-	   To select an option, enter the corresponding character and press enter.
-	2) Press ‘i’ and send and then choose options for the various flags by typing ‘y’ to enable and ‘n’ to disable the corresponding flag. 
-	   Examples of settings:
-		- Base case: 
-			- is stopwords removal enabled : false
-			- is compression enabled       : false
-			- is scoring BM25 enabled      : false
-			- is skipping enabled          : false
-			- is dynamic pruning enabled   : false
-			- delete partial file enabled  : false
-			- whole PL in memory enabled   : false
-		- Only Stopwords removal:
-			- is stopwords removal enabled : true
-			- is compression enabled       : false
-			- is scoring BM25 enabled      : false
-			- is skipping enabled          : false
-			- is dynamic pruning enabled   : false
-			- delete partial file enabled  : false
-			- whole PL in memory enabled   : false 
-		- All functionality enabled:
-			- is stopwords removal enabled : true
-			- is compression enabled       : true
-			- is scoring BM25 enabled      : false
-			- is skipping enabled          : true
-			- is dynamic pruning enabled   : true
-			- delete partial file enabled  : true
-			- whole PL in memory enabled   : true
-	   Note: 
-		- Partial inverted indexes, contained in the ‘partial’ folder, are no longer used once the complete inverted index is finished, so it is recommended to save space to enable 
-		  the flag to delete them once the inverted index is finished. The presence or absence of these partial files will not affect the operation of the search engine, 
-		  it will only change the amount of disk used by the programme.
-		- The scoring flag only changes the type of scoring function used: if ‘true’ it uses BM25 and if ‘false’ it uses TFIDF.
-	3) Wait for the program to finish creating the inverted index and all structures necessary for operation. This can take more than 30 minutes.
-	4) Once finished, the text interface will be displayed again.
-	5) Try out as many queries as you like. For each query, follow this procedure:
-		- Type ‘q’ and enter.
-		- Enter the query you want and press enter.
-		- Choose the query type: ‘d’ for disjunctive and ‘c’ for conjunctive and press enter.
-		- Choose the number of results you want to see: 10 or 20.
-		- The ordered results and the query execution time will be displayed.
+Project Execution Guide  
+  
+Example of basic operations.
+0) Run the program.
+1) A textual interface will be shown with various options divided into 3 categories:
+      - Functionalities: includes the main functionalities of the search engine;
+      - Statistics: includes the options to show the general statistics of the collection and data structures of the inverted index; 
+      - Test: includes options for testing and verifying all the various search engine functionalities.
+   To select an option, enter the corresponding character and press enter.
+2) Press ‘i’ and send and then choose options for the various flags by typing ‘y’ to enable and ‘n’ to disable the corresponding flag. 
+   Examples of settings:
+   - Base case: 
+      - is stopwords removal enabled : false
+      - is compression enabled       : false
+      - is scoring BM25 enabled      : false
+      - is skipping enabled          : false
+      - is dynamic pruning enabled   : false
+      - delete partial file enabled  : false
+      - whole PL in memory enabled   : false
+    - Only Stopwords removal:
+      - is stopwords removal enabled : true
+      - is compression enabled       : false
+      - is scoring BM25 enabled      : false
+      - is skipping enabled          : false
+      - is dynamic pruning enabled   : false
+      - delete partial file enabled  : false
+      - whole PL in memory enabled   : false 
+    - All functionality enabled:
+      - is stopwords removal enabled : true
+      - is compression enabled       : true
+      - is scoring BM25 enabled      : false
+      - is skipping enabled          : true
+      - is dynamic pruning enabled   : true
+      - delete partial file enabled  : true
+      - whole PL in memory enabled   : true
+    Note: 
+      - Partial inverted indexes, contained in the ‘partial’ folder, are no longer used once the complete inverted index is finished, so it is recommended to save space to enable 
+        the flag to delete them once the inverted index is finished. The presence or absence of these partial files will not affect the operation of the search engine, 
+	it will only change the amount of disk used by the programme.
+      - The scoring flag only changes the type of scoring function used: if ‘true’ it uses BM25 and if ‘false’ it uses TFIDF.
+3) Wait for the program to finish creating the inverted index and all structures necessary for operation. This can take more than 30 minutes.
+4) Once finished, the text interface will be displayed again.
+5) Try out as many queries as you like. For each query, follow this procedure:
+   - Type ‘q’ and enter.
+   - Enter the query you want and press enter.
+   - Choose the query type: ‘d’ for disjunctive and ‘c’ for conjunctive and press enter.
+   - Choose the number of results you want to see: 10 or 20.
+   - The ordered results and the query execution time will be displayed.
+6) Close the programme by typing ‘x’ and pressing enter.
 
-	6) Close the programme by typing ‘x’ and pressing enter.
-
-	Tips:
-		- Please note that you can also change flags with f but depending on the change it may take several minutes and even the whole inverted index rebuild. 
-		  It is advisable to use this functionality only for the flags ‘dynamic pruning’, ‘delete partial file’ and ‘whole PL in memory’, which make non-burdensome changes. 
-		  Even changing the scoring function can be done without too much trouble, due to the recalculation of the Term Upper Bounds, which should not take more than a few minutes.
-		  For all other flags changes, it is recommended to exit the program with ‘x’, then re-run the program and select ‘i’ and enter the new flag values. 
-		- If once the inverted index has been made, it is desired to make another one with new flag values, it is recommended to exit the program with ‘x’, then re-run the program
- 		  and select ‘i’ and enter the new flag values.
-		- If you want to keep several flags settings so that you can work with them without having to rebuild the inverted index each time, I recommend saving the contents of the 
-		  ‘merged’ and ‘upperBound’ folders and the ‘collectionStatistics’ and ‘flags’ files. Save these files of a configuration, to make the search engine run with those settings,
- 		  simply copy those folders and files into the ‘resources’ folder and then start the program. 
+Tips:  
+   - Please note that you can also change flags with f but depending on the change it may take several minutes and even the whole inverted index rebuild. 
+     It is advisable to use this functionality only for the flags ‘dynamic pruning’, ‘delete partial file’ and ‘whole PL in memory’, which make non-burdensome changes. 
+     Even changing the scoring function can be done without too much trouble, due to the recalculation of the Term Upper Bounds, which should not take more than a few minutes.
+     For all other flags changes, it is recommended to exit the program with ‘x’, then re-run the program and select ‘i’ and enter the new flag values. 
+   - If once the inverted index has been made, it is desired to make another one with new flag values, it is recommended to exit the program with ‘x’, then re-run the program and select ‘i’
+     and enter the new flag values.
+   - If you want to keep several flags settings so that you can work with them without having to rebuild the inverted index each time, I recommend saving the contents of the ‘merged’ and 
+     ‘upperBound’ folders and the ‘collectionStatistics’ and ‘flags’ files. Save these files of a configuration, to make the search engine run with those settings, simply copy those 
+     folders and files into the ‘resources’ folder and then start the program. 
 	    
 
-Developer's notes
-	The work related to the university examination has been done and the project is completed. 
-	There may be updates or improvements to the project in the future, but nothing is planned for now.
+Developer's notes  
+  
+The work related to the university examination has been done and the project is completed. 
+There may be updates or improvements to the project in the future, but nothing is planned for now.
 
-Credits
-	This project was realised in collaboration with Martina Marino and Roberta Matrella, who were fundamental to the implementation and correct functioning of the search engine code 
-	when this repository was started. 
+Credits  
+  
+This project was realised in collaboration with Martina Marino and Roberta Matrella, who were fundamental to the implementation and correct functioning of the search engine code when this repository was started. 
 
-Developers:
-	- Alessandro Diana
+Developers:  
+- Alessandro Diana
