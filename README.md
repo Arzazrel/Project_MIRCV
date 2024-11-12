@@ -147,7 +147,8 @@ There may be updates or improvements to the project in the future, but nothing i
 
 **Credits**  
   
-This project was realised in collaboration with Martina Marino and Roberta Matrella, who were fundamental to the implementation and correct functioning of the search engine code when this repository was started. 
+This project was realised in collaboration with Martina Marino and Roberta Matrella, who were fundamental to the implementation and correct functioning of the search engine code when this repository was started.  
+Code added after the first commit and code changes made in commits after the first in this repository are the work of Alessandro Diana.  
 
 
 **Developers:**  
