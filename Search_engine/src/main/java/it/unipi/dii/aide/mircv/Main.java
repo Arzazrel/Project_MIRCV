@@ -381,7 +381,9 @@ public class Main
     private static void makeIndexing(boolean takeFlags, Scanner sc) throws IOException
     {
         long startTime, endTime;        // variables to calculate the execution time
+        long startTimeIndexing, endTimeIndexing;        // variables to calculate the execution time
 
+        startTimeIndexing = System.currentTimeMillis(); // start time to Indexing
         file_cleaner();                 // delete all created files
         // take user choice for the flags
         if (takeFlags)
@@ -424,6 +426,8 @@ public class Main
             delete_tempFiles();             // delete the partial files of the indexing
             printLoad("Partial file deleted.");
         }
+        endTimeIndexing = System.currentTimeMillis();   // end time of indexing
+        printTime("\nInverted Index made in " + (endTimeIndexing - startTimeIndexing) + " ms (" + formatTime(startTimeIndexing, endTimeIndexing) + ")");
     }
 
     /**
