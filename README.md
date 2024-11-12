@@ -3,9 +3,12 @@
   
 Folder for the Multimedia Information Retrieval and Computer Vision project at the University of Pisa (year 2022-2023).  
 This project was developed using IntelliJ IDEA 2023.2 (Community Edition) with Oracle OpenJDK version 19.0.2.  
+
 This project consists of a local search engine developed completely in java that can operate on a collection of documents locally.  
 Given a correctly formatted collection of documents, the program will create an inverted index, and other supporting data structures, which will allow textual queries, both conjunctive and disjunctive, to be performed on that collection.  
-The program will implement several features to improve the information retrieval in the collection. These include: stopword removal, stemming, compression (of DIDs and term frequencies of posting lists), skipping with implementation of the MaxScore as a dynamic pruning algorithm.   
+The program will implement several features to improve the information retrieval in the collection.  
+These include: stopword removal, stemming, compression (of DIDs and term frequencies of posting lists), skipping with implementation of the MaxScore as a dynamic pruning algorithm.   
+
 In addition, several testing features are implemented such as:  
 - execution time tests can be performed on test queries passed in with correctly formatted collections;
 - queries entered by the user can be repeated several times to test the average execution speed;
