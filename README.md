@@ -1,9 +1,18 @@
 # Project_MIRCV
 **DESCRIPTION**  
   
-Folder for the Multimedia Information Retrieval and Computer Vision project at the University of Pisa (year 2022-2023).
-This project consists of a local search engine developed completely in java that can operate on a collection of documents locally. 
-This project was developed using IntelliJ IDEA 2023.2 (Community Edition) with Oracle OpenJDK version 19.0.2.
+Folder for the Multimedia Information Retrieval and Computer Vision project at the University of Pisa (year 2022-2023).  
+This project was developed using IntelliJ IDEA 2023.2 (Community Edition) with Oracle OpenJDK version 19.0.2.  
+This project consists of a local search engine developed completely in java that can operate on a collection of documents locally.  
+Given a correctly formatted collection of documents, the program will create an inverted index, and other supporting data structures, which will allow textual queries, both conjunctive and disjunctive, to be performed on that collection.  
+The program will implement several features to improve the information retrieval in the collection. These include: stopword removal, stemming, compression (of DIDs and term frequencies of posting lists), skipping with implementation of the MaxScore as a dynamic pruning algorithm.   
+In addition, several testing features are implemented such as:  
+- execution time tests can be performed on test queries passed in with correctly formatted collections;
+- queries entered by the user can be repeated several times to test the average execution speed;
+- various statistics may be calculated and displayed concerning the document collection (such as number of documents, average length of documents, number of poorly formatted documents, etc.);
+- many of the techniques used can be tested individually (such as TUB calculation per term, compression and decompression testing and analysis, etc.);
+- the size of all data structures saved on disk by the program can be shown;
+- read tests can be carried out on the data structures saved on disk, which will show the data and read times.
 
 
 **COLLECTION LINKS**  
@@ -59,7 +68,7 @@ Note: you must not change the names of the files used, otherwise the prorgam can
      - Go to File -> Project Structure.
      - In the Project section, confirm the Project SDK version (program developed with version 19.0.2).
 7) Build the Project by selecting 'Build' -> 'Build Project' from the menu.
-8) To run the project, locate the main class or specific configuration you want to execute. Right-click on the main class file or Run Configuration and choose Run.
+8) To run the project, locate the main class or specific configuration you want to execute. Right-click on the main class file or Run Configuration and choose Run. The main class in this project is the class 'Main'.
    The project should now be running. If any dependencies are missing, IntelliJ might prompt you to download them automatically.
 
 
@@ -106,7 +115,8 @@ Example of basic operations.
       - The scoring flag only changes the type of scoring function used: if ‘true’ it uses BM25 and if ‘false’ it uses TFIDF.
 3) Wait for the program to finish creating the inverted index and all structures necessary for operation. This can take more than 30 minutes.
 4) Once finished, the text interface will be displayed again.
-5) Try out as many queries as you like. For each query, follow this procedure:
+5) Try out as many queries as you like.  
+   For each query, follow this procedure:
    - Type ‘q’ and enter.
    - Enter the query you want and press enter.
    - Choose the query type: ‘d’ for disjunctive and ‘c’ for conjunctive and press enter.
@@ -131,9 +141,11 @@ Tips:
 The work related to the university examination has been done and the project is completed. 
 There may be updates or improvements to the project in the future, but nothing is planned for now.
 
+
 **Credits**  
   
 This project was realised in collaboration with Martina Marino and Roberta Matrella, who were fundamental to the implementation and correct functioning of the search engine code when this repository was started. 
+
 
 **Developers:**  
 - Alessandro Diana
