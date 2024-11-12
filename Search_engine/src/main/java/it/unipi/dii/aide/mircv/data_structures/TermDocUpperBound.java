@@ -174,39 +174,39 @@ public class TermDocUpperBound
     /**
      * Function to store the whole termUpperBoundTable into disk
      */
-    static void storeTermUpperBoundTableIntoDisk()
+    public static void storeTermUpperBoundTableIntoDisk()
     {
         ArrayList<String> termsList;    // array list for all the term
-        long startTime,endTime;         // variables to calculate the execution time
+        long startTime, endTime;        // variables to calculate the execution time
 
         printLoad("Storing terms upper bound into disk...");
 
-        startTime = System.currentTimeMillis();         // start time to store all term upper bound
-        try (RandomAccessFile raf = new RandomAccessFile(TERMUPPERBOUND_FILE, "rw");
-             FileChannel channel = raf.getChannel())
+        startTime = System.currentTimeMillis();  // start time to store all term upper bound
+        try (FileOutputStream fos = new FileOutputStream(TERMUPPERBOUND_FILE);
+             BufferedOutputStream bos = new BufferedOutputStream(fos);
+             DataOutputStream dos = new DataOutputStream(bos))
         {
-            MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_WRITE, channel.size(), (long) DOUBLE_BYTES * termUpperBoundTable.size());
-            // Buffer not created
-            if(buffer == null)
-                return;
-
-            termsList = new ArrayList<>(QueryProcessor.getDictionary().keySet());   // read all the term of the dictionary
-            Collections.sort(termsList);                        // order the dictionary term list
+            // read all the term of the dictionary
+            termsList = new ArrayList<>(QueryProcessor.getDictionary().keySet());
+            Collections.sort(termsList);                                // order the dictionary term list
 
             // scan all document elements of the termUpperBoundTable
             for (String term : termsList)
             {
                 double termUpperBound = termUpperBoundTable.get(term);  // get TUB related to current term
-                buffer.putDouble(termUpperBound);       // write termUpperBoundTable into file
-                if(debug)
+                dos.writeDouble(termUpperBound);                        // write termUpperBoundTable into file
+                if (debug)
                     printDebug("write the term upper bound: " + termUpperBound);
             }
             printLoad("Stored " + termUpperBoundTable.size() + " terms upper bound into disk...");
+
         } catch (IOException e) {
             e.printStackTrace();
         }
-        endTime = System.currentTimeMillis();           // end time to store all term upper bound
-        printTime("*** Stored all term upper bound( " + termUpperBoundTable.size() + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+        endTime = System.currentTimeMillis();       // end time to store all term upper bound
+        printTime("*** Stored all term upper bound (" + termUpperBoundTable.size() + " terms) in " +
+                (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
 
     /**
@@ -217,39 +217,42 @@ public class TermDocUpperBound
         ArrayList<String> termsList;    // array list for all the term
         double currentTermUB = 0;       // var to contain the term upper bound read from disk
         int count = 0;                  // counter for the position of the terms list
-        long startTime,endTime;         // variables to calculate the execution time
+        long startTime, endTime;        // variables to calculate the execution time
 
-        printLoad("Loading terms upper bound into disk...");
+        printLoad("Loading terms upper bound from disk...");
 
-        termsList = new ArrayList<>(QueryProcessor.getDictionary().keySet());   // retrieve all the term of the dictionary
+        // retrieve all the term of the dictionary
+        termsList = new ArrayList<>(QueryProcessor.getDictionary().keySet());
         Collections.sort(termsList);    // order the list
         termUpperBoundTable.clear();    // free the hash map table
 
-        startTime = System.currentTimeMillis();         // start time to load all term upper bound
-        try (
-                RandomAccessFile raf = new RandomAccessFile(TERMUPPERBOUND_FILE, "r");
-                FileChannel channel = raf.getChannel()
-        ) {
-            MappedByteBuffer termUBBuffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
-            // size control check
-            if (termsList.size() != (channel.size()/DOUBLE_BYTES) )
+        startTime = System.currentTimeMillis();  // start time to load all term upper bound
+        try (FileInputStream fis = new FileInputStream(TERMUPPERBOUND_FILE);
+             BufferedInputStream bis = new BufferedInputStream(fis);
+             DataInputStream dis = new DataInputStream(bis))
+        {
+            // Size check to ensure that the file is consistent with the number of terms
+            long expectedFileSize = (long) termsList.size() * DOUBLE_BYTES;
+            if (expectedFileSize != fis.getChannel().size())
             {
-                printError("The number of term upper bound stored in the file into disk is different from the number of terms in the dictionary.");
+                printError("The number of term upper bound entries in the file on disk is different from the number of terms in the dictionary.");
                 return;     // exit from the method
             }
+
             // for to read all term upper bound stored into disk and put into termUpperBoundTable
-            for (int i = 0; i < channel.size(); i += DOUBLE_BYTES)
+            for (String term : termsList)
             {
-                currentTermUB = termUBBuffer.getDouble();       // retrieve the current term upper bound
-                termUpperBoundTable.put(termsList.get(count), currentTermUB);   // put into hash map table
-                count++;        // update the counter for the current term position in arraylist
+                currentTermUB = dis.readDouble();               // retrieve the current term upper bound
+                termUpperBoundTable.put(term, currentTermUB);   // put into hash map table
+                count++;                            // update the counter for the current term position in arraylist
             }
-        } catch (IOException e)
-        {
+        } catch (IOException e) {
             e.printStackTrace();
         }
-        endTime = System.currentTimeMillis();           // end time to load all term upper bound
-        printTime("*** Loaded all term upper bound( " + termsList.size() + " term) in " + (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
+
+        endTime = System.currentTimeMillis();  // end time to load all term upper bound
+        printTime("*** Loaded all term upper bound (" + termsList.size() + " terms) in " +
+                (endTime - startTime) + " ms (" + formatTime(startTime, endTime) + ")");
     }
     // ---------------- end: read/write into disk functions ----------------
 }
