@@ -78,6 +78,7 @@ Note: you must not change the names of the files used, otherwise the prorgam can
 **Project Execution Guide**  
   
 Example of basic operations.  
+  
 0) Run the program.
 1) A textual interface will be shown with various options divided into 3 categories:
       - Functionalities: includes the main functionalities of the search engine;
